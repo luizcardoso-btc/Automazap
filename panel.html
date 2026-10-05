@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Automação de DMs</title>
+<style>
+:root{--bg:#f6f8f7;--card:#fff;--tx:#0f172a;--mut:#64748b;--br:#e2e8f0;--pr:#15803d;--prt:#fff;--er:#dc2626;--wa:#b45309;--in:#eef2f1}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b1210;--card:#121b18;--tx:#e8f0ec;--mut:#8aa097;--br:#243430;--pr:#22c55e;--prt:#052e16;--er:#f87171;--wa:#fbbf24;--in:#1a2622}}
+:root[data-theme=dark]{--bg:#0b1210;--card:#121b18;--tx:#e8f0ec;--mut:#8aa097;--br:#243430;--pr:#22c55e;--prt:#052e16;--er:#f87171;--wa:#fbbf24;--in:#1a2622}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 4px}h3{font-size:15px;margin:0 0 8px}
+.mut{color:var(--mut)}.sm{font-size:12.5px}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--br);border-radius:9px;background:var(--card)}
+textarea{resize:vertical;min-height:70px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+label.ck{display:flex;gap:8px;align-items:center;font-weight:500;margin:8px 0}label.ck input{width:auto}
+.btn{border:1px solid var(--br);background:var(--card);padding:8px 13px;border-radius:9px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--pr)}.btn.p{background:var(--pr);color:var(--prt);border-color:var(--pr)}.btn.d{color:var(--er)}.btn.s{padding:5px 9px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.k{background:var(--card);border:1px solid var(--br);border-radius:12px;padding:12px}.k b{display:block;font-size:24px}.k small{color:var(--mut)}
+.layout{display:flex;min-height:100vh}
+aside{width:210px;background:var(--card);border-right:1px solid var(--br);padding:16px 10px;position:sticky;top:0;height:100vh;flex-shrink:0}
+aside .logo{font-weight:800;padding:4px 10px 14px;font-size:17px}aside .logo span{color:var(--pr)}
+aside a{display:block;padding:9px 12px;border-radius:9px;cursor:pointer;font-weight:600;color:var(--mut);margin-bottom:2px}
+aside a.on{background:var(--in);color:var(--tx)}
+main{flex:1;padding:22px;max-width:980px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--in);color:var(--mut)}
+.tag.ok{background:#dcfce7;color:#166534}.tag.er{background:#fee2e2;color:#991b1b}.tag.wa{background:#fef3c7;color:#92400e}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .tag.ok{background:#14532d;color:#bbf7d0}:root:not([data-theme=light]) .tag.er{background:#7f1d1d;color:#fecaca}:root:not([data-theme=light]) .tag.wa{background:#78350f;color:#fde68a}}
+.flow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--br)}.flow:first-child{border-top:0}
+.kw{display:inline-block;background:var(--in);border-radius:6px;padding:1px 7px;margin:2px 3px 0 0;font-size:12.5px}
+.chat{display:grid;grid-template-columns:260px 1fr;gap:12px}
+.list{max-height:70vh;overflow:auto}.ct{padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent}.ct:hover,.ct.on{background:var(--in)}
+.ct b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msgs{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:4px}
+.bub{max-width:80%;padding:8px 11px;border-radius:14px;white-space:pre-wrap;word-break:break-word;background:var(--in)}
+.bub.out{align-self:flex-end;background:var(--pr);color:var(--prt)}.bub.err{outline:2px solid var(--er)}
+.bub small{display:block;opacity:.75;font-size:11px;margin-top:3px}
+.phone{max-width:380px;margin:0 auto}
+.qr{display:inline-block;border:1px solid var(--pr);color:var(--pr);border-radius:99px;padding:4px 11px;margin:6px 6px 0 0;font-size:13px;cursor:pointer;background:var(--card)}
+.lk{display:inline-block;margin-top:6px;border-radius:9px;padding:6px 12px;font-weight:700;font-size:13px;background:var(--card);color:var(--pr);border:1px solid var(--br)}
+.mo{position:fixed;inset:0;background:#0007;display:none;place-items:start center;padding:24px 12px;overflow:auto;z-index:20}
+.mb{background:var(--card);border-radius:16px;padding:18px;width:100%;max-width:680px;border:1px solid var(--br)}
+.step{border:1px solid var(--br);border-radius:12px;padding:12px;margin:10px 0;background:var(--bg)}
+.sub{display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;margin-top:6px}
+.sub2{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:6px}
+code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--in);padding:2px 6px;border-radius:6px;word-break:break-all}
+#auth{min-height:100vh;display:grid;place-items:center;padding:16px}#auth .card{width:100%;max-width:360px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--pr);color:var(--prt);padding:11px 18px;border-radius:12px;font-weight:700;z-index:50;opacity:0;transition:opacity .3s;pointer-events:none}
+@media(max-width:760px){aside{position:fixed;bottom:0;top:auto;left:0;right:0;width:auto;height:auto;display:flex;overflow:auto;border-right:0;border-top:1px solid var(--br);padding:6px;z-index:10}aside .logo{display:none}aside a{white-space:nowrap;margin:0 2px}main{padding:14px 14px 80px}.chat{grid-template-columns:1fr}.sub,.sub2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="auth"><div class="card"><h1>Automação de DMs</h1><p class="mut">Entre com a senha do painel.</p>
+<input id="pw" type="password" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
+<div class="row" style="margin-top:12px"><button class="btn p" onclick="entrar()">Entrar</button></div><p id="aerr" class="sm" style="color:var(--er)"></p></div></div>
+
+<div class="layout" id="app" style="display:none">
+<aside><div class="logo">DM<span>Bot</span></div>
+<a data-v="dash" onclick="nav('dash')">▦ Visão geral</a><a data-v="flows" onclick="nav('flows')">⚡ Fluxos</a>
+<a data-v="chats" onclick="nav('chats')">💬 Conversas</a><a data-v="sim" onclick="nav('sim')">🧪 Simulador</a><a data-v="cfg" onclick="nav('cfg')">⚙ Configurações</a></aside>
+<main><div class="top"><div id="hd"></div><div class="row"><button class="btn s" onclick="theme()">Tema</button><button class="btn s" onclick="sair()">Sair</button></div></div><div id="v"></div></main>
+</div>
+<div class="mo" id="mo" onclick="if(event.target===this)cl()"><div class="mb" id="mb"></div></div>
+<div id="toast"></div>
+
+<script>
+var $=function(i){return document.getElementById(i)};
+var E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var TOKEN=null,cur='dash',ST={},FLOWS=[],SET={},CT=[],SEL=null,MSGS=[],FL=null,SIM=[];
+function theme(){var r=document.documentElement,d=r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches);r.dataset.theme=d?'light':'dark'}
+function toast(m){var t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(function(){t.style.opacity=0},2400)}
+function mo(h){$('mb').innerHTML=h;$('mo').style.display='grid'}function cl(){$('mo').style.display='none'}
+function fdh(ms){return ms?new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}
+async function api(p,o){o=o||{};var h={'Content-Type':'application/json'};if(TOKEN)h.Authorization='Bearer '+TOKEN;
+  var r;try{r=await fetch('/api'+p,Object.assign({},o,{headers:h}))}catch(e){throw new Error('Sem conexão com o servidor.')}
+  var j={};try{j=await r.json()}catch(e){}
+  if(r.status===401&&p!=='/login'){sair();throw new Error(j.error||'Sessão expirada.')}
+  if(!r.ok)throw new Error(j.error||'Erro '+r.status);return j}
+async function entrar(){$('aerr').textContent='';try{var r=await api('/login',{method:'POST',body:JSON.stringify({senha:$('pw').value})});TOKEN=r.token;try{localStorage.setItem('dm_token',TOKEN)}catch(e){}await iniciar()}catch(e){$('aerr').textContent=e.message}}
+function sair(){TOKEN=null;try{localStorage.removeItem('dm_token')}catch(e){}$('app').style.display='none';$('auth').style.display='grid';$('pw').value=''}
+async function carregar(){var r=await Promise.all([api('/status'),api('/flows'),api('/settings')]);ST=r[0];FLOWS=r[1];SET=r[2]}
+async function iniciar(){await carregar();$('auth').style.display='none';$('app').style.display='flex';nav(cur)}
+function nav(v){cur=v;document.querySelectorAll('aside a[data-v]').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});draw()}
+function head(t,s){$('hd').innerHTML='<h1>'+t+'</h1><div class="mut sm">'+(s||'')+'</div>'}
+function draw(){var f={dash:vDash,flows:vFlows,chats:vChats,sim:vSim,cfg:vCfg}[cur];$('v').innerHTML=f()}
+
+/* ---------- visão geral ---------- */
+function vDash(){head('Visão geral','Resumo do robô de mensagens.');
+  var av='';
+  if(!ST.persistente)av+='<div class="card" style="border-color:var(--er)"><b style="color:var(--er)">⚠ Dados não ficam guardados.</b><br><span class="mut">No Railway, crie um Volume e conecte a este serviço. Sem isso, fluxos e conversas somem a cada atualização.</span></div>';
+  var ig=ST.instagram||{};if(!(ig.token&&ig.appSecret&&ig.verifyToken))av+='<div class="card" style="border-color:var(--wa)"><b>Instagram ainda não conectado.</b><br><span class="mut">Faltam variáveis no Railway ('+[!ig.token?'IG_ACCESS_TOKEN':'',!ig.appSecret?'META_APP_SECRET':'',!ig.verifyToken?'META_VERIFY_TOKEN':''].filter(Boolean).join(', ')+'). Veja a aba Configurações. Enquanto isso, teste tudo no Simulador.</span></div>';
+  if(ST.erros_24h)av+='<div class="card" style="border-color:var(--er)"><b>'+ST.erros_24h+' mensagem(ns) com erro de envio nas últimas 24h.</b> <a style="color:var(--pr);cursor:pointer;font-weight:700" onclick="nav(\'chats\')">Ver conversas</a></div>';
+  return av+'<div class="grid"><div class="k"><b>'+ST.contatos+'</b><small>Pessoas que já falaram</small></div><div class="k"><b>'+ST.precisam_humano+'</b><small>Esperando atendente</small></div><div class="k"><b>'+ST.fluxos_ativos+'</b><small>Fluxos ativos</small></div></div>'}
+
+/* ---------- fluxos ---------- */
+var ACT={'':'Só responder','handoff':'Chamar atendente (pausa o robô)','silenciar':'Parar de responder a esta pessoa'},MODO={contem:'Contém a palavra',exato:'Mensagem igual',comeca:'Começa com'};
+function vFlows(){head('Fluxos','Cada fluxo responde quando a mensagem tiver uma das palavras-chave. Acentos e maiúsculas não importam.');
+  return '<div class="row" style="margin-bottom:12px"><button class="btn p" onclick="editar()">+ Novo fluxo</button></div><div class="card">'+(FLOWS.length?FLOWS.map(function(f){
+    return '<div class="flow"><div style="min-width:0"><b>'+E(f.name)+'</b> '+(f.active?'':'<span class="tag">desligado</span> ')+(f.on_comment?'<span class="tag ok">comentários</span> ':'')+(f.action?'<span class="tag wa">'+(f.action==='handoff'?'atendente':'silenciar')+'</span> ':'')+'<span class="tag">prioridade '+f.priority+'</span><br>'+f.keywords.map(function(k){return '<span class="kw">'+E(k)+'</span>'}).join('')+'<div class="mut sm" style="margin-top:4px">'+E((f.steps[0]||{}).text||'').slice(0,110)+'…</div></div><div class="row" style="flex-shrink:0"><button class="btn s" onclick="editar('+f.id+')">Editar</button><button class="btn s" onclick="testarFluxo('+f.id+')">Testar</button></div></div>'}).join(''):'<p class="mut">Nenhum fluxo ainda.</p>')+'</div>'}
+function novoFluxo(){return {id:null,name:'',active:true,priority:10,match_mode:'contem',keywords:[],on_comment:false,action:'',steps:[{type:'text',text:''}]}}
+function editar(id){FL=id?JSON.parse(JSON.stringify(FLOWS.filter(function(f){return f.id===id})[0])):novoFluxo();FL.action=FL.action||'';FL.kwText=FL.keywords.join('\n');formFluxo()}
+function formFluxo(){
+  var opts=function(o,sel){return Object.keys(o).map(function(k){return '<option value="'+E(k)+'"'+(String(sel)===k?' selected':'')+'>'+E(o[k])+'</option>'}).join('')};
+  var fo=function(sel){return FLOWS.filter(function(f){return f.id!==FL.id}).map(function(f){return '<option value="'+f.id+'"'+(Number(sel)===f.id?' selected':'')+'>'+E(f.name)+'</option>'}).join('')};
+  var steps=FL.steps.map(function(p,i){
+    var s='<div class="step"><div class="row" style="justify-content:space-between"><b>Mensagem '+(i+1)+'</b><span class="row"><select style="width:auto" onchange="mudaTipo('+i+',this.value)"><option value="text"'+(p.type==='text'?' selected':'')+'>Texto</option><option value="button"'+(p.type==='button'?' selected':'')+'>Texto + botão com link</option><option value="quick"'+(p.type==='quick'?' selected':'')+'>Texto + respostas rápidas</option></select>'+(FL.steps.length>1?'<button class="btn s d" onclick="rmPasso('+i+')">Remover</button>':'')+'</span></div>'
+      +'<textarea oninput="FL.steps['+i+'].text=this.value" placeholder="Texto da mensagem. Use {{nome}}, {{site}} e {{telefone}}.">'+E(p.text)+'</textarea>';
+    if(p.type==='button')s+=(p.buttons||[]).map(function(b,j){return '<div class="sub"><input placeholder="Texto (até 20)" maxlength="20" value="'+E(b.title)+'" oninput="FL.steps['+i+'].buttons['+j+'].title=this.value"><input placeholder="https://… ou {{site}}" value="'+E(b.url)+'" oninput="FL.steps['+i+'].buttons['+j+'].url=this.value"><button class="btn s" onclick="rmSub('+i+',\'buttons\','+j+')">✕</button></div>'}).join('')+((p.buttons||[]).length<3?'<button class="btn s" style="margin-top:6px" onclick="addSub('+i+',\'buttons\')">+ botão</button>':'');
+    if(p.type==='quick')s+=(p.replies||[]).map(function(r,j){return '<div class="sub2"><input placeholder="Texto (até 20)" maxlength="20" value="'+E(r.title)+'" oninput="FL.steps['+i+'].replies['+j+'].title=this.value"><select onchange="FL.steps['+i+'].replies['+j+'].flow_id=Number(this.value)"><option value="">Abre o fluxo…</option>'+fo(r.flow_id)+'</select><button class="btn s" onclick="rmSub('+i+',\'replies\','+j+')">✕</button></div>'}).join('')+((p.replies||[]).length<5?'<button class="btn s" style="margin-top:6px" onclick="addSub('+i+',\'replies\')">+ resposta rápida</button>':'');
+    return s+'</div>'}).join('');
+  mo('<h2>'+(FL.id?'Editar fluxo':'Novo fluxo')+'</h2>'
+    +'<label>Nome<input value="'+E(FL.name)+'" oninput="FL.name=this.value" placeholder="Ex.: Preço e como revender"></label>'
+    +'<label>Palavras-chave (uma por linha — pode ser frase, ex.: <i>quanto custa</i>)<textarea oninput="FL.kwText=this.value" placeholder="preço&#10;quanto custa&#10;valor">'+E(FL.kwText)+'</textarea></label>'
+    +'<div class="row"><div style="flex:1;min-width:180px"><label>Como procurar<select onchange="FL.match_mode=this.value">'+opts(MODO,FL.match_mode)+'</select></label></div><div style="flex:1;min-width:180px"><label>Prioridade (maior ganha)<input type="number" value="'+FL.priority+'" oninput="FL.priority=Number(this.value)"></label></div></div>'
+    +'<label>Depois de responder<select onchange="FL.action=this.value">'+opts(ACT,FL.action)+'</select></label>'
+    +'<label class="ck"><input type="checkbox"'+(FL.active?' checked':'')+' onchange="FL.active=this.checked"> Fluxo ligado</label>'
+    +'<label class="ck"><input type="checkbox"'+(FL.on_comment?' checked':'')+' onchange="FL.on_comment=this.checked"> Também responder comentários nos posts (envia a 1ª mensagem como DM, em texto)</label>'
+    +'<h3 style="margin-top:14px">Mensagens enviadas em sequência</h3>'+steps
+    +(FL.steps.length<6?'<button class="btn s" onclick="addPasso()">+ mensagem</button>':'')
+    +'<div class="row" style="margin-top:16px"><button class="btn p" onclick="salvarFluxo()">Salvar</button><button class="btn" onclick="cl()">Cancelar</button>'+(FL.id?'<button class="btn d" style="margin-left:auto" onclick="apagarFluxo()">Apagar</button>':'')+'</div>')}
+function addPasso(){FL.steps.push({type:'text',text:''});formFluxo()}
+function rmPasso(i){FL.steps.splice(i,1);formFluxo()}
+function mudaTipo(i,t){var p=FL.steps[i];p.type=t;if(t==='button'&&!p.buttons)p.buttons=[{title:'',url:'{{site}}'}];if(t==='quick'&&!p.replies)p.replies=[{title:'',flow_id:''}];formFluxo()}
+function addSub(i,k){FL.steps[i][k].push(k==='buttons'?{title:'',url:''}:{title:'',flow_id:''});formFluxo()}
+function rmSub(i,k,j){FL.steps[i][k].splice(j,1);formFluxo()}
+function corpoFluxo(){var f=FL;return {name:f.name,active:f.active,priority:f.priority,match_mode:f.match_mode,on_comment:f.on_comment,action:f.action||null,
+  keywords:String(f.kwText||'').split(/\n|,/).map(function(k){return k.trim()}).filter(Boolean),
+  steps:f.steps.map(function(p){var o={type:p.type,text:p.text};if(p.type==='button')o.buttons=p.buttons;if(p.type==='quick')o.replies=p.replies;return o})}}
+async function salvarFluxo(){try{await api(FL.id?'/flows/'+FL.id:'/flows',{method:FL.id?'PUT':'POST',body:JSON.stringify(corpoFluxo())});await carregar();cl();draw();toast('Fluxo salvo ✓')}catch(e){alert(e.message)}}
+async function apagarFluxo(){if(!confirm('Apagar o fluxo "'+FL.name+'"? Respostas rápidas que levam a ele deixam de funcionar.'))return;try{await api('/flows/'+FL.id,{method:'DELETE'});await carregar();cl();draw();toast('Fluxo apagado')}catch(e){alert(e.message)}}
+function testarFluxo(id){var f=FLOWS.filter(function(x){return x.id===id})[0];SIM=[];nav('sim');if(f&&f.keywords[0])simular(f.keywords[0])}
+
+/* ---------- conversas ---------- */
+async function vChatsLoad(){CT=await api('/contatos');if(SEL){try{MSGS=await api('/contatos/'+SEL+'/mensagens')}catch(e){}}draw()}
+function vChats(){head('Conversas','Quem falou com o @ e o que o robô respondeu.');
+  if(!CT.length&&!vChats.l){vChats.l=1;vChatsLoad().then(function(){vChats.l=0});return '<p class="mut">Carregando…</p>'}
+  var c=CT.filter(function(x){return x.id===SEL})[0];
+  var lista=CT.length?CT.map(function(x){return '<div class="ct'+(x.id===SEL?' on':'')+'" onclick="abrir('+x.id+')"><b>@'+E(x.username||x.id)+(x.needs_human?' <span class="tag wa">atendente</span>':'')+'</b><span class="mut sm">'+E((x.last_text||'').slice(0,40))+'</span><br><span class="mut sm">'+fdh(x.last_at)+'</span></div>'}).join(''):'<p class="mut">Ninguém falou ainda.</p>';
+  var dir='<p class="mut">Escolha uma conversa.</p>';
+  if(c){var aberta=Date.now()-c.last_inbound_at<86400e3,pausado=c.bot_paused_until>Date.now();
+    dir='<div class="row" style="justify-content:space-between"><b>@'+E(c.username||c.id)+'</b>'+(pausado?'<button class="btn s" onclick="retomar('+c.id+')">▶ Religar robô</button>':'<span class="tag ok">robô ligado</span>')+'</div><div class="msgs" id="msgs">'+MSGS.map(function(m){return '<div class="bub'+(m.direction==='out'?' out':'')+(m.status==='erro'?' err':'')+'">'+E(m.text)+'<small>'+fdh(m.created_at)+(m.kind!=='texto'?' · '+E(m.kind):'')+(m.status==='erro'?' · ERRO: '+E(m.error):'')+'</small></div>'}).join('')+'</div>'
+      +(aberta?'<div class="row" style="margin-top:8px"><input id="resp" placeholder="Responder como pessoa…" onkeydown="if(event.key===\'Enter\')responder('+c.id+')" style="flex:1"><button class="btn p" onclick="responder('+c.id+')">Enviar</button></div>':'<p class="mut sm" style="margin-top:8px">Mais de 24h desde a última mensagem dela: o Instagram não permite responder agora.</p>')}
+  return '<div class="row" style="margin-bottom:10px"><button class="btn s" onclick="vChatsLoad()">↻ Atualizar</button></div><div class="chat"><div class="card list">'+lista+'</div><div class="card">'+dir+'</div></div>'}
+async function abrir(id){SEL=id;MSGS=await api('/contatos/'+id+'/mensagens');draw();var m=$('msgs');if(m)m.scrollTop=m.scrollHeight}
+async function retomar(id){try{await api('/contatos/'+id+'/retomar',{method:'POST'});await vChatsLoad();toast('Robô religado ✓')}catch(e){alert(e.message)}}
+async function responder(id){var t=$('resp').value.trim();if(!t)return;try{await api('/contatos/'+id+'/responder',{method:'POST',body:JSON.stringify({texto:t})});await vChatsLoad();toast('Enviado ✓')}catch(e){alert(e.message)}}
+
+/* ---------- simulador ---------- */
+function vSim(){head('Simulador','Teste as respostas sem enviar nada ao Instagram.');
+  var bol=SIM.map(function(x){return x.me?'<div class="bub out">'+E(x.t)+'</div>':'<div class="bub">'+E(x.p.text)+(x.p.buttons?'<div>'+x.p.buttons.map(function(b){return '<span class="lk">'+E(b.title)+'</span> '}).join('')+'</div>':'')+(x.p.replies?'<div>'+x.p.replies.map(function(r){return '<span class="qr" data-p="FLOW:'+Number(r.flow_id)+'" data-t="'+E(r.title)+'" onclick="simQr(this)">'+E(r.title)+'</span>'}).join('')+'</div>':'')+'</div>'}).join('');
+  return '<div class="card phone"><div class="msgs" style="min-height:260px" id="sm">'+(bol||'<p class="mut sm">Digite algo como <i>qual o preço?</i></p>')+'</div><div class="row" style="margin-top:8px"><input id="st" placeholder="Mensagem…" style="flex:1" onkeydown="if(event.key===\'Enter\')simular()"><button class="btn p" onclick="simular()">Enviar</button></div><label class="ck"><input type="checkbox" id="sc"> Simular como comentário no post</label><div class="row"><button class="btn s" onclick="SIM=[];draw()">Limpar</button></div><p id="sr" class="mut sm"></p></div>'}
+function simQr(el){simular('',el.dataset.p,el.dataset.t)}
+async function simular(txt,payload,rotulo){
+  var t=txt!==undefined&&txt!==''?txt:($('st')?$('st').value.trim():'');if(!t&&!payload)return;var com=$('sc')&&$('sc').checked&&!payload;
+  SIM.push({me:1,t:rotulo||t});
+  try{var r=await api('/simular',{method:'POST',body:JSON.stringify({texto:t,payload:payload||null,comentario:com})});
+    r.respostas.forEach(function(p){SIM.push({p:p})});draw();
+    var rs=r.resultado||{};$('sr').textContent=rs.acao==='respondeu'?'Fluxo usado: '+rs.fluxo:'Sem resposta ('+(rs.motivo||rs.acao)+')';
+    var m=$('sm');if(m)m.scrollTop=m.scrollHeight}catch(e){alert(e.message)}}
+
+/* ---------- configurações ---------- */
+function vCfg(){head('Configurações','Textos padrão, limites e conexão com o Instagram.');
+  var ig=ST.instagram||{},ok=function(b){return b?'<span class="tag ok">ok</span>':'<span class="tag er">falta</span>'};
+  return '<div class="card"><h3>Mensagens</h3>'
+    +'<label>Link do site (usado em {{site}})<input id="c_site_url" value="'+E(SET.site_url)+'"></label>'
+    +'<label>Telefone de suporte (usado em {{telefone}})<input id="c_telefone" value="'+E(SET.telefone)+'"></label>'
+    +'<label class="ck"><input type="checkbox" id="c_fallback_enabled"'+(SET.fallback_enabled==='1'?' checked':'')+'> Responder quando nenhuma palavra-chave bater</label>'
+    +'<label>Texto da resposta padrão<textarea id="c_fallback_text">'+E(SET.fallback_text)+'</textarea></label>'
+    +'<div class="row"><div style="flex:1;min-width:160px"><label>Resposta padrão no máximo a cada (horas)<input type="number" id="c_fallback_cooldown_hours" value="'+E(SET.fallback_cooldown_hours)+'"></label></div><div style="flex:1;min-width:160px"><label>Pausa do robô ao chamar atendente (horas)<input type="number" id="c_handoff_hours" value="'+E(SET.handoff_hours)+'"></label></div><div style="flex:1;min-width:160px"><label>Máx. de respostas por pessoa por hora<input type="number" id="c_max_replies_hour" value="'+E(SET.max_replies_hour)+'"></label></div></div>'
+    +'<div class="row" style="margin-top:12px"><button class="btn p" onclick="salvarCfg()">Salvar</button></div></div>'
+    +'<div class="card"><h3>Conexão com o Instagram</h3><p class="mut sm">Variáveis do Railway: IG_ACCESS_TOKEN '+ok(ig.token)+' · META_APP_SECRET '+ok(ig.appSecret)+' · META_VERIFY_TOKEN '+ok(ig.verifyToken)+'</p>'
+    +'<p class="sm">URL do webhook (cole no app da Meta):<br><code>'+E(ST.webhook_url)+'</code></p>'
+    +'<div class="row"><button class="btn" onclick="renovar()">Renovar token do Instagram</button><button class="btn" onclick="baixar()">⬇ Backup do banco</button></div><p class="mut sm">O token do Instagram vale cerca de 60 dias. Renove antes de vencer e atualize a variável no Railway com o novo valor.</p></div>'}
+async function salvarCfg(){var ids=['site_url','telefone','fallback_text','fallback_cooldown_hours','handoff_hours','max_replies_hour'],b={};ids.forEach(function(k){b[k]=$('c_'+k).value});b.fallback_enabled=$('c_fallback_enabled').checked?'1':'0';
+  try{SET=await api('/settings',{method:'PUT',body:JSON.stringify(b)});toast('Configurações salvas ✓')}catch(e){alert(e.message)}}
+async function renovar(){try{var r=await api('/token/renovar',{method:'POST'});prompt('Novo token (válido por mais '+Math.round((r.expires_in||0)/86400)+' dias). Copie e troque IG_ACCESS_TOKEN no Railway:',r.access_token||'')}catch(e){alert(e.message)}}
+async function baixar(){try{var r=await fetch('/api/backup',{headers:{Authorization:'Bearer '+TOKEN}});if(!r.ok)throw new Error('Não consegui gerar o backup.');var b=await r.blob(),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='automacao-'+new Date().toISOString().slice(0,10)+'.db';document.body.appendChild(a);a.click();a.remove()}catch(e){alert(e.message)}}
+
+(function(){var t=null;try{t=localStorage.getItem('dm_token')}catch(e){}if(t){TOKEN=t;iniciar().catch(function(){sair()})}})();
+</script>
+</body>
+</html>
