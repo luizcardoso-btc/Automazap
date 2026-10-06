@@ -59,7 +59,19 @@ app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req,
 // ---------- Painel e API ----------
 app.use(express.json({ limit: '200kb' }));
 app.use('/api', require('./routes-api.js'));
+// Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT + mensagem de acompanhamento) e leva ao site
+app.get('/go/:token', (req, res) => {
+  let destino = null;
+  try { destino = engine.registrarClique(req.params.token); } catch (e) { console.error('[GO]', e.message); }
+  res.set('Cache-Control', 'no-store').redirect(302, destino || require('./db.js').getSetting('site_url') || '/');
+});
 app.get('/favicon.ico', (req, res) => res.sendStatus(204));
+// Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT) e leva para o site
+app.get('/go/:token', (req, res) => {
+  let destino = null;
+  try { destino = engine.registrarClique(req.params.token); } catch (e) { console.error('[GO]', e.message); }
+  res.redirect(302, destino || require('./db.js').getSetting('site_url') || '/');
+});
 app.get('/health', (req, res) => res.json({ ok: true, dados_persistentes: persistente }));
 app.get(['/', '/painel'], (req, res) => res.sendFile(path.join(__dirname, 'panel.html')));
 app.use((req, res) => res.status(404).json({ error: 'Não encontrado.' }));
@@ -67,7 +79,14 @@ app.use((req, res) => res.status(404).json({ error: 'Não encontrado.' }));
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   try { backupAgora(); } catch (e) { console.error('[BACKUP]', e.message); }
+  // Endereço público (para links rastreados): descoberto sozinho a partir do domínio do Railway, se ainda não configurado
+  const { getSetting, setSetting } = require('./db.js');
+  if (!getSetting('public_url') && process.env.RAILWAY_PUBLIC_DOMAIN) setSetting('public_url', 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN);
+  // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
+  setInterval(() => { if (ig.configurado().token) engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); }, 15000).unref();
   setInterval(() => { try { backupAgora(); limparAntigos(); } catch (e) { console.error('[BACKUP]', e.message); } }, 24 * 3600e3).unref();
+  // Agenda (mensagem após clique) e follow-ups: só com o token do Instagram configurado
+  setInterval(() => { if (process.env.IG_ACCESS_TOKEN) engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); }, 15000).unref();
   app.listen(PORT, () => console.log(`[BOT] no ar na porta ${PORT} · persistência: ${persistente ? 'SIM' : 'NÃO'}`));
 }
 module.exports = app;

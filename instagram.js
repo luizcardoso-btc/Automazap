@@ -68,6 +68,10 @@ const corta = (s, n) => String(s).slice(0, n);
 const quem = () => process.env.IG_USER_ID || 'me';
 
 function montarMensagem(passo) {
+  if (passo.type === 'video' || passo.type === 'image') {
+    // A Meta baixa o arquivo pelo link: ele precisa ser público, em https (vídeo em .mp4).
+    return { attachment: { type: passo.type, payload: { url: passo.url } } };
+  }
   if (passo.type === 'button') {
     return { attachment: { type: 'template', payload: {
       template_type: 'button', text: corta(passo.text, 640),
@@ -90,7 +94,7 @@ const sender = {
       return await chamar(`${quem()}/messages`, { recipient: destino, message: montarMensagem(passo) });
     } catch (e) {
       // Botão/respostas rápidas podem ser recusados em algumas contas: manda o texto com o link para a pessoa não ficar sem resposta.
-      if (passo.type !== 'text' && e.status === 400) {
+      if (passo.type !== 'text' && passo.type !== 'video' && passo.type !== 'image' && e.status === 400) {
         console.warn('[IG] formato rico recusado, reenviando como texto:', e.message);
         return chamar(`${quem()}/messages`, { recipient: destino, message: { text: emTexto(passo) } });
       }

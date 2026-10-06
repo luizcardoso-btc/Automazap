@@ -58,6 +58,36 @@ const MIGRACOES = [
     CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE processed (id TEXT PRIMARY KEY, at INTEGER NOT NULL);  -- evita responder duas vezes ao mesmo evento
   `),
+  // v2: funil (etiquetas, prioridade humana), links rastreados, agenda de envios e follow-ups
+  db => db.exec(`
+    ALTER TABLE contacts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';           -- JSON: etapas do funil
+    ALTER TABLE contacts ADD COLUMN human_priority INTEGER NOT NULL DEFAULT 0; -- 0 nenhuma | 1 normal | 2 alta
+    ALTER TABLE contacts ADD COLUMN followup_step INTEGER NOT NULL DEFAULT 0;  -- quantos follow-ups já foram enviados
+    ALTER TABLE contacts ADD COLUMN last_click_at INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE flows ADD COLUMN kind TEXT NOT NULL DEFAULT 'normal';          -- normal | evento | followup
+    ALTER TABLE flows ADD COLUMN event TEXT;                                   -- evento: 'clique_link'
+    ALTER TABLE flows ADD COLUMN delay_hours REAL NOT NULL DEFAULT 0;          -- followup: horas após a última mensagem da pessoa
+    ALTER TABLE flows ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';              -- etiquetas aplicadas quando o fluxo é enviado
+    ALTER TABLE flows ADD COLUMN human_priority INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE flows ADD COLUMN comment_text TEXT;                            -- texto alternativo ao responder comentário
+    CREATE TABLE links (
+      token TEXT PRIMARY KEY,
+      contact_id INTEGER NOT NULL REFERENCES contacts(id),
+      url TEXT NOT NULL,
+      clicks INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      last_click_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE agenda (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL REFERENCES contacts(id),
+      flow_id INTEGER NOT NULL,
+      run_at INTEGER NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_agenda_due ON agenda(done, run_at);
+    UPDATE settings SET value = '30' WHERE key = 'max_replies_hour' AND value = '8';  -- o funil novo envia mais mensagens por conversa
+  `),
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
@@ -68,11 +98,14 @@ for (let v = versaoAtual; v < MIGRACOES.length; v++) {
 const SETTINGS_PADRAO = {
   site_url: process.env.SITE_URL || 'https://www.nextapbrasil.com.br',
   telefone: '75 988209055',
+  public_url: process.env.PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : ''),
+  video_demo_url: '',
+  followups_enabled: '1',
   fallback_enabled: '1',
-  fallback_text: 'Oi! 👋 Sou o assistente automático da NexTap. Digite *preço* para ver como revender, *NFC* para saber como a placa funciona ou *atendente* para falar com uma pessoa.',
+  fallback_text: 'Oi! 👋 Sou o assistente automático da NexTap. Digite PREÇO para ver como revender, NFC para saber como a placa funciona ou ATENDENTE para falar com uma pessoa.',
   fallback_cooldown_hours: '24',
   handoff_hours: '12',
-  max_replies_hour: '8',
+  max_replies_hour: '30',
 };
 const insSet = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 Object.entries(SETTINGS_PADRAO).forEach(([k, v]) => insSet.run(k, v));
