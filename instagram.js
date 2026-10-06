@@ -106,6 +106,15 @@ const sender = {
   },
 };
 
+// Dados da conta dona do token: confirma que o token funciona e de qual @ ele é.
+async function conta() {
+  return chamar('me?fields=user_id,username,account_type', null, 'GET');
+}
+// Assina o app nos eventos da conta (sem isso a Meta não manda as DMs ao webhook).
+async function ativarWebhook() {
+  return chamar(`${quem()}/subscribed_apps?subscribed_fields=messages,messaging_postbacks,comments`, null, 'POST');
+}
+
 // Token do Instagram vale ~60 dias; renovar estende a validade (precisa ter pelo menos 24h de vida).
 async function renovarToken() {
   const token = process.env.IG_ACCESS_TOKEN;
@@ -116,4 +125,4 @@ async function renovarToken() {
   return JSON.parse(txt);
 }
 
-module.exports = { configurado, assinaturaValida, lerWebhook, sender, renovarToken, montarMensagem };
+module.exports = { conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, montarMensagem };

@@ -3,6 +3,7 @@ const path = require('path');
 const { persistente, backupAgora, limparAntigos } = require('./db.js');
 const engine = require('./engine.js');
 const ig = require('./instagram.js');
+const eventos = require('./eventos.js');
 const { semear } = require('./seed.js');
 
 const senhaAdmin = process.env.ADMIN_PASSWORD || '';
@@ -28,6 +29,7 @@ app.use((req, res, next) => {
 app.get('/webhook/instagram', (req, res) => {
   const ok = req.query['hub.mode'] === 'subscribe' && process.env.META_VERIFY_TOKEN
     && req.query['hub.verify_token'] === process.env.META_VERIFY_TOKEN;
+  eventos.registrar('verificação', ok ? 'ok' : 'recusada', ok ? 'Meta validou o webhook' : 'Token de verificação não confere com META_VERIFY_TOKEN');
   if (ok) return res.status(200).send(String(req.query['hub.challenge'] || ''));
   res.sendStatus(403);
 });
@@ -36,28 +38,32 @@ app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req,
   const segredo = process.env.META_APP_SECRET;
   const semAssinatura = process.env.ALLOW_UNSIGNED === '1' && process.env.NODE_ENV !== 'production';
   if (!semAssinatura) {
-    if (!segredo) { console.error('[IG] META_APP_SECRET ausente: não aceito eventos sem conferir a assinatura.'); return res.sendStatus(500); }
-    if (!ig.assinaturaValida(req.body, req.get('X-Hub-Signature-256'), segredo)) return res.sendStatus(401);
+    if (!segredo) { eventos.registrar('evento', 'recusado', 'META_APP_SECRET ausente'); console.error('[IG] META_APP_SECRET ausente: não aceito eventos sem conferir a assinatura.'); return res.sendStatus(500); }
+    if (!ig.assinaturaValida(req.body, req.get('X-Hub-Signature-256'), segredo)) { eventos.registrar('evento', 'recusado', 'Assinatura inválida: confira se META_APP_SECRET é o segredo do app do Instagram'); return res.sendStatus(401); }
   }
   let corpo;
   try { corpo = JSON.parse(req.body.toString('utf8')); } catch (e) { return res.sendStatus(400); }
   res.status(200).send('EVENT_RECEIVED'); // a Meta exige resposta rápida; o processamento segue em seguida
 
   const { mensagens, comentarios } = ig.lerWebhook(corpo);
+  eventos.registrar('evento', 'recebido', `${mensagens.length} mensagem(ns), ${comentarios.length} comentário(s)`);
   (async () => {
     for (const ev of mensagens) {
-      try { const r = await engine.processarMensagem(ev, ig.sender); console.log('[IG] msg', ev.extId, JSON.stringify(r)); }
-      catch (e) { console.error('[IG] erro ao tratar mensagem:', e.message); }
+      try { const r = await engine.processarMensagem(ev, ig.sender); console.log('[IG] msg', ev.extId, JSON.stringify(r)); eventos.registrar('mensagem', r.acao, r.fluxo || r.motivo || ''); }
+      catch (e) { console.error('[IG] erro ao tratar mensagem:', e.message); eventos.registrar('mensagem', 'erro', e.message); }
     }
     for (const ev of comentarios) {
-      try { const r = await engine.processarComentario(ev, ig.sender); console.log('[IG] comentário', ev.commentId, JSON.stringify(r)); }
-      catch (e) { console.error('[IG] erro ao tratar comentário:', e.message); }
+      try { const r = await engine.processarComentario(ev, ig.sender); console.log('[IG] comentário', ev.commentId, JSON.stringify(r)); eventos.registrar('comentário', r.acao, r.fluxo || r.motivo || ''); }
+      catch (e) { console.error('[IG] erro ao tratar comentário:', e.message); eventos.registrar('comentário', 'erro', e.message); }
     }
   })();
 });
 
 // ---------- Painel e API ----------
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '1mb' }));
+const marca = require('./marca.js');
+app.get('/brand', (req, res) => res.json(marca.publica()));
+app.get(['/logo', '/favicon.ico'], marca.servirLogo);
 app.use('/api', require('./routes-api.js'));
 // Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT + mensagem de acompanhamento) e leva ao site
 app.get('/go/:token', (req, res) => {
@@ -65,7 +71,6 @@ app.get('/go/:token', (req, res) => {
   try { destino = engine.registrarClique(req.params.token); } catch (e) { console.error('[GO]', e.message); }
   res.set('Cache-Control', 'no-store').redirect(302, destino || require('./db.js').getSetting('site_url') || '/');
 });
-app.get('/favicon.ico', (req, res) => res.sendStatus(204));
 // Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT) e leva para o site
 app.get('/go/:token', (req, res) => {
   let destino = null;

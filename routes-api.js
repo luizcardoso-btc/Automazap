@@ -9,6 +9,7 @@ const engine = require('./engine.js');
 const ig = require('./instagram.js');
 
 const router = express.Router();
+const eventos = require('./eventos.js');
 const sha = s => crypto.createHash('sha256').update(String(s)).digest();
 const SEGREDO = sha('dm-automacao:' + process.env.ADMIN_PASSWORD);
 const hmac = p => crypto.createHmac('sha256', SEGREDO).update(p).digest('hex');
@@ -168,7 +169,34 @@ const REGRAS = {
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 720,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
 };
-router.get('/settings', (req, res) => res.json(allSettings()));
+// ---------- identidade visual ----------
+router.put('/marca', (req, res) => {
+  const b = req.body || {};
+  const nome = String(b.nome || '').trim(), frase = String(b.frase || '').trim(), cor = String(b.cor || '').trim();
+  if (!nome || nome.length > 40) return res.status(400).json({ error: 'Nome do negócio: de 1 a 40 caracteres.' });
+  if (frase.length > 90) return res.status(400).json({ error: 'A frase pode ter até 90 caracteres.' });
+  if (!/^#[0-9a-fA-F]{6}$/.test(cor)) return res.status(400).json({ error: 'Cor inválida (use o formato #15803d).' });
+  setSetting('brand_name', nome); setSetting('brand_tagline', frase); setSetting('brand_color', cor);
+  if (b.logo === null) { setSetting('logo_data', ''); setSetting('logo_v', Date.now()); }
+  else if (b.logo !== undefined) {
+    const l = String(b.logo);
+    if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(l)) return res.status(400).json({ error: 'Envie a logo em PNG, JPG ou WEBP.' });
+    if (l.length > 700000) return res.status(400).json({ error: 'Logo grande demais (máx. ~500 KB).' });
+    setSetting('logo_data', l); setSetting('logo_v', Date.now());
+  }
+  res.json({ ok: true });
+});
+
+// ---------- conexão com o Instagram ----------
+router.get('/instagram/diagnostico', async (req, res) => {
+  const out = { config: ig.configurado(), webhook_url: `${req.protocol}://${req.get('host')}/webhook/instagram`, eventos: eventos.lista.slice(0, 20), conta: null, erro: null };
+  if (out.config.token) { try { out.conta = await ig.conta(); } catch (e) { out.erro = e.message; } }
+  res.json(out);
+});
+router.post('/instagram/ativar-webhook', async (req, res) => {
+  try { res.json(await ig.ativarWebhook()); } catch (e) { res.status(502).json({ error: e.message }); }
+});
+router.get('/settings', (req, res) => { const a = allSettings(); delete a.logo_data; res.json(a); });
 router.put('/settings', (req, res) => {
   const b = req.body || {};
   for (const k of Object.keys(b)) {
@@ -176,7 +204,7 @@ router.put('/settings', (req, res) => {
     if (!REGRAS[k](String(b[k]).trim())) return res.status(400).json({ error: `Valor inválido em "${k}".` });
   }
   Object.keys(b).forEach(k => setSetting(k, String(b[k]).trim()));
-  res.json(allSettings());
+  const a = allSettings(); delete a.logo_data; res.json(a);
 });
 
 // ---------- conversas ----------

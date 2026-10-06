@@ -388,7 +388,25 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(r.statusCode, 302); assert.ok(r.headers.location.includes('utm_source=instagram'));
     const r2 = await new Promise(res => http.get({ port: porta, path: '/go/naoexiste' }, x => { x.resume(); res(x); })); assert.strictEqual(r2.statusCode, 302);
   });
-  await t('painel (HTML) é servido', async () => { const r = await chamar('GET', '/'); assert.strictEqual(r.status, 200); assert.ok(r.texto.includes('Automação de DMs')); });
+  await t('painel (HTML) é servido', async () => { const r = await chamar('GET', '/'); assert.strictEqual(r.status, 200); assert.ok(r.texto.includes('Entrar no painel')); });
+  await t('identidade visual: /brand e /logo públicos; salvar exige login, valida cor e logo', async () => {
+    const b = await chamar('GET', '/brand'); assert.strictEqual(b.status, 200); assert.strictEqual(b.json.nome, 'NexTap');
+    const l = await chamar('GET', '/logo'); assert.strictEqual(l.status, 200); assert.ok(l.texto.includes('<svg'));
+    assert.strictEqual((await chamar('PUT', '/api/marca', { corpo: { nome: 'X', frase: '', cor: '#112233' } })).status, 401);
+    assert.strictEqual((await chamar('PUT', '/api/marca', { corpo: { nome: 'X', frase: '', cor: 'verde' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('PUT', '/api/marca', { corpo: { nome: 'X', frase: '', cor: '#112233', logo: 'data:image/svg+xml;base64,AAAA' }, headers: H })).status, 400);
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    assert.strictEqual((await chamar('PUT', '/api/marca', { corpo: { nome: 'ACS NexTap', frase: 'Oi', cor: '#112233', logo: png }, headers: H })).status, 200);
+    assert.strictEqual((await chamar('GET', '/brand')).json.nome, 'ACS NexTap');
+    assert.ok(!('logo_data' in (await chamar('GET', '/api/settings', { headers: H })).json));
+    await chamar('PUT', '/api/marca', { corpo: { nome: 'NexTap', frase: '', cor: '#15803d', logo: null }, headers: H });
+  });
+  await t('diagnóstico do Instagram: sem token mostra o que falta; webhook recusado aparece nos eventos', async () => {
+    await chamar('POST', '/webhook/instagram', { corpo: { object: 'instagram' } });
+    const d = (await chamar('GET', '/api/instagram/diagnostico', { headers: H })).json;
+    assert.strictEqual(d.config.token, false); assert.strictEqual(d.conta, null); assert.ok(d.eventos.some(e => e.resultado === 'recusado'));
+    assert.strictEqual((await chamar('GET', '/api/instagram/diagnostico')).status, 401);
+  });
   await t('cabeçalhos de segurança', async () => {
     const h = await new Promise(res => http.get({ port: porta, path: '/health' }, r => { r.resume(); res(r.headers); }));
     assert.strictEqual(h['x-content-type-options'], 'nosniff'); assert.ok(!h['x-powered-by']);

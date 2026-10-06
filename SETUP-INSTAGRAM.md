@@ -55,3 +55,6 @@ O servidor só aceita eventos com a assinatura correta (`X-Hub-Signature-256`, f
 ## Para vender a outros negócios (próxima etapa, não incluída)
 Este pacote atende **uma conta**. Para atender clientes, a Meta exige **Advanced Access**: revisão do app (com vídeo), verificação do negócio e, para enviar em nome de terceiros, status de **Tech Provider**. Isso leva semanas.
 Além disso, o código precisaria virar multi-cliente: cada cliente com sua conta, token, fluxos e conversas separados, mais login do cliente (OAuth da Meta) e cobrança.
+
+## Conferir a conexão pelo painel
+Aba **Instagram** do painel: mostra quais variáveis faltam, testa o token (mostra o @ da conta), tem o botão "Ativar eventos desta conta" e lista os últimos eventos recebidos (inclusive os recusados, com o motivo). Para trocar logo, nome e cor: aba Configurações → Identidade visual.

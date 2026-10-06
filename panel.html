@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Automação de DMs</title>
+<title>Painel NexTap</title>
+<link rel="icon" href="/logo" id="fav">
 <style>
 :root{--bg:#f6f8f7;--card:#fff;--tx:#0f172a;--mut:#64748b;--br:#e2e8f0;--pr:#15803d;--prt:#fff;--er:#dc2626;--wa:#b45309;--in:#eef2f1}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b1210;--card:#121b18;--tx:#e8f0ec;--mut:#8aa097;--br:#243430;--pr:#22c55e;--prt:#052e16;--er:#f87171;--wa:#fbbf24;--in:#1a2622}}
@@ -51,20 +52,32 @@ main{flex:1;padding:22px;max-width:980px;min-width:0}
 .sub{display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;margin-top:6px}
 .sub2{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:6px}
 code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--in);padding:2px 6px;border-radius:6px;word-break:break-all}
-#auth{min-height:100vh;display:grid;place-items:center;padding:16px}#auth .card{width:100%;max-width:360px}
+#auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}
+#auth .hero{background:linear-gradient(155deg,var(--pr),#0b1210 130%);color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+#auth .hero:before,#auth .hero:after{content:"";position:absolute;border:2px solid #fff3;border-radius:50%;right:-120px;top:20%;width:420px;height:420px}#auth .hero:after{width:280px;height:280px;right:-50px;top:calc(20% + 70px)}
+#auth .hero img{width:64px;height:64px;border-radius:16px;box-shadow:0 8px 24px #0004}
+#auth .hero h2{font-size:34px;line-height:1.1;margin:22px 0 10px;font-weight:800;letter-spacing:-.5px}#auth .hero p{opacity:.88;font-size:16px;max-width:420px;margin:0}
+#auth .hero ul{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:12px;position:relative;z-index:1}#auth .hero li{display:flex;gap:10px;align-items:flex-start;font-weight:600}#auth .hero li i{font-style:normal;background:#fff2;border-radius:8px;padding:3px 7px}
+#auth .hero small{opacity:.7;position:relative;z-index:1}
+#auth .box{display:grid;place-items:center;padding:24px}#auth .box .card{width:100%;max-width:370px;box-shadow:0 10px 40px #0001;padding:26px}
+#auth .box .btn.p{width:100%;padding:11px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px;font-weight:800;font-size:17px}.brand img{width:34px;height:34px;border-radius:9px}
+@media(max-width:860px){#auth{grid-template-columns:1fr}#auth .hero{padding:28px 22px;min-height:0}#auth .hero h2{font-size:26px}#auth .hero ul,#auth .hero:before,#auth .hero:after{display:none}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--pr);color:var(--prt);padding:11px 18px;border-radius:12px;font-weight:700;z-index:50;opacity:0;transition:opacity .3s;pointer-events:none}
 @media(max-width:760px){aside{position:fixed;bottom:0;top:auto;left:0;right:0;width:auto;height:auto;display:flex;overflow:auto;border-right:0;border-top:1px solid var(--br);padding:6px;z-index:10}aside .logo{display:none}aside a{white-space:nowrap;margin:0 2px}main{padding:14px 14px 80px}.chat{grid-template-columns:1fr}.sub,.sub2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div id="auth"><div class="card"><h1>Automação de DMs</h1><p class="mut">Entre com a senha do painel.</p>
+<div id="auth"><div class="hero"><div><img id="bl" src="/logo" alt=""><h2 id="bn">NexTap</h2><p id="bt">Atendimento automático no Instagram</p>
+<ul><li><i>⚡</i>Responde na hora, por palavra-chave ou comentário</li><li><i>🎯</i>Separa revendedores de clientes e prioriza os leads grandes</li><li><i>📈</i>Funil, cliques e follow-ups dentro das 24h do Instagram</li></ul></div><small>Área restrita · acesso somente da equipe</small></div>
+<div class="box"><div class="card"><h1>Entrar no painel</h1><p class="mut" style="margin:4px 0 14px">Digite a senha de administrador.</p>
 <input id="pw" type="password" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
-<div class="row" style="margin-top:12px"><button class="btn p" onclick="entrar()">Entrar</button></div><p id="aerr" class="sm" style="color:var(--er)"></p></div></div>
+<div style="margin-top:14px"><button class="btn p" onclick="entrar()">Entrar</button></div><p id="aerr" class="sm" style="color:var(--er);min-height:18px;margin:8px 0 0"></p></div></div></div>
 
 <div class="layout" id="app" style="display:none">
-<aside><div class="logo">DM<span>Bot</span></div>
+<aside><div class="brand"><img id="sl" src="/logo" alt=""><span id="sn">NexTap</span></div>
 <a data-v="dash" onclick="nav('dash')">▦ Visão geral</a><a data-v="flows" onclick="nav('flows')">⚡ Fluxos</a>
-<a data-v="chats" onclick="nav('chats')">💬 Conversas</a><a data-v="sim" onclick="nav('sim')">🧪 Simulador</a><a data-v="cfg" onclick="nav('cfg')">⚙ Configurações</a></aside>
+<a data-v="chats" onclick="nav('chats')">💬 Conversas</a><a data-v="ig" onclick="nav('ig')">🔌 Instagram</a><a data-v="sim" onclick="nav('sim')">🧪 Simulador</a><a data-v="cfg" onclick="nav('cfg')">⚙ Configurações</a></aside>
 <main><div class="top"><div id="hd"></div><div class="row"><button class="btn s" onclick="theme()">Tema</button><button class="btn s" onclick="sair()">Sair</button></div></div><div id="v"></div></main>
 </div>
 <div class="mo" id="mo" onclick="if(event.target===this)cl()"><div class="mb" id="mb"></div></div>
@@ -83,13 +96,20 @@ async function api(p,o){o=o||{};var h={'Content-Type':'application/json'};if(TOK
   var j={};try{j=await r.json()}catch(e){}
   if(r.status===401&&p!=='/login'){sair();throw new Error(j.error||'Sessão expirada.')}
   if(!r.ok)throw new Error(j.error||'Erro '+r.status);return j}
+var BRAND=null;
+function lum(h){var n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return (0.299*r+0.587*g+0.114*b)/255}
+async function marca(){try{var r=await fetch('/brand');BRAND=await r.json()}catch(e){return}
+  var st=$('bs');if(!st){st=document.createElement('style');st.id='bs';document.head.appendChild(st)}
+  st.textContent=':root,:root[data-theme=dark],:root:not([data-theme=light]){--pr:'+BRAND.cor+';--prt:'+(lum(BRAND.cor)>0.62?'#0f172a':'#fff')+'}';
+  ['bl','sl'].forEach(function(i){$(i).src=BRAND.logo});$('fav').href=BRAND.logo;$('bn').textContent=BRAND.nome;$('sn').textContent=BRAND.nome;$('bt').textContent=BRAND.frase;document.title='Painel '+BRAND.nome}
+marca();
 async function entrar(){$('aerr').textContent='';try{var r=await api('/login',{method:'POST',body:JSON.stringify({senha:$('pw').value})});TOKEN=r.token;try{localStorage.setItem('dm_token',TOKEN)}catch(e){}await iniciar()}catch(e){$('aerr').textContent=e.message}}
 function sair(){TOKEN=null;try{localStorage.removeItem('dm_token')}catch(e){}$('app').style.display='none';$('auth').style.display='grid';$('pw').value=''}
 async function carregar(){var r=await Promise.all([api('/status'),api('/flows'),api('/settings')]);ST=r[0];FLOWS=r[1];SET=r[2]}
-async function iniciar(){await carregar();$('auth').style.display='none';$('app').style.display='flex';nav(cur)}
+async function iniciar(){await carregar();await marca();$('auth').style.display='none';$('app').style.display='flex';nav(cur)}
 function nav(v){cur=v;document.querySelectorAll('aside a[data-v]').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});draw()}
 function head(t,s){$('hd').innerHTML='<h1>'+t+'</h1><div class="mut sm">'+(s||'')+'</div>'}
-function draw(){var f={dash:vDash,flows:vFlows,chats:vChats,sim:vSim,cfg:vCfg}[cur];$('v').innerHTML=f()}
+function draw(){var f={dash:vDash,flows:vFlows,chats:vChats,ig:vIg,sim:vSim,cfg:vCfg}[cur];$('v').innerHTML=f()}
 
 /* ---------- visão geral ---------- */
 function vDash(){head('Visão geral','Resumo do robô de mensagens.');
@@ -179,10 +199,14 @@ async function simular(txt,payload,rotulo){
 /* ---------- configurações ---------- */
 function vCfg(){head('Configurações','Textos padrão, limites e conexão com o Instagram.');
   var ig=ST.instagram||{},ok=function(b){return b?'<span class="tag ok">ok</span>':'<span class="tag er">falta</span>'};
-  return '<div class="card"><h3>Mensagens</h3>'
+  var B=BRAND||{nome:'NexTap',frase:'',cor:'#15803d',logo:'/logo'};
+  return '<div class="card"><h3>Identidade visual</h3><div class="row" style="align-items:flex-end"><img id="lp" src="'+E(B.logo)+'" style="width:64px;height:64px;border-radius:14px;border:1px solid var(--br);object-fit:cover"><div><input type="file" id="b_logo" accept="image/png,image/jpeg,image/webp" onchange="lerLogo(this)"><div class="mut sm">PNG, JPG ou WEBP quadrada, até ~500 KB.</div></div><button class="btn s d" onclick="semLogo()">Voltar à logo padrão</button></div>'
+    +'<div class="row"><div style="flex:2;min-width:180px"><label>Nome do negócio<input id="b_nome" maxlength="40" value="'+E(B.nome)+'"></label></div><div style="flex:1;min-width:120px"><label>Cor principal<input type="color" id="b_cor" value="'+E(B.cor)+'" style="height:40px;padding:3px"></label></div></div>'
+    +'<label>Frase da tela de entrada<input id="b_frase" maxlength="90" value="'+E(B.frase)+'"></label><div class="row" style="margin-top:12px"><button class="btn p" onclick="salvarMarca()">Salvar identidade</button></div></div>'
+    +'<div class="card"><h3>Mensagens</h3>'
     +'<label>Link do site (usado em {{site}})<input id="c_site_url" value="'+E(SET.site_url)+'"></label>'
     +'<label>Telefone de suporte (usado em {{telefone}})<input id="c_telefone" value="'+E(SET.telefone)+'"></label>'
-    +'<label>Endereço público deste robô (para rastrear cliques), ex.: https://automazap-production.up.railway.app<input id="c_public_url" value="'+E(SET.public_url)+'"></label>'
+    +'<label>Endereço público deste robô (para rastrear cliques)<input id="c_public_url" value="'+E(SET.public_url||location.origin)+'"></label>'
     +'<label>Link do vídeo de demonstração (.mp4, https público, 8–15 s)<input id="c_video_demo_url" value="'+E(SET.video_demo_url)+'"></label>'
     +'<label class="ck"><input type="checkbox" id="c_followups_enabled"'+(SET.followups_enabled==='1'?' checked':'')+'> Enviar follow-ups automáticos (só dentro das 24h do Instagram)</label>'
     +'<label class="ck"><input type="checkbox" id="c_fallback_enabled"'+(SET.fallback_enabled==='1'?' checked':'')+'> Responder quando nenhuma palavra-chave bater</label>'
@@ -192,6 +216,24 @@ function vCfg(){head('Configurações','Textos padrão, limites e conexão com o
     +'<div class="card"><h3>Conexão com o Instagram</h3><p class="mut sm">Variáveis do Railway: IG_ACCESS_TOKEN '+ok(ig.token)+' · META_APP_SECRET '+ok(ig.appSecret)+' · META_VERIFY_TOKEN '+ok(ig.verifyToken)+'</p>'
     +'<p class="sm">URL do webhook (cole no app da Meta):<br><code>'+E(ST.webhook_url)+'</code></p>'
     +'<div class="row"><button class="btn" onclick="renovar()">Renovar token do Instagram</button><button class="btn" onclick="baixar()">⬇ Backup do banco</button></div><p class="mut sm">O token do Instagram vale cerca de 60 dias. Renove antes de vencer e atualize a variável no Railway com o novo valor.</p></div>'}
+var LOGO=undefined;
+function lerLogo(i){var f=i.files[0];if(!f)return;if(f.size>500000){alert('Logo grande demais (máx. ~500 KB).');i.value='';return}var r=new FileReader();r.onload=function(){LOGO=r.result;$('lp').src=LOGO};r.readAsDataURL(f)}
+function semLogo(){LOGO=null;$('lp').src='/logo?default'}
+async function salvarMarca(){var b={nome:$('b_nome').value,frase:$('b_frase').value,cor:$('b_cor').value};if(LOGO!==undefined)b.logo=LOGO;
+  try{await api('/marca',{method:'PUT',body:JSON.stringify(b)});LOGO=undefined;await marca();draw();toast('Identidade salva ✓')}catch(e){alert(e.message)}}
+/* ---------- conexão Instagram ---------- */
+var DG=null;
+async function carregarIg(){try{DG=await api('/instagram/diagnostico')}catch(e){DG={erro:e.message,config:{},eventos:[]}}draw()}
+function vIg(){head('Conectar o Instagram','Passo a passo e teste da conexão com a conta real.');
+  if(!DG&&!vIg.l){vIg.l=1;carregarIg().then(function(){vIg.l=0});return '<p class="mut">Verificando…</p>'}
+  if(!DG)return '';var c=DG.config||{},ok=function(b){return b?'<span class="tag ok">ok</span>':'<span class="tag er">falta</span>'};
+  var pub=SET.public_url||location.origin;
+  var ev=(DG.eventos||[]).length?DG.eventos.map(function(e){return '<div class="sm" style="padding:4px 0;border-top:1px solid var(--br)"><b>'+fdh(e.at)+'</b> · '+E(e.tipo)+' · <span class="tag '+(/recusad|erro/.test(e.resultado)?'er':'ok')+'">'+E(e.resultado)+'</span> <span class="mut">'+E(e.detalhe)+'</span></div>'}).join(''):'<p class="mut sm">Nenhum evento chegou ainda. Mande uma DM para a conta e clique em Atualizar.</p>';
+  return '<div class="card"><h3>1. Variáveis no Railway</h3><p class="sm">IG_ACCESS_TOKEN '+ok(c.token)+' · META_APP_SECRET '+ok(c.appSecret)+' · META_VERIFY_TOKEN '+ok(c.verifyToken)+'</p></div>'
+   +'<div class="card"><h3>2. Token e conta</h3>'+(DG.conta?'<p>✅ Conectado como <b>@'+E(DG.conta.username)+'</b> ('+E(DG.conta.account_type||'')+') · ID <code>'+E(DG.conta.user_id||DG.conta.id||'')+'</code></p>':(DG.erro?'<p style="color:var(--er)"><b>Não conectou:</b> '+E(DG.erro)+'</p>':'<p class="mut">Defina IG_ACCESS_TOKEN para testar.</p>'))+'</div>'
+   +'<div class="card"><h3>3. Webhook no app da Meta</h3><p class="sm">Em <i>Instagram → Configuração da API com login do Instagram → Configurar webhooks</i>:<br>URL de callback: <code>'+E(pub.replace(/\/+$/,''))+'/webhook/instagram</code><br>Token de verificação: o valor de META_VERIFY_TOKEN. Marque os campos <b>messages</b>, <b>messaging_postbacks</b> e <b>comments</b>.</p><div class="row"><button class="btn p" onclick="ativarWh()">Ativar eventos desta conta</button></div><p class="mut sm">Este botão assina a conta nos eventos (sem isso a Meta não envia as DMs).</p></div>'
+   +'<div class="card"><h3>4. Teste real</h3><p class="sm">Com <b>outra</b> conta do Instagram que tenha função no app (Administrador, Desenvolvedor ou Testador, aceita no convite), mande “oi preço” para @'+E(DG.conta?DG.conta.username:'sua conta')+'. O robô deve responder em segundos e o evento aparece abaixo.</p><div class="row" style="justify-content:space-between"><b>Últimos eventos recebidos</b><button class="btn s" onclick="carregarIg()">↻ Atualizar</button></div>'+ev+'</div>'}
+async function ativarWh(){try{var r=await api('/instagram/ativar-webhook',{method:'POST'});alert('Meta respondeu: '+JSON.stringify(r))}catch(e){alert(e.message)}}
 async function salvarCfg(){var ids=['site_url','public_url','video_demo_url','telefone','fallback_text','fallback_cooldown_hours','handoff_hours','max_replies_hour'],b={};ids.forEach(function(k){b[k]=$('c_'+k).value});b.fallback_enabled=$('c_fallback_enabled').checked?'1':'0';b.followups_enabled=$('c_followups_enabled').checked?'1':'0';
   try{SET=await api('/settings',{method:'PUT',body:JSON.stringify(b)});toast('Configurações salvas ✓')}catch(e){alert(e.message)}}
 async function renovar(){try{var r=await api('/token/renovar',{method:'POST'});prompt('Novo token (válido por mais '+Math.round((r.expires_in||0)/86400)+' dias). Copie e troque IG_ACCESS_TOKEN no Railway:',r.access_token||'')}catch(e){alert(e.message)}}
