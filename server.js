@@ -86,7 +86,9 @@ if (require.main === module) {
   const { getSetting, setSetting } = require('./db.js');
   if (!getSetting('public_url') && process.env.RAILWAY_PUBLIC_DOMAIN) setSetting('public_url', 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN);
   // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
-  setInterval(() => { if (ig.configurado().token) engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); }, 15000).unref();
+  setInterval(() => { if (ig.configurado().token) { engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); engine.completarNomes(ig.sender).catch(() => {}); } }, 15000).unref();
+  setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();
+  setInterval(() => ig.renovarSeNecessario().catch(() => {}), 6 * 3600e3).unref();
   setInterval(() => { try { backupAgora(); limparAntigos(); } catch (e) { console.error('[BACKUP]', e.message); } }, 24 * 3600e3).unref();
   app.listen(PORT, () => console.log(`[BOT] no ar na porta ${PORT} · persistência: ${persistente ? 'SIM' : 'NÃO'}`));
 }

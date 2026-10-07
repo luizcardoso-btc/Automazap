@@ -429,6 +429,17 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(h['x-content-type-options'], 'nosniff'); assert.ok(!h['x-powered-by']);
   });
 
+  await t('busca nome e @ reais do lead no Instagram (e não quebra se falhar)', async () => {
+    const enviados = [];
+    const sender = { send: async (c, p) => { enviados.push(p); return {}; }, perfil: async id => ({ name: 'Maria Souza', username: 'maria.souza' }) };
+    await engine.processarMensagem({ canal: 'instagram', extId: 'nome-1', texto: 'oi preço', mid: 'mid-nome-1' }, sender);
+    const c = db.prepare("SELECT name, username FROM contacts WHERE ext_id = 'nome-1'").get();
+    assert.strictEqual(c.name, 'Maria Souza'); assert.strictEqual(c.username, 'maria.souza');
+    const ruim = { send: async () => ({}), perfil: async () => { throw new Error('Meta recusou'); } };
+    const r = await engine.processarMensagem({ canal: 'instagram', extId: 'nome-2', texto: 'oi preço', mid: 'mid-nome-2' }, ruim);
+    assert.ok(r.acao); assert.strictEqual(db.prepare("SELECT name FROM contacts WHERE ext_id = 'nome-2'").get().name, null);
+  });
+
   srv.close();
   console.log(`\n${ok} passaram, ${falhou} falharam`);
   process.exit(falhou ? 1 : 0);

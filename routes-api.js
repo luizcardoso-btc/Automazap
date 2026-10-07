@@ -214,7 +214,7 @@ router.get('/instagram/diagnostico', async (req, res) => {
 router.post('/instagram/ativar-webhook', async (req, res) => {
   try { res.json(await ig.ativarWebhook()); } catch (e) { res.status(502).json({ error: e.message }); }
 });
-router.get('/settings', (req, res) => { const a = allSettings(); delete a.logo_data; res.json(a); });
+router.get('/settings', (req, res) => { const a = allSettings(); delete a.logo_data; delete a.ig_token_ativo; res.json(a); });
 router.put('/settings', (req, res) => {
   const b = req.body || {};
   for (const k of Object.keys(b)) {
@@ -222,7 +222,7 @@ router.put('/settings', (req, res) => {
     if (!REGRAS[k](String(b[k]).trim())) return res.status(400).json({ error: `Valor inválido em "${k}".` });
   }
   Object.keys(b).forEach(k => setSetting(k, String(b[k]).trim()));
-  const a = allSettings(); delete a.logo_data; res.json(a);
+  const a = allSettings(); delete a.logo_data; delete a.ig_token_ativo; res.json(a);
 });
 
 // ---------- conversas ----------

@@ -141,6 +141,27 @@ function upsertContato({ canal, extId, username }) {
   return c;
 }
 
+// Busca nome e @ reais do lead (Instagram) e grava. Falha em silêncio: o robô nunca para por causa disso.
+const tentouPerfil = new Map();
+async function enriquecerContato(contato, sender) {
+  if (!sender || !sender.perfil || contato.channel !== 'instagram' || contato.name) return contato;
+  const ult = tentouPerfil.get(contato.id) || 0;
+  if (Date.now() - ult < 10 * 60e3) return contato;
+  tentouPerfil.set(contato.id, Date.now());
+  try {
+    const p = await sender.perfil(contato.ext_id);
+    if (p && (p.name || p.username)) {
+      db.prepare('UPDATE contacts SET name = COALESCE(?, name), username = COALESCE(?, username) WHERE id = ?').run(p.name, p.username, contato.id);
+    }
+  } catch (e) { console.warn('[BOT] não consegui o nome do contato', contato.id + ':', e.message); }
+  return db.prepare('SELECT * FROM contacts WHERE id = ?').get(contato.id);
+}
+// Completa nomes que ficaram em branco (contatos antigos), poucos por vez
+async function completarNomes(sender) {
+  const lista = db.prepare("SELECT * FROM contacts WHERE channel = 'instagram' AND (name IS NULL OR name = '') ORDER BY last_inbound_at DESC LIMIT 5").all();
+  for (const c of lista) await enriquecerContato(c, sender);
+}
+
 function limiteAtingido(contatoId) {
   const max = Number(getSetting('max_replies_hour')) || 8;
   const n = db.prepare("SELECT COUNT(*) AS n FROM messages WHERE contact_id = ? AND direction = 'out' AND status = 'ok' AND created_at > ?")
@@ -158,7 +179,7 @@ const pausaEntreMensagens = () => Number(process.env.STEP_DELAY_MS) >= 0 && proc
 async function avisarHumano(contato, fluxo, prioridade) {
   const tk = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
   if (!tk || !chat || process.env.NODE_ENV === 'test') return;
-  const nome = contato.username ? '@' + contato.username : 'contato ' + contato.id;
+  const nome = [contato.name, contato.username ? '@' + contato.username : ''].filter(Boolean).join(' ') || 'contato ' + contato.id;
   try {
     await fetch(`https://api.telegram.org/bot${tk}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -225,7 +246,8 @@ function fluxoPorQuantidade(texto, contato) {
 
 async function processarMensagem(ev, sender) {
   if (ev.mid && !marcarProcessado('m:' + ev.mid)) return { acao: 'ignorada', motivo: 'duplicada' };
-  const contato = upsertContato(ev);
+  let contato = upsertContato(ev);
+  contato = await enriquecerContato(contato, sender);
   db.prepare('UPDATE contacts SET last_inbound_at = ?, followup_step = 0 WHERE id = ?').run(agora(), contato.id);
   registrar(contato.id, 'in', 'texto', ev.texto || (ev.payload ? `[botão] ${ev.payload}` : ''));
 
@@ -274,7 +296,8 @@ async function processarComentario(ev, sender) {
   if (!marcarProcessado('c:' + ev.commentId)) return { acao: 'ignorada', motivo: 'duplicada' };
   const fluxo = acharFluxo(ev.texto, { comentario: true });
   if (!fluxo || (!fluxo.steps.length && !fluxo.comment_text)) return { acao: 'ignorada', motivo: 'sem_fluxo' };
-  const contato = upsertContato({ canal: ev.canal, extId: ev.fromId, username: ev.username });
+  let contato = upsertContato({ canal: ev.canal, extId: ev.fromId, username: ev.username });
+  contato = await enriquecerContato(contato, sender);
   registrar(contato.id, 'in', 'comentario', ev.texto);
   if (contato.bot_paused_until > agora()) return { acao: 'ignorada', motivo: 'pausado' };
   const texto = fluxo.comment_text ? aplicarVars(fluxo.comment_text, contato) : passoParaTexto(passoComVars(fluxo.steps[0], contato));
@@ -329,4 +352,4 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
   return out;
 }
 
-module.exports = { ETAPAS, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick };
+module.exports = { ETAPAS, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };

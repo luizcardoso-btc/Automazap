@@ -6,6 +6,20 @@ const crypto = require('crypto');
 const BASE = process.env.IG_GRAPH_BASE || 'https://graph.instagram.com';
 const VERSAO = process.env.META_GRAPH_VERSION || 'v21.0';
 
+// Token em uso: o renovado automaticamente (guardado no banco, que fica no Volume) ou, se não houver, o do Railway.
+// Se você colar um token novo no Railway, ele passa a valer no lugar do guardado.
+function lerAtivo() {
+  const env = process.env.IG_ACCESS_TOKEN;
+  if (!env) return null;
+  try {
+    const db = require('./db.js');
+    const a = JSON.parse(db.getSetting('ig_token_ativo') || 'null');
+    if (a && a.token && a.origem === env.slice(-12)) return a;
+  } catch (e) { /* sem token guardado */ }
+  return { token: env, origem: env.slice(-12), em: 0 };
+}
+const tokenAtual = () => { const a = lerAtivo(); return a ? a.token : null; };
+
 function configurado() {
   return { token: !!process.env.IG_ACCESS_TOKEN, appSecret: !!process.env.META_APP_SECRET, verifyToken: !!process.env.META_VERIFY_TOKEN };
 }
@@ -51,7 +65,7 @@ function lerWebhook(corpo) {
 }
 
 async function chamar(caminho, corpo, metodo = 'POST') {
-  const token = process.env.IG_ACCESS_TOKEN;
+  const token = tokenAtual();
   if (!token) throw new Error('IG_ACCESS_TOKEN ausente: gere o token no app da Meta e coloque nas variáveis do Railway.');
   const r = await fetch(`${BASE}/${VERSAO}/${caminho}`, {
     method: metodo,
@@ -101,10 +115,17 @@ const sender = {
       throw e;
     }
   },
+  perfil,
   async sendPrivateReply(commentId, texto) {
     return chamar(`${quem()}/messages`, { recipient: { comment_id: commentId }, message: { text: corta(texto, 1000) } });
   },
 };
+
+// Nome e @ de quem escreveu (a Meta só libera depois que a pessoa mandou mensagem)
+async function perfil(igsid) {
+  const r = await chamar(`${encodeURIComponent(igsid)}?fields=name,username`, null, 'GET');
+  return { name: r.name || null, username: r.username || null };
+}
 
 // Dados da conta dona do token: confirma que o token funciona e de qual @ ele é.
 async function conta() {
@@ -116,13 +137,31 @@ async function ativarWebhook() {
 }
 
 // Token do Instagram vale ~60 dias; renovar estende a validade (precisa ter pelo menos 24h de vida).
+// Renova sozinho: guarda o token novo no banco, sem você precisar mexer no Railway.
 async function renovarToken() {
-  const token = process.env.IG_ACCESS_TOKEN;
-  if (!token) throw new Error('IG_ACCESS_TOKEN ausente.');
-  const r = await fetch(`${BASE}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
+  const ativo = lerAtivo();
+  if (!ativo) throw new Error('IG_ACCESS_TOKEN ausente.');
+  const r = await fetch(`${BASE}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(ativo.token)}`);
   const txt = await r.text();
   if (!r.ok) throw new Error(`Meta respondeu ${r.status}: ${txt.slice(0, 300)}`);
-  return JSON.parse(txt);
+  const j = JSON.parse(txt);
+  if (j.access_token) {
+    const db = require('./db.js');
+    db.setSetting('ig_token_ativo', JSON.stringify({ token: j.access_token, origem: ativo.origem, em: Date.now(), expira: Date.now() + (j.expires_in || 0) * 1000 }));
+  }
+  return { ok: true, expires_in: j.expires_in, renovado_em: Date.now() };
+}
+// Chamado todo dia: renova quando o último ciclo tem 20+ dias (a Meta só renova token com mais de 24h de vida)
+async function renovarSeNecessario() {
+  const ativo = lerAtivo();
+  if (!ativo) return null;
+  const db = require('./db.js');
+  const ult = Number(db.getSetting('ig_token_tentativa') || 0);
+  if (Date.now() - ult < 12 * 3600e3) return null;
+  if (ativo.em && Date.now() - ativo.em < 20 * 86400e3) return null;
+  db.setSetting('ig_token_tentativa', Date.now());
+  try { const r = await renovarToken(); console.log('[IG] token renovado automaticamente'); db.setSetting('ig_token_erro', ''); return r; }
+  catch (e) { console.error('[IG] falha ao renovar token:', e.message); require('./db.js').setSetting('ig_token_erro', e.message.slice(0, 200)); return null; }
 }
 
-module.exports = { conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, montarMensagem };
+module.exports = { conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, renovarSeNecessario, montarMensagem };
