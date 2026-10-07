@@ -169,6 +169,24 @@ const REGRAS = {
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 720,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
 };
+// ---------- vídeo/imagem enviados pelo painel (servidos em /media) ----------
+const dirMidia = () => { const d = path.join(path.dirname(require('./db.js').arquivo === ':memory:' ? path.join(os.tmpdir(), 'x') : require('./db.js').arquivo), 'media'); fs.mkdirSync(d, { recursive: true }); return d; };
+router.post('/midia', express.raw({ type: '*/*', limit: '26mb' }), (req, res) => {
+  const b = req.body;
+  if (!Buffer.isBuffer(b) || !b.length) return res.status(400).json({ error: 'Nenhum arquivo recebido.' });
+  if (b.length > 25 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo grande demais (máx. 25 MB, limite do Instagram).' });
+  const mp4 = b.slice(4, 8).toString() === 'ftyp';
+  const jpg = b[0] === 0xff && b[1] === 0xd8, png = b.slice(1, 4).toString() === 'PNG';
+  if (!mp4 && !jpg && !png) return res.status(400).json({ error: 'Envie um vídeo MP4 (ou imagem JPG/PNG).' });
+  const nome = `${mp4 ? 'video' : 'imagem'}-${Date.now()}.${mp4 ? 'mp4' : jpg ? 'jpg' : 'png'}`;
+  fs.writeFileSync(path.join(dirMidia(), nome), b);
+  const base = ((getSetting('public_url') || '').replace(/\/+$/, '')) || `${req.protocol}://${req.get('host')}`;
+  const url = `${base}/media/${nome}`;
+  if (mp4) setSetting('video_demo_url', url);
+  res.json({ url, tipo: mp4 ? 'video' : 'imagem' });
+});
+router.get('/midia-dir', (req, res) => res.json({ dir: dirMidia() }));
+
 // ---------- identidade visual ----------
 router.put('/marca', (req, res) => {
   const b = req.body || {};

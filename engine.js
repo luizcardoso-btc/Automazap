@@ -148,6 +148,9 @@ function limiteAtingido(contatoId) {
   return n >= max;
 }
 
+// Link de página (Reel, post, YouTube…) não é arquivo de mídia: a API do Instagram só aceita arquivo direto (.mp4/.jpg).
+const ehLinkDePagina = u => /^https?:\/\/(www\.)?(instagram\.com|instagr\.am|youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com)\//i.test(u);
+const textoComLink = p => ({ type: 'text', text: (p.type === 'image' ? 'Veja aqui: ' : 'Olha como funciona na prática 👇\n') + String(p.url).replace(/([?&])(utm_[^&]*|igsh=[^&]*|stkn=[^&]*|igshid=[^&]*)/g, '').replace(/[?&]+$/, '') });
 const dormir = ms => ms > 0 ? new Promise(r => setTimeout(r, ms)) : null;
 const pausaEntreMensagens = () => Number(process.env.STEP_DELAY_MS) >= 0 && process.env.STEP_DELAY_MS !== '' && process.env.STEP_DELAY_MS != null ? Number(process.env.STEP_DELAY_MS) : 700;
 
@@ -168,13 +171,21 @@ async function enviarFluxo(contato, fluxo, sender) {
   const enviados = [];
   let primeiro = true;
   for (const passo of fluxo.steps) {
-    const p = passoComVars(passo, contato);
-    const midia = p.type === 'video' || p.type === 'image';
+    let p = passoComVars(passo, contato);
+    let midia = p.type === 'video' || p.type === 'image';
     if (midia && !p.url) continue;                 // vídeo ainda não configurado: pula sem travar a conversa
+    if (midia && ehLinkDePagina(p.url)) { p = textoComLink(p); midia = false; }   // Reel/post do Instagram: manda como link
     if (!primeiro) await dormir(pausaEntreMensagens());
     primeiro = false;
     try {
-      await sender.send(contato, p);
+      try { await sender.send(contato, p); }
+      catch (e0) {
+        if (!midia) throw e0;
+        console.warn('[BOT] mídia recusada, enviando o link no texto:', e0.message);
+        registrar(contato.id, 'out', 'midia', passoParaTexto(p), { flowId: fluxo.id, erro: e0.message });
+        p = textoComLink(p); midia = false;
+        await sender.send(contato, p);
+      }
       registrar(contato.id, 'out', KIND[p.type] || 'texto', passoParaTexto(p), { flowId: fluxo.id });
       enviados.push(p);
     } catch (e) {

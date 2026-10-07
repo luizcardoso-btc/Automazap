@@ -62,6 +62,10 @@ app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req,
 // ---------- Painel e API ----------
 app.use(express.json({ limit: '1mb' }));
 const marca = require('./marca.js');
+app.use('/media', (req, res, next) => {
+  const d = require('path').join(require('path').dirname(require('./db.js').arquivo === ':memory:' ? require('os').tmpdir() + '/x' : require('./db.js').arquivo), 'media');
+  express.static(d, { maxAge: '7d', index: false, dotfiles: 'deny', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') })(req, res, next);
+});
 app.get('/brand', (req, res) => res.json(marca.publica()));
 app.get(['/logo', '/favicon.ico'], marca.servirLogo);
 app.use('/api', require('./routes-api.js'));

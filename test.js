@@ -100,7 +100,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   await t('vídeo que falha não derruba o resto da sequência', async () => {
     const env = []; const s = { async send(c, p) { if (p.type === 'video') throw new Error('video recusado'); env.push(p.type); } };
     await engine.processarMensagem(msg('1–10', { extId: 'f2', payload: respRapida(pQtd, '1–10') }), s);
-    assert.deepStrictEqual(env, ['text', 'text', 'button']);
+    assert.deepStrictEqual(env, ['text', 'text', 'text', 'button']);   // o vídeo recusado vira link no texto
   });
   await t('clique no link: redireciona com utm, marca ABRIU CHECKOUT, agenda a mensagem de acompanhamento', async () => {
     const tok = db.prepare('SELECT token FROM links WHERE contact_id = ?').get(contatoDe('f2').id).token;
@@ -406,6 +406,23 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const d = (await chamar('GET', '/api/instagram/diagnostico', { headers: H })).json;
     assert.strictEqual(d.config.token, false); assert.strictEqual(d.conta, null); assert.ok(d.eventos.some(e => e.resultado === 'recusado'));
     assert.strictEqual((await chamar('GET', '/api/instagram/diagnostico')).status, 401);
+  });
+  await t('link de Reel/post vira texto com o link (sem utm), e mídia recusada também', async () => {
+    setSetting('video_demo_url', 'https://www.instagram.com/reel/DelyG-3OPAO/?utm_source=ig_web_copy_link&igsh=abc');
+    const s = rec(); await engine.processarMensagem(msg('1–10', { extId: 'v1', payload: respRapida(pQtd, '1–10') }), s);
+    const tx = s.env.map(x => x.p); assert.ok(!tx.some(p => p.type === 'video'));
+    const lk = tx.find(p => /instagram\.com\/reel\/DelyG-3OPAO\/$/.test(p.text || '')); assert.ok(lk, 'link do reel limpo não encontrado: ' + JSON.stringify(tx.map(p => p.text)));
+    setSetting('video_demo_url', '');
+  });
+  await t('upload de vídeo pelo painel: aceita MP4, recusa outros, serve em /media e configura o link', async () => {
+    const post = (corpo, auth = true) => new Promise(res => { const r = http.request({ port: porta, method: 'POST', path: '/api/midia', headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': corpo.length, ...(auth ? H : {}) } }, x => { let d = ''; x.on('data', c => d += c); x.on('end', () => res({ status: x.statusCode, json: JSON.parse(d || '{}') })); }); r.end(corpo); });
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(64)]);
+    assert.strictEqual((await post(mp4, false)).status, 401);
+    assert.strictEqual((await post(Buffer.from('isto nao e video'))).status, 400);
+    const ok1 = await post(mp4); assert.strictEqual(ok1.status, 200); assert.ok(/\/media\/video-\d+\.mp4$/.test(ok1.json.url));
+    assert.strictEqual(require('./db.js').getSetting('video_demo_url'), ok1.json.url);
+    const g = await new Promise(res => http.get({ port: porta, path: '/media/' + ok1.json.url.split('/media/')[1] }, x => { x.resume(); res(x); })); assert.strictEqual(g.statusCode, 200);
+    setSetting('video_demo_url', '');
   });
   await t('cabeçalhos de segurança', async () => {
     const h = await new Promise(res => http.get({ port: porta, path: '/health' }, r => { r.resume(); res(r.headers); }));
