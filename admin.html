@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta name="robots" content="noindex,nofollow"><meta charset="utf-8">
+<link rel="icon" type="image/png" href="/favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NexTap — Painel Admin</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f0f5f1;--card:#fff;--tx:#0f1a13;--mut:#5b6b60;--br:#dfe8e2;--pr:#15803d;--pr2:#0f6a31;--soft:#e4f0e8;--dk:#111827}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1410;--card:#16211b;--tx:#eaf3ed;--mut:#9bb0a3;--br:#243329;--soft:#1b2a21}}
+:root[data-theme="dark"]{--bg:#0d1410;--card:#16211b;--tx:#eaf3ed;--mut:#9bb0a3;--br:#243329;--soft:#1b2a21}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.45}
+.logo{font-weight:800;font-size:21px;display:flex;align-items:center;gap:8px}.logo i{width:30px;height:30px;border-radius:8px;background:var(--dk);display:grid;place-items:center;color:#fff;font-style:normal}
+.btn{display:inline-block;border:1px solid var(--br);background:var(--card);color:var(--tx);padding:9px 16px;border-radius:10px;font:600 14px inherit;cursor:pointer}.btn.p{background:var(--dk);border-color:var(--dk);color:#fff}.btn.p:hover{opacity:.9}.btn.s{padding:5px 10px;font-size:12px}.btn.d{border-color:#dc2626;color:#dc2626}
+input,select{padding:10px;border:1px solid var(--br);border-radius:10px;background:var(--card);color:var(--tx);font:inherit;width:100%;min-width:0}
+label{display:grid;gap:4px;font-size:12px;color:var(--mut)}.mut{color:var(--mut)}
+#auth{min-height:100vh;display:grid;place-items:center;padding:20px}#auth .box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--br);border-radius:18px;padding:28px;display:grid;gap:12px}
+#app{display:none;grid-template-columns:240px 1fr;min-height:100vh}
+aside{background:var(--dk);color:#cbd5c9;border-right:1px solid var(--br);padding:18px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh}
+aside small{color:#7d8c86;font-size:11px;letter-spacing:.06em;margin:14px 10px 4px}aside a{padding:10px 12px;border-radius:10px;font-size:14px;cursor:pointer;color:#e5efe8}aside a.on{background:#1f2a24;color:#fff;font-weight:700}
+.me{margin-top:auto;display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #2a362f;border-radius:12px;font-size:13px}.av{width:34px;height:34px;border-radius:50%;background:var(--pr);color:#fff;display:grid;place-items:center;font-weight:700}
+main{padding:24px;min-width:0}.top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}h2{margin:0}
+.card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:18px;margin-top:14px}.card h3{margin:0 0 10px;font-size:16px}
+.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:14px}.k div{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:16px}.k small{color:var(--mut)}.k b{display:block;font-size:22px;margin-top:4px}.k div:first-child{background:var(--dk);color:#fff;border-color:var(--dk)}.k div:first-child small{color:#c9d3cd}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}.pill{padding:7px 13px;border-radius:99px;border:1px solid var(--br);background:var(--card);color:var(--tx);cursor:pointer;font-size:13px}.pill.on{background:var(--dk);color:#fff;border-color:var(--dk)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--br);white-space:nowrap}th{color:var(--mut);font-weight:600}
+.st{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}.st.pendente{background:#fef3c7;color:#92400e}.st.enviado{background:#dbeafe;color:#1e40af}.st.entregue{background:#dcfce7;color:#166534}.st.g{background:#e5e7eb;color:#374151}.st.aguardando_pagamento{background:#fef3c7;color:#92400e}.st.pago{background:#dcfce7;color:#166534}.st.cancelado{background:#fee2e2;color:#991b1b}.st.em_producao{background:#ede9fe;color:#5b21b6}.fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}.fila button{text-align:left;border:1px solid var(--br);background:var(--card);border-radius:12px;padding:12px 14px;cursor:pointer;color:var(--tx)}.fila button b{display:block;font-size:24px}.fila button small{color:var(--mut)}.fila button.al{border-color:#dc2626}.fila button.al b{color:#dc2626}.bars i.pe{background:#f59e0b;border-radius:6px 6px 0 0}.bars i.pg{border-radius:0}.sm{font-size:11px;color:var(--mut);display:block;margin-top:2px}.lg2{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-top:8px;align-items:center}.lg2 i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}.st.ativa{background:#dcfce7;color:#166534}
+.bars{display:flex;align-items:flex-end;gap:10px;height:150px}.bars div{flex:1;text-align:center;font-size:11px;color:var(--mut);display:flex;flex-direction:column;justify-content:flex-end;height:100%}.bars i{background:var(--dk);border-radius:6px 6px 0 0;display:block;min-height:2px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tier{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--br);border-radius:10px;margin-bottom:6px}
+#mo{display:none;position:fixed;inset:0;background:#0007;z-index:20;place-items:center;padding:16px}#mo .box{background:var(--card);border-radius:16px;padding:22px;width:100%;max-width:420px;display:grid;gap:10px;max-height:90vh;overflow:auto}
+.bar{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--br)}
+.lgc{background:#fff;border-radius:14px;padding:6px 12px;justify-content:center;margin-bottom:6px}.lg{height:58px;width:auto;display:block}
+@media(max-width:800px){#app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;overflow-x:auto;align-items:center}.lgc{flex:none;margin:0 8px 0 0;padding:4px 8px}.lg{height:40px}aside small,.me{display:none}aside a{white-space:nowrap}.g2,.g3{grid-template-columns:1fr}}
+</style></head><body>
+
+<div id="auth"><div class="box">
+<div class="logo" style="justify-content:center"><img src="/logo.png" alt="NexTap" style="height:88px;width:auto"></div>
+<div class="mut" style="text-align:center;font-size:13px;margin-top:-6px">Painel do fornecedor</div>
+<label>E-mail<input id="ae" type="email" value="admin@nextap.com.br"></label>
+<label>Senha de administrador<input id="ap" type="password" placeholder="Senha do fornecedor"></label>
+<button class="btn p" onclick="sub()">Entrar</button>
+<small class="mut">Acesso restrito ao fornecedor. Use o e-mail e a senha definidos em ADMIN_EMAIL / ADMIN_PASSWORD no backend.</small></div></div>
+
+<div id="app">
+<aside><a class="logo lgc" href="/" aria-label="NexTap"><img src="/logo.png" alt="NexTap" class="lg"></a><small style="margin-top:4px">PAINEL ADMIN · FORNECEDOR</small>
+<small>PAINEL</small><a data-v="dash" onclick="nav('dash')">▦ Visão geral</a><a data-v="revs" onclick="nav('revs')">👥 Revendedores</a><a data-v="pedidos" onclick="nav('pedidos')">📦 Pedidos</a><a data-v="placas" onclick="nav('placas')">▣ Placas emitidas</a>
+<small>GESTÃO</small><a data-v="fin" onclick="nav('fin')">💰 Financeiro</a><a data-v="forn" onclick="nav('forn')">🏭 Fornecedores</a><a data-v="cfg" onclick="nav('cfg')">⚙ Preços</a><a data-v="dados" onclick="nav('dados')">🛡 Dados e backups</a>
+<div class="me"><div class="av">A</div><div><b>Admin</b><div class="mut" style="color:#7d8c86">Fornecedor</div></div><button class="btn s" style="margin-left:auto" onclick="out()" title="Sair">⎋</button></div></aside>
+<main><div class="top"><div id="hd"></div><span class="row" style="margin:0"><button class="btn" onclick="baixarBackup()" title="Baixar uma cópia completa dos dados">⬇ Backup</button><button class="btn" onclick="theme()">◐</button></span></div><div id="v"></div></main></div>
+<div id="mo"><div class="box" id="mb"></div></div>
+
+<script>
+/* ==== CONFIGURAÇÃO ==== */
+// Troque pela URL pública do seu backend depois do deploy (Railway/Render), terminando em /api
+// Mesmo domínio do backend: as páginas são servidas pelo próprio Railway, então a API fica em /api
+// (sem CORS). Se abrir o arquivo direto do computador, cai no endereço público do backend.
+const API_BASE = (location.protocol.indexOf("http") === 0 ? location.origin : "https://nextap-production-6c30.up.railway.app") + "/api";
+/* ======================= */
+
+var $=function(i){return document.getElementById(i)},per='all',cur='dash',TOKEN=null;
+var OVER={},REVS=[],ORDERS=[],PLATES=[],TIERS=[];
+function R(n){return (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function U(s){if(s instanceof Date)return s;s=String(s||'');if(/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d(:\d\d)?$/.test(s))return new Date(s.replace(' ','T')+(s.length===16?':00':'')+'Z');return new Date(s)}
+function fd(d){return U(d).toLocaleDateString('pt-BR')}
+function fdh(d){return d?U(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}
+function theme(){var r=document.documentElement,d=r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches);r.dataset.theme=d?'light':'dark'}
+
+async function api(path,opts){
+  opts=opts||{};var h=opts.headers||{};h['Content-Type']='application/json';if(TOKEN)h['Authorization']='Bearer '+TOKEN;
+  var r;try{r=await fetch(API_BASE+path,Object.assign({},opts,{headers:h}))}
+  catch(e){throw new Error('Não foi possível conectar ao servidor.')}
+  var data=null;try{data=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((data&&data.error)||'Ocorreu um erro inesperado.');
+  return data;
+}
+async function sub(){var email=$('ae').value.trim(),pass=$('ap').value;
+try{var r=await api('/auth/admin-login',{method:'POST',body:JSON.stringify({email:email,password:pass})});TOKEN=r.token;try{localStorage.setItem('nx_admin_token',TOKEN)}catch(e){}await boot()}
+catch(e){alert(e.message)}}
+function out(){TOKEN=null;try{localStorage.removeItem('nx_admin_token')}catch(e){}$('app').style.display='none';$('auth').style.display='grid'}
+async function boot(){await loadAll();$('auth').style.display='none';$('app').style.display='grid';nav('dash')}
+async function loadAll(){var r=await Promise.all([api('/admin/overview'),api('/admin/resellers'),api('/admin/orders'),api('/admin/plates'),api('/admin/price-tiers')]);
+OVER=r[0];REVS=r[1];ORDERS=r[2];PLATES=r[3];TIERS=r[4]}
+
+function inP(x){var d=U(x.created_at),n=new Date();if(per==='all')return 1;if(per==='today')return d.toDateString()===n.toDateString();if(per==='month')return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();return (n-d)/864e5<=+per}
+function pills(){return '<div class="row">'+[['today','Hoje'],['7','7 dias'],['30','30 dias'],['90','90 dias'],['month','Este mês'],['all','Tudo']].map(function(p){return '<button class="pill '+(per===p[0]?'on':'')+'" onclick="per=\''+p[0]+'\';draw()">'+p[1]+'</button>'}).join('')+'</div>'}
+function head(t,s){$('hd').innerHTML='<h2>'+t+'</h2><span class="mut">'+s+'</span>'}
+function nav(v){cur=v;if(v==='cfg'&&FRETE===null)loadFrete();if(v==='dados')loadSis();if(v==='forn')loadForn();if(v==='fin'){if(FT==='lucro')loadLuc();else if(FT==='desp')loadDesp();else if(FT==='cus')loadCus()}document.querySelectorAll('aside a[data-v]').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});draw()}
+function mo(h){$('mb').innerHTML=h;$('mo').style.display='grid'}function cl(){$('mo').style.display='none'}
+$('mo').onclick=function(e){if(e.target===this)cl()};
+function draw(){var aviso=(OVER&&OVER.persistente===false)?'<div class="card" style="border-color:#dc2626;margin-bottom:12px"><b style="color:#dc2626">⚠ Atenção: os dados não estão sendo guardados de forma permanente.</b><br><span class="mut">No Railway, crie um Volume (montado em /data) e conecte ao serviço. Até lá, cadastros e pedidos são apagados a cada atualização do sistema.</span></div>':'';
+$('v').innerHTML=aviso+({dash:vDash,revs:vRevs,pedidos:vPedidos,placas:vPlacas,fin:vFin,forn:vForn,cfg:vCfg,dados:vDados})[cur]()}
+async function baixarBackup(){
+  try{
+    var r=await fetch(API_BASE+'/admin/backup',{headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok)throw new Error('Não foi possível gerar o backup agora.');
+    var b=await r.blob(),a=document.createElement('a');
+    a.href=URL.createObjectURL(b);a.download='nextap-backup-'+new Date().toISOString().slice(0,10)+'.db';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},5000);
+  }catch(e){alert(e.message)}
+}
+var STM={aguardando_pagamento:'Aguardando pagamento',pago:'Pedido recebido',em_producao:'Em produção',enviado:'Enviado',entregue:'Entregue',cancelado:'Cancelado',estoque:'Não configurada',ativa:'Configurada'};
+function stTag(s){return '<span class="st '+(s||'').toLowerCase()+'">'+(STM[s]||s)+'</span>'}
+
+/* dash */
+function sm(l){return l.reduce(function(s,o){return s+o.total},0)}
+function isPg(o){return ['pago','em_producao','enviado','entregue'].indexOf(o.status)>-1}
+function isAw(o){return o.status==='aguardando_pagamento'}
+function vDash(){head('Visão geral','Desempenho de todos os revendedores.');var os=ORDERS.filter(inP),pg=os.filter(isPg),aw=os.filter(isAw),hoje=new Date();
+var b=[],mx=1;for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var dia=function(o){return U(o.created_at).toDateString()===d.toDateString()};var v1=sm(os.filter(function(o){return isPg(o)&&dia(o)})),v2=sm(os.filter(function(o){return isAw(o)&&dia(o)}));b.push([d.toLocaleDateString('pt-BR',{weekday:'short'}),v1,v2]);mx=Math.max(mx,v1+v2)}
+var aviso=aw.length?'<div class="card" style="border-color:#f59e0b;margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span><b>'+aw.length+' pedido(s) aguardando pagamento</b> · '+R(sm(aw))+' a receber.<br><small class="mut">Se algum já foi pago, confira no Mercado Pago.</small></span><span class="row" style="margin:0"><button class="btn p" onclick="conferirTodos()">🔄 Conferir no Mercado Pago</button><button class="btn" onclick="pf=\'aguardando_pagamento\';nav(\'pedidos\')">Ver pedidos</button></span></div>':'';
+var fRec=ORDERS.filter(function(o){return o.status==='pago'}),fPro=ORDERS.filter(function(o){return o.status==='em_producao'}),fAtr=fPro.filter(function(o){return o.atrasado}),fEnv=ORDERS.filter(function(o){return o.status==='enviado'});
+var F=function(n,l,f,al){return '<button class="'+(al&&n?'al':'')+'" onclick="pf=\''+f+'\';nav(\'pedidos\')"><b>'+n+'</b><small>'+l+'</small></button>'};
+var fila='<div class="fila">'+F(fRec.length,'Pedido recebido · iniciar produção','pago')+F(fPro.length,'Em produção','em_producao')+F(fAtr.length,'Produção atrasada','em_producao',1)+F(fEnv.length,'Enviados · aguardando entrega','enviado')+'</div>';
+return pills()+aviso+fila+'<div class="k"><div><small>Faturamento (pedidos pagos)</small><b>'+R(sm(pg))+'</b></div><div><small>A receber (aguardando pagamento)</small><b>'+R(sm(aw))+'</b></div><div><small>Pedidos pagos</small><b>'+pg.length+'</b></div><div><small>Aguardando pagamento</small><b>'+aw.length+'</b></div><div><small>Revendedores cadastrados</small><b>'+OVER.revendedores+'</b></div><div><small>Placas emitidas</small><b>'+OVER.placas+'</b></div><div><small>Placas configuradas</small><b>'+OVER.ativas+'</b></div></div>'+
+'<div class="g2"><div class="card"><h3>Pedidos (7 dias)</h3><div class="bars">'+b.map(function(x){var t=x[1]+x[2];return '<div><small>'+(t?R(t):'')+'</small><i class="pe" style="height:'+x[2]/mx*100+'%"></i><i class="pg" style="height:'+x[1]/mx*100+'%"></i>'+x[0]+'</div>'}).join('')+'</div><div class="lg2"><span><i style="background:var(--dk)"></i>Pago</span><span><i style="background:#f59e0b"></i>Aguardando pagamento</span></div></div>'+
+'<div class="card"><h3>Últimos pedidos</h3>'+(os.length?os.slice(0,6).map(function(o){return '<div class="bar"><span>'+E(o.reseller_name)+' '+stTag(o.status)+'<br><small class="mut">'+fd(o.created_at)+' · '+o.qty_azul+' azul + '+o.qty_preta+' preta</small></span><b>'+R(o.total)+'</b></div>'}).join(''):'<p class="mut">Nenhum pedido no período.</p>')+'</div></div>'}
+/* revendedores */
+function vRevs(){head('Revendedores','Todos os revendedores cadastrados no sistema.');
+return '<div class="card"><div class="tw"><table><tr><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th>Pedidos</th><th>Gasto total</th><th>Placas</th><th>Vendas</th><th>Senha</th></tr>'+(REVS.length?REVS.map(function(x){return '<tr><td>'+E(x.name)+'</td><td>'+E(x.email)+'</td><td>'+E(x.whatsapp||'—')+'</td><td>'+x.pedidos+'</td><td>'+R(x.gasto)+'</td><td>'+x.placas+'</td><td>'+x.vendas+'</td><td><button class="btn s" title="Gerar link para o revendedor criar uma nova senha" onclick="rstLink('+x.id+')">🔑 Link de senha</button></td></tr>'}).join(''):'<tr><td colspan="8" class="mut">Nenhum revendedor cadastrado ainda.</td></tr>')+'</table></div></div>'}
+/* pedidos */
+var pf='todos';
+var MPT={pending:'pendente no Mercado Pago',in_process:'em análise no Mercado Pago',authorized:'autorizado',rejected:'recusado no Mercado Pago',cancelled:'expirado/cancelado no Mercado Pago',refunded:'⚠ estornado',charged_back:'⚠ contestado (chargeback)'};
+var SEL={};
+function dm(s){if(!s)return '';var p=String(s).split('-');return p[2]+'/'+p[1]}
+function pad5(n){return String(n).padStart(5,'0')}
+function vPedidos(){head('Pedidos','Acompanhe o pagamento, a produção e o envio de cada pedido.');
+  var defs=[['todos','Todos',function(o){return 1}],['aguardando_pagamento','Aguardando pagamento',isAw],['pago','Pedido recebido',function(o){return o.status==='pago'}],['em_producao','Em produção',function(o){return o.status==='em_producao'}],['enviado','Enviados',function(o){return o.status==='enviado'}],['entregue','Entregues',function(o){return o.status==='entregue'}],['cancelado','Cancelados',function(o){return o.status==='cancelado'}]];
+  var f=defs.filter(function(x){return x[0]===pf})[0]||defs[0],lista=ORDERS.filter(f[2]),aw=ORDERS.filter(isAw);
+  var pills='<div class="row">'+defs.map(function(x){var l=ORDERS.filter(x[2]);return '<button class="pill'+(pf===x[0]?' on':'')+'" onclick="pf=\''+x[0]+'\';draw()">'+x[1]+' ('+l.length+')</button>'}).join('')+'</div>';
+  var resumo='<p class="mut" style="margin:10px 0 0">Recebido (pago até entregue): <b style="color:var(--tx)">'+R(sm(ORDERS.filter(isPg)))+'</b> · A receber: <b style="color:var(--tx)">'+R(sm(aw))+'</b> · Produção: '+(lista[0]&&lista[0].prazo_producao_dias||5)+' dias úteis</p>';
+  var banner=aw.length?'<div class="row" style="margin-top:10px"><button class="btn p" onclick="conferirTodos()">🔄 Conferir todos os pendentes no Mercado Pago</button></div>':'';
+  var nSel=Object.keys(SEL).filter(function(k){return SEL[k]&&ORDERS.some(function(o){return o.id==k&&o.status==='pago'})}).length;
+  var lote=(pf==='pago'&&lista.length)?'<div class="row" style="margin-top:10px;align-items:center"><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto" onchange="selTodos(this.checked)"> Selecionar todos</label><button class="btn p" onclick="loteProd()" '+(nSel?'':'disabled')+'>▶ Iniciar produção dos selecionados ('+nSel+')</button></div>':'';
+  var B=function(t,fn,c){return '<button class="btn s'+(c?' p':'')+'" onclick="'+fn+'">'+t+'</button> '};
+  var acoes=function(o){
+    if(o.status==='aguardando_pagamento')return B('🔄 Conferir','conferirPed('+o.id+')')+B('✔ Confirmar pagamento','confirmarPag('+o.id+')',1)+B('✖ Cancelar','cancelarPed('+o.id+')');
+    if(o.status==='pago')return B('▶ Iniciar produção','iniciarProd('+o.id+')',1)+B('📦 Enviar','abrirEnvio('+o.id+')');
+    if(o.status==='em_producao')return B('📦 Enviar (código)','abrirEnvio('+o.id+')',1)+B('↩','voltar('+o.id+')');
+    if(o.status==='enviado')return B('✔ Marcar entregue','entregar('+o.id+')',1)+B('✎ Rastreio','abrirEnvio('+o.id+',1)')+B('↩','voltar('+o.id+')');
+    if(o.status==='entregue')return B('↩ Desfazer','voltar('+o.id+')');
+    if(o.status==='cancelado')return B('🔄 Conferir','conferirPed('+o.id+')')+B('✔ Confirmar pagamento','confirmarPag('+o.id+')');
+    return ''};
+  var extra=function(o){var s='';
+    if(o.status==='aguardando_pagamento'&&o.mp_status)s='<span class="sm">'+(MPT[o.mp_status]||E(o.mp_status))+'</span>';
+    else if(o.mp_status==='refunded'||o.mp_status==='charged_back')s='<span class="sm" style="color:#dc2626">'+MPT[o.mp_status]+'</span>';
+    if(o.status==='pago')s+='<span class="sm">Aguardando início da produção</span>';
+    if(o.status==='em_producao')s+='<span class="sm" style="color:'+(o.atrasado?'#dc2626':'inherit')+'">Enviar até '+dm(o.prazo_envio)+(o.atrasado?' · ATRASADO':'')+'</span>';
+    if((o.status==='enviado'||o.status==='entregue'))s+=o.tracking_code?'<span class="sm">'+E(o.shipping_service||'Correios')+' · <a target="_blank" rel="noopener" style="color:var(--pr)" href="'+E(o.rastreio_url)+'">'+E(o.tracking_code)+'</a></span>':'<span class="sm">sem código de rastreio</span>';
+    if(o.custo_frete_real!=null&&(o.status==='enviado'||o.status==='entregue')){var dif=(o.shipping_fee||0)-o.custo_frete_real;s+='<span class="sm" style="color:'+(dif<0?'#dc2626':'inherit')+'">Correios '+R(o.custo_frete_real)+' · '+(dif<0?'falta ':'sobra ')+R(Math.abs(dif))+' do frete</span>'}
+    return s};
+  return pills+resumo+banner+lote+'<div class="card" style="margin-top:12px"><div class="tw"><table><tr><th></th><th>Pedido</th><th>Revendedor</th><th>Data</th><th>Azul</th><th>Preta</th><th>Total</th><th>Pagamento</th><th>Pago em</th><th>Entrega</th><th>Status</th><th>Ações</th></tr>'
+  +(lista.length?lista.map(function(o){
+    return '<tr><td>'+(o.status==='pago'?'<input type="checkbox" style="width:auto" '+(SEL[o.id]?'checked':'')+' onchange="SEL['+o.id+']=this.checked;draw()">':'')+'</td><td>#'+pad5(o.id)+'</td><td>'+E(o.reseller_name)+'</td><td>'+fdh(o.created_at)+'</td><td>'+o.qty_azul+'</td><td>'+o.qty_preta+'</td><td>'+R(o.total)+(o.shipping_fee>0?'<span class="sm">inclui frete '+R(o.shipping_fee)+'</span>':'')+'</td><td>'+(o.payment_method==='pix'?'Pix':o.payment_method==='credit_card'?'Cartão':'—')+'</td><td>'+(o.paid_at?fdh(o.paid_at)+(o.paid_manually?'<span class="sm" title="'+E(o.payment_note||'')+'">confirmado manualmente</span>':''):'—')+'</td><td>'+(o.ship_street?'<button class="btn s" onclick="verEnt('+o.id+')">📍 '+E(o.ship_city)+'/'+E(o.ship_state)+'</button>':'<span class="mut">—</span>')+'</td><td>'+stTag(o.status)+extra(o)+'</td><td style="white-space:nowrap">'+acoes(o)+'</td></tr>'}).join(''):'<tr><td colspan="12" class="mut">Nenhum pedido nesta situação.</td></tr>')
+  +'</table></div><small class="mut">Fluxo: Aguardando pagamento → <b>Pedido recebido</b> (pago) → <b>Em produção</b> (prazo de '+(lista[0]&&lista[0].prazo_producao_dias||5)+' dias úteis) → <b>Enviado</b> (com código de rastreio dos Correios) → <b>Entregue</b>. O revendedor acompanha cada etapa no painel dele.</small></div>'}
+function selTodos(on){ORDERS.filter(function(o){return o.status==='pago'}).forEach(function(o){SEL[o.id]=on});draw()}
+async function loteProd(){var ids=Object.keys(SEL).filter(function(k){return SEL[k]}).map(Number);if(!ids.length)return;
+  try{var r=await api('/admin/orders-producao-lote',{method:'POST',body:JSON.stringify({ids:ids})});SEL={};await recarregar();toast(r.iniciados+' pedido(s) em produção ✓')}catch(e){alert(e.message)}}
+async function iniciarProd(id){try{await api('/admin/orders/'+id+'/producao',{method:'POST'});await recarregar();toast('Produção iniciada ✓')}catch(e){alert(e.message)}}
+async function entregar(id){try{await api('/admin/orders/'+id+'/entregar',{method:'POST'});cl();await recarregar();toast('Pedido marcado como entregue ✓')}catch(e){alert(e.message)}}
+async function voltar(id){if(!confirm('Desfazer a última etapa do pedido #'+pad5(id)+'?'))return;try{await api('/admin/orders/'+id+'/voltar',{method:'POST'});await recarregar()}catch(e){alert(e.message)}}
+function abrirEnvio(id,ed){var o=ORDERS.filter(function(x){return x.id===id})[0];if(!o)return;
+  var sv=['PAC','SEDEX','PAC Mini','Mini Envios','Outro'];
+  mo('<h3 style="margin:0">'+(ed?'Editar rastreio':'Enviar pedido')+' #'+pad5(id)+'</h3><p class="mut" style="margin:0">'+E(o.reseller_name)+' · '+o.qty_azul+' azul + '+o.qty_preta+' preta'+(o.ship_city?' · '+E(o.ship_city)+'/'+E(o.ship_state):'')+'</p>'
+  +'<label>Código de rastreio dos Correios<input id="rc" value="'+E(o.tracking_code||'')+'" placeholder="AA123456789BR" maxlength="13" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;font-weight:700;letter-spacing:.5px" onkeydown="if(event.key===\'Enter\')salvarEnvio('+id+','+(ed?1:0)+')"></label>'
+  +'<label>Quanto você pagou aos Correios (R$) <small class="mut">— opcional, mas importante para o lucro</small><input id="rf" inputmode="decimal" placeholder="Ex.: 18,90" value="'+(o.custo_frete_real!=null?String(o.custo_frete_real).replace('.',','):'')+'"><small class="mut">O cliente pagou '+R(o.shipping_fee||0)+' de frete neste pedido.</small></label>'
+  +'<label>Serviço<select id="rs">'+sv.map(function(s){return '<option'+((o.shipping_service||'')===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></label>'
+  +'<div class="row"><button class="btn p" onclick="salvarEnvio('+id+','+(ed?1:0)+')">'+(ed?'Salvar rastreio':'Marcar como enviado')+'</button><button class="btn" onclick="cl()">Cancelar</button></div>'
+  +(ed?'':'<p class="mut" style="margin:4px 0 0;font-size:12px">Entrega em mãos (sem código de rastreio)? <a style="color:var(--pr);cursor:pointer;font-weight:700" onclick="entregar('+id+')">Marcar como entregue</a></p>'));
+  setTimeout(function(){var i=$('rc');if(i)i.focus()},50)}
+async function salvarEnvio(id,ed){
+  try{var r=ed?await api('/admin/orders/'+id+'/rastreio',{method:'PUT',body:JSON.stringify({codigo:$('rc').value,servico:$('rs').value,custo_frete:$('rf').value})}):await api('/admin/orders/'+id+'/enviar',{method:'POST',body:JSON.stringify({codigo:$('rc').value,servico:$('rs').value,custo_frete:$('rf').value})});
+    await recarregar();avisoEnvio(r.order)}catch(e){alert(e.message)}}
+function avisoEnvio(o){var nome=String(o.ship_name||o.reseller_name||'').split(' ')[0],wa=String(o.ship_phone||'').replace(/\D/g,'');if(wa&&wa.length<=11)wa='55'+wa;
+  var msg='Olá, '+nome+'! 📦 Seu pedido NexTap #'+pad5(o.id)+' foi enviado pelos Correios'+(o.shipping_service?' ('+o.shipping_service+')':'')+'.\nCódigo de rastreio: '+o.tracking_code+'\nAcompanhe: '+o.rastreio_url+'\nVocê também vê o andamento no seu painel NexTap.';
+  window.WAMSG=msg;
+  mo('<h3 style="margin:0">Pedido #'+pad5(o.id)+' enviado ✓</h3><p class="mut" style="margin:0">Código de rastreio <b style="color:var(--tx)">'+E(o.tracking_code)+'</b>. O revendedor já vê no painel dele. Quer avisar agora?</p>'
+  +'<pre style="white-space:pre-wrap;background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:12px;margin:0;font:14px/1.5 inherit">'+E(msg)+'</pre>'
+  +'<div class="row">'+(wa?'<a class="btn p" target="_blank" rel="noopener" href="https://wa.me/'+wa+'?text='+encodeURIComponent(msg)+'">Avisar no WhatsApp</a>':'')+'<button class="btn" id="wcp" onclick="cpWa()">Copiar mensagem</button><button class="btn" onclick="cl()">Fechar</button></div>')}
+function cpWa(){var ok=function(){$('wcp').textContent='Copiado ✓'};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(window.WAMSG).then(ok,function(){});else ok()}
+function toast(m){var t=$('tt');if(!t){t=document.createElement('div');t.id='tt';t.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#15803d;color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;z-index:40;box-shadow:0 10px 30px #0004;transition:opacity .3s';document.body.appendChild(t)}t.textContent=m;t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(function(){t.style.opacity=0},2600)}
+/* ===== FORNECEDORES / ESTOQUE ===== */
+var FORN=null;
+function hojeBR(){return new Date().toLocaleDateString('en-CA',{timeZone:'America/Bahia'})}
+async function loadForn(){try{FORN=await api('/admin/gestao/estoque')}catch(e){FORN=null}if(cur==='forn')draw()}
+function K(l,v,sub,cor){return '<div><small>'+l+'</small><b'+(cor?' style="color:'+cor+'"':'')+'>'+v+'</b>'+(sub?'<small class="mut">'+sub+'</small>':'')+'</div>'}
+function vForn(){head('Fornecedores e estoque','Quanto você tem em estoque, de quem comprou e quanto pagou.');
+  if(!FORN)return '<div class="card mut">Carregando…</div>';
+  var e=FORN.resumo,fs=FORN.fornecedores,mv=FORN.movimentos;
+  var aviso=e.disponivel<0?'<div class="card" style="border-color:#dc2626;margin-top:14px"><b style="color:#dc2626">⚠ Você vendeu mais placas do que tem.</b> Faltam '+(-e.disponivel)+' placas para os pedidos já pagos. Registre a compra abaixo.</div>':e.disponivel<e.minimo?'<div class="card" style="border-color:#f59e0b;margin-top:14px"><b>Estoque baixo:</b> disponível '+e.disponivel+' (mínimo que você definiu: '+e.minimo+'). Hora de comprar mais.</div>':'';
+  var kpis='<div class="k">'+K('Placas em mãos',e.em_maos,'fisicamente com você')+K('Comprometidas',e.comprometido,'pedidos pagos, ainda não enviados')+K('Disponível para vender',e.disponivel,'em mãos − comprometidas',e.disponivel<0?'#dc2626':e.disponivel<e.minimo?'#b45309':'#16a34a')+K('Comprado no total',e.comprado,'placas')+K('Investido em compras',R(e.investido),'inclui frete das compras')+K('Custo médio por placa',e.custo_medio===null?'—':R(e.custo_medio),'média ponderada das compras')+'</div>';
+  var opts=fs.map(function(f){return '<option value="'+f.id+'">'+E(f.nome)+'</option>'}).join('');
+  var compra='<div class="card" style="margin-top:14px"><h3 style="margin:0 0 4px">Registrar compra de placas</h3><p class="mut" style="margin:0 0 10px">Cada compra entra no estoque e no custo médio.</p>'
+   +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">'
+   +'<label>Fornecedor<select id="cf" onchange="cfSel()">'+opts+'<option value="__novo"'+(fs.length?'':' selected')+'>➕ Novo fornecedor…</option></select></label>'
+   +'<label id="cfnw" style="'+(fs.length?'display:none':'')+'">Nome do novo fornecedor<input id="cfn" placeholder="Ex.: Acrílicos Silva"></label>'
+   +'<label>Data da compra<input type="date" id="cd" value="'+hojeBR()+'"></label>'
+   +'<label>Quantidade comprada<input id="cq" inputmode="numeric" placeholder="Ex.: 200" oninput="calcCompra()"></label>'
+   +'<label>Preço por placa (R$)<input id="cp" inputmode="decimal" placeholder="Ex.: 13,50" oninput="calcCompra()"></label>'
+   +'<label>Frete/outros da compra (R$)<input id="cx" inputmode="decimal" placeholder="opcional" oninput="calcCompra()"></label>'
+   +'<label style="grid-column:1/-1">Observação<input id="co" placeholder="opcional (ex.: 1º lote, nota fiscal 123)"></label></div>'
+   +'<p style="margin:10px 0 0" id="cpTotal" class="mut">Total da compra: —</p><div class="row"><button class="btn p" onclick="salvarCompra()">Salvar compra</button></div></div>';
+  var contagem='<div class="g2" style="margin-top:12px;align-items:start"><div class="card"><h3 style="margin:0 0 4px">Definir estoque atual</h3><p class="mut" style="margin:0 0 10px">Conte as placas que você tem agora e informe aqui. O sistema ajusta sozinho (e guarda o histórico).</p><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="ct" inputmode="numeric" placeholder="Ex.: 250" style="max-width:160px;font-size:18px;font-weight:700"><button class="btn p" onclick="contarEstoque()">Definir estoque</button></div></div>'
+   +'<div class="card"><h3 style="margin:0 0 4px">Ajuste manual (perdas, brindes)</h3><p class="mut" style="margin:0 0 10px">Use número negativo para tirar do estoque (ex.: −3).</p><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aq" inputmode="numeric" placeholder="−3" style="max-width:90px"><input id="ao" placeholder="Motivo (ex.: quebradas na produção)" style="flex:1;min-width:180px"><button class="btn" onclick="ajusteEstoque()">Lançar ajuste</button></div></div></div>';
+  var forn='<div class="card" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Fornecedores</h3><button class="btn s" onclick="abrirForn()">＋ Novo fornecedor</button></div><div class="tw"><table><tr><th>Fornecedor</th><th>Contato</th><th>Compras</th><th>Peças compradas</th><th>Total gasto</th><th>Preço médio</th><th>Última compra</th><th></th></tr>'
+   +(fs.length?fs.map(function(f){return '<tr><td><b>'+E(f.nome)+'</b></td><td>'+E(f.contato||'—')+'</td><td>'+f.compras+'</td><td>'+f.quantidade+'</td><td>'+R(f.total_gasto)+'</td><td>'+(f.preco_medio===null?'—':R(f.preco_medio))+'</td><td>'+(f.ultima_compra?f.ultima_compra.split('-').reverse().join('/'):'—')+'</td><td style="white-space:nowrap"><button class="btn s" onclick="abrirForn('+f.id+')">✎</button> <button class="btn s" onclick="delForn('+f.id+')">✕</button></td></tr>'}).join(''):'<tr><td colspan="8" class="mut">Nenhum fornecedor ainda. Cadastre ao registrar a primeira compra.</td></tr>')+'</table></div></div>';
+  var hist='<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Movimentações do estoque</h3><div class="tw"><table><tr><th>Data</th><th>Tipo</th><th>Fornecedor</th><th>Qtd</th><th>Preço/placa</th><th>Total</th><th>Observação</th><th></th></tr>'
+   +(mv.length?mv.map(function(m){return '<tr><td>'+m.data.split('-').reverse().join('/')+'</td><td>'+(m.tipo==='compra'?'Compra':'Ajuste')+'</td><td>'+E(m.fornecedor||'—')+'</td><td style="color:'+(m.quantidade<0?'#dc2626':'#16a34a')+';font-weight:700">'+(m.quantidade>0?'+':'')+m.quantidade+'</td><td>'+(m.custo_unit!==null&&m.tipo==='compra'?R(m.custo_unit):'—')+'</td><td>'+(m.total!==null?R(m.total):'—')+'</td><td>'+E(m.observacao||'')+'</td><td><button class="btn s" onclick="delMov('+m.id+')" title="Excluir lançamento">✕</button></td></tr>'}).join(''):'<tr><td colspan="8" class="mut">Nenhuma movimentação ainda.</td></tr>')+'</table></div><small class="mut">Placas vendidas saem do estoque sozinhas: ficam "comprometidas" quando o pedido é pago e saem do que você tem em mãos quando você marca o pedido como enviado.</small></div>';
+  return aviso+kpis+compra+contagem+forn+hist}
+function cfSel(){var n=$('cf').value==='__novo';$('cfnw').style.display=n?'':'none'}
+function pnum(v){var s=String(v==null?'':v).trim();if(!s)return 0;s=s.indexOf(',')>-1?s.replace(/\./g,'').replace(',','.'):s;var n=Number(s);return isFinite(n)?n:0}
+function calcCompra(){var q=parseInt($('cq').value,10)||0,p=pnum($('cp').value),x=pnum($('cx').value);$('cpTotal').innerHTML=q&&p?'Total da compra: <b style="color:var(--tx)">'+R(q*p+x)+'</b> ('+q+' × '+R(p)+(x?' + '+R(x)+' de frete':'')+') · custo real por placa: <b style="color:var(--tx)">'+R((q*p+x)/q)+'</b>':'Total da compra: —'}
+async function salvarCompra(){var nv=$('cf').value==='__novo';
+  try{var r=await api('/admin/gestao/estoque/compra',{method:'POST',body:JSON.stringify({fornecedor_id:nv?null:$('cf').value,fornecedor_novo:nv?$('cfn').value:'',data:$('cd').value,quantidade:$('cq').value,custo_unit:$('cp').value,custo_extra:$('cx').value,observacao:$('co').value})});
+    await loadForn();toast('Compra registrada ✓ Estoque em mãos: '+r.resumo.em_maos)}catch(e){alert(e.message)}}
+async function contarEstoque(){try{var r=await api('/admin/gestao/estoque/contagem',{method:'POST',body:JSON.stringify({quantidade:$('ct').value})});await loadForn();toast(r.ajuste?'Estoque ajustado ('+(r.ajuste>0?'+':'')+r.ajuste+') ✓':'Estoque já estava certo ✓')}catch(e){alert(e.message)}}
+async function ajusteEstoque(){try{await api('/admin/gestao/estoque/ajuste',{method:'POST',body:JSON.stringify({quantidade:$('aq').value,observacao:$('ao').value})});await loadForn();toast('Ajuste lançado ✓')}catch(e){alert(e.message)}}
+async function delMov(id){if(!confirm('Excluir este lançamento do estoque?'))return;try{await api('/admin/gestao/estoque/'+id,{method:'DELETE'});await loadForn()}catch(e){alert(e.message)}}
+function abrirForn(id){var f=id?FORN.fornecedores.filter(function(x){return x.id===id})[0]:{nome:'',contato:'',observacao:''};
+  mo('<h3 style="margin:0">'+(id?'Editar':'Novo')+' fornecedor</h3><label>Nome<input id="fn" value="'+E(f.nome)+'"></label><label>Contato (WhatsApp / e-mail)<input id="fc" value="'+E(f.contato||'')+'"></label><label>Observação<input id="fo" value="'+E(f.observacao||'')+'"></label><div class="row"><button class="btn p" onclick="salvarForn('+(id||0)+')">Salvar</button><button class="btn" onclick="cl()">Cancelar</button></div>')}
+async function salvarForn(id){try{await api('/admin/gestao/fornecedores'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify({nome:$('fn').value,contato:$('fc').value,observacao:$('fo').value})});cl();await loadForn()}catch(e){alert(e.message)}}
+async function delForn(id){if(!confirm('Remover este fornecedor? Se ele tiver compras, o histórico delas é mantido.'))return;try{await api('/admin/gestao/fornecedores/'+id,{method:'DELETE'});await loadForn()}catch(e){alert(e.message)}}
+
+/* ===== FINANCEIRO: abas ===== */
+var FT='resumo',LUC=null,LUCERR=null,DESP=null,CUS=null,IATXT=null,IAERR=null,IALOAD=false;
+function vFin(){head('Financeiro','Faturamento, custos e lucro do negócio.');
+  var tabs=[['resumo','Resumo'],['lucro','Lucro estimado'],['desp','Despesas'],['cus','Custos e taxas']];
+  var bar='<div class="row">'+tabs.map(function(t){return '<button class="pill'+(FT===t[0]?' on':'')+'" onclick="finTab(\''+t[0]+'\')">'+t[1]+'</button>'}).join('')+'</div>';
+  return bar+(FT==='lucro'?finLucro():FT==='desp'?finDesp():FT==='cus'?finCus():finResumo())}
+function finTab(t){FT=t;if(t==='lucro')loadLuc();else if(t==='desp')loadDesp();else if(t==='cus')loadCus();draw()}
+async function loadLuc(){LUC=null;LUCERR=null;if(cur==='fin')draw();try{LUC=await api('/admin/gestao/lucro?periodo='+per)}catch(e){LUCERR=e.message}if(cur==='fin'&&FT==='lucro')draw()}
+async function loadDesp(){try{DESP=await api('/admin/gestao/despesas')}catch(e){DESP=[]}if(cur==='fin'&&FT==='desp')draw()}
+async function loadCus(){try{CUS=await api('/admin/gestao/custos')}catch(e){CUS=null}if(cur==='fin'&&FT==='cus')draw()}
+function pillsLuc(){return '<div class="row">'+[['today','Hoje'],['7','7 dias'],['30','30 dias'],['90','90 dias'],['month','Este mês'],['all','Tudo']].map(function(p){return '<button class="pill '+(per===p[0]?'on':'')+'" onclick="per=\''+p[0]+'\';IATXT=null;loadLuc()">'+p[1]+'</button>'}).join('')+'</div>'}
+function sinal(v){return v<0?'#dc2626':'#16a34a'}
+function linhaDRE(t,v,o){o=o||{};return '<tr'+(o.forte?' style="font-weight:800;border-top:2px solid var(--br)"':'')+'><td>'+t+(o.sub?'<br><small class="mut" style="font-weight:400">'+o.sub+'</small>':'')+'</td><td style="text-align:right;white-space:nowrap;'+(o.cor?'color:'+o.cor+';':'')+'">'+(o.menos?'− ':'')+R(Math.abs(v))+'</td></tr>'}
+function finLucro(){
+  if(LUCERR)return pillsLuc()+'<div class="card" style="margin-top:12px">Não consegui calcular agora: '+E(LUCERR)+'</div>';
+  if(!LUC)return pillsLuc()+'<div class="card mut" style="margin-top:12px">Calculando…</div>';
+  var L=LUC,c=L.config;
+  var big='<div class="card" style="margin-top:12px;border-color:'+sinal(L.lucro_final)+'"><small class="mut">Lucro estimado final · '+E(L.periodo)+'</small><div style="font-size:40px;font-weight:800;color:'+sinal(L.lucro_final)+'">'+R(L.lucro_final)+'</div><div class="mut">Margem <b style="color:var(--tx)">'+L.margem_pct.toString().replace('.',',')+'%</b> · <b style="color:var(--tx)">'+R(L.lucro_por_placa)+'</b> por placa · <b style="color:var(--tx)">'+R(L.lucro_por_pedido)+'</b> por pedido · '+L.pedidos+' pedido(s), '+L.placas+' placas</div></div>';
+  var dre='<div class="card" style="margin-top:12px"><h3 style="margin:0 0 8px">Como chegamos nesse número</h3><div class="tw"><table style="width:100%">'
+   +linhaDRE('Receita das placas',L.receita_placas,{sub:L.placas+' placas'})
+   +linhaDRE('Frete cobrado dos clientes',L.frete_cobrado)
+   +linhaDRE('Receita bruta',L.receita_bruta,{forte:1})
+   +linhaDRE('Custo das placas',L.custo_placas,{menos:1,sub:L.placas+' × '+R(c.custo_placa)+(c.custo_usa_medio?' (custo médio das compras)':'')})
+   +linhaDRE('ICMS',L.icms,{menos:1,sub:String(c.icms_pct).replace('.',',')+'% sobre '+(c.icms_base_frete?'placas + frete':'só as placas')})
+   +linhaDRE('Taxas do Mercado Pago',L.taxas_mp,{menos:1,sub:L.taxas_reais+' real(is), '+L.taxas_estimadas+' estimada(s)'})
+   +linhaDRE('Envio (Correios)',L.custo_envio,{menos:1,sub:L.envio_real+' com custo real, '+L.envio_estimado+' estimado(s) a '+R(c.custo_envio_padrao)})
+   +linhaDRE('Lucro bruto',L.lucro_bruto,{forte:1,cor:sinal(L.lucro_bruto)})
+   +linhaDRE('Despesas operacionais',L.despesas,{menos:1,sub:L.despesas_itens.length?L.despesas_itens.map(function(d){return E(d.descricao)+(d.mensal?' (mensal)':'')}).join(', '):'nenhuma lançada — cadastre em "Despesas"'})
+   +linhaDRE('LUCRO ESTIMADO FINAL',L.lucro_final,{forte:1,cor:sinal(L.lucro_final)})
+   +'</table></div><div class="row" style="margin-top:10px;align-items:center"><small class="mut">'+(L.taxas_estimadas?L.taxas_estimadas+' pedido(s) com taxa estimada. ':'')+(L.envio_estimado?L.envio_estimado+' pedido(s) sem o custo real do envio informado.':'')+'</small>'+(L.taxas_estimadas?'<button class="btn s" onclick="buscarTaxas()">🔄 Buscar taxas reais no Mercado Pago</button>':'')+'</div></div>';
+  var e=L.estoque,ar=L.a_receber;
+  var cards='<div class="k" style="margin-top:12px">'+K('A receber (aguardando pagamento)',R(ar.valor),ar.pedidos+' pedido(s) · sobrariam ~'+R(ar.lucro_estimado))+K('Estoque disponível',e.disponivel,'capital parado: '+R(e.valor_parado)+(e.dias_cobertura!==null?' · ~'+e.dias_cobertura+' dias de vendas':''),e.disponivel<0?'#dc2626':'')+K('Ponto de equilíbrio',L.ponto_equilibrio_placas?L.ponto_equilibrio_placas+' placas':'—','para cobrir as despesas do período')+K('Envio médio real (Correios)',L.envio_medio_real===null?'não informado':R(L.envio_medio_real),'você cobra '+R(c.frete_fixo)+' de frete')+'</div>';
+  var cor={critico:'#dc2626',atencao:'#f59e0b',info:'#3b82f6',ok:'#16a34a'},ic={critico:'🔴',atencao:'🟠',info:'🔵',ok:'🟢'};
+  var al='<div class="card" style="margin-top:12px"><h3 style="margin:0 0 8px">🧮 Alertas do contador</h3>'+L.alertas.map(function(a){return '<div style="border-left:4px solid '+cor[a.nivel]+';padding:6px 12px;margin:8px 0"><b>'+ic[a.nivel]+' '+E(a.titulo)+'</b><div class="mut" style="margin-top:2px">'+E(a.texto)+'</div></div>'}).join('')+'</div>';
+  var fx='<div class="card" style="margin-top:12px"><h3 style="margin:0 0 4px">Quanto sobra em cada faixa de preço</h3><p class="mut" style="margin:0 0 8px">Cálculo para um pedido do tamanho mínimo de cada faixa, já com custo da placa, ICMS, taxas, frete cobrado e envio.</p><div class="tw"><table><tr><th>Faixa</th><th>Preço/placa</th><th>Lucro do pedido</th><th>Lucro por placa</th><th>Margem</th></tr>'
+   +L.faixas.map(function(f){return '<tr><td>'+f.de+(f.ate===null?'+':' a '+f.ate)+' placas</td><td>'+R(f.preco)+'</td><td style="color:'+sinal(f.lucro_pedido)+';font-weight:700">'+R(f.lucro_pedido)+' <small class="mut">('+f.qtd_exemplo+' placas)</small></td><td>'+R(f.lucro_por_placa)+'</td><td style="color:'+(f.margem_pct<10?'#dc2626':'inherit')+'">'+String(f.margem_pct).replace('.',',')+'%</td></tr>'}).join('')+'</table></div></div>';
+  var pj=L.pedidos_prejuizo.length?'<div class="card" style="margin-top:12px;border-color:#dc2626"><h3 style="margin:0 0 6px">Pedidos no prejuízo</h3>'+L.pedidos_prejuizo.map(function(p){return '<div class="bar"><span>#'+pad5(p.id)+' · '+p.qty+' placas · total '+R(p.total)+'<br><small class="mut">frete cobrado '+R(p.frete_cobrado)+' · envio '+R(p.custo_envio)+(p.envio_real?' (real)':' (estimado)')+'</small></span><b style="color:#dc2626">'+R(p.lucro)+'</b></div>'}).join('')+'</div>':'';
+  var ia='<div class="card" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">🤖 Analista financeiro com IA</h3><small class="mut">Lê os números do período e recomenda ações. Só números agregados são enviados — nunca dados de clientes.</small></div><button class="btn p" onclick="pedirIA()" '+(IALOAD?'disabled':'')+'>'+(IALOAD?'Analisando…':IATXT?'Analisar de novo':'Pedir análise da IA')+'</button></div>'
+   +(IAERR?'<p style="color:#dc2626;margin:10px 0 0">'+E(IAERR)+'</p>':'')+(IATXT?'<div style="margin-top:12px;white-space:pre-wrap;line-height:1.55">'+E(IATXT)+'</div>':'')+'</div>';
+  return pillsLuc()+big+dre+cards+al+fx+pj+ia+'<p class="mut" style="margin:12px 4px">Estimativa para gestão do negócio, calculada com os custos de “Custos e taxas”. ICMS e demais tributos devem ser confirmados com seu contador.</p>'}
+async function buscarTaxas(){try{var r=await api('/admin/gestao/taxas-mp/atualizar',{method:'POST'});toast('Taxas reais atualizadas: '+r.atualizados+(r.restantes?' · faltam '+r.restantes:' ✓'));await loadLuc()}catch(e){alert(e.message)}}
+async function pedirIA(){IALOAD=true;IAERR=null;draw();try{var r=await api('/admin/gestao/analista',{method:'POST',body:JSON.stringify({periodo:per})});IATXT=r.texto}catch(e){IAERR=e.message}IALOAD=false;if(cur==='fin'&&FT==='lucro')draw()}
+function finDesp(){
+  var f='<div class="card" style="margin-top:12px"><h3 style="margin:0 0 4px">Nova despesa operacional</h3><p class="mut" style="margin:0 0 10px">Tudo que sai do seu bolso para operar e não é placa nem frete: sistema (Railway, domínio), embalagem, ferramentas, impostos fixos… Despesas <b>mensais</b> são divididas por dia dentro do período do lucro.</p>'
+   +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"><label>Data<input type="date" id="dd" value="'+hojeBR()+'"></label><label>Descrição<input id="dn" placeholder="Ex.: Railway"></label><label>Categoria<input id="dc" list="cats" placeholder="Ex.: Sistema"><datalist id="cats"><option>Sistema</option><option>Embalagem</option><option>Marketing</option><option>Impostos</option><option>Outros</option></datalist></label><label>Valor (R$)<input id="dv" inputmode="decimal" placeholder="Ex.: 35,00"></label><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="dm" style="width:auto"> Se repete todo mês</label></div><div class="row"><button class="btn p" onclick="salvarDesp()">Salvar despesa</button></div></div>';
+  if(DESP===null)return f+'<div class="card mut" style="margin-top:12px">Carregando…</div>';
+  return f+'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Despesas lançadas</h3><div class="tw"><table><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Tipo</th><th></th></tr>'
+   +(DESP.length?DESP.map(function(d){return '<tr><td>'+d.data.split('-').reverse().join('/')+'</td><td>'+E(d.descricao)+'</td><td>'+E(d.categoria||'—')+'</td><td>'+R(d.valor)+'</td><td>'+(d.mensal?'Mensal':'Única')+'</td><td><button class="btn s" onclick="delDesp('+d.id+')">✕</button></td></tr>'}).join(''):'<tr><td colspan="6" class="mut">Nenhuma despesa lançada.</td></tr>')+'</table></div></div>'}
+async function salvarDesp(){try{await api('/admin/gestao/despesas',{method:'POST',body:JSON.stringify({data:$('dd').value,descricao:$('dn').value,categoria:$('dc').value,valor:$('dv').value,mensal:$('dm').checked})});await loadDesp();LUC=null;toast('Despesa salva ✓')}catch(e){alert(e.message)}}
+async function delDesp(id){if(!confirm('Excluir esta despesa?'))return;try{await api('/admin/gestao/despesas/'+id,{method:'DELETE'});await loadDesp();LUC=null}catch(e){alert(e.message)}}
+function finCus(){
+  if(!CUS)return '<div class="card mut" style="margin-top:12px">Carregando…</div>';
+  var c=CUS,F=function(id,l,v,h){return '<label>'+l+'<input id="'+id+'" inputmode="decimal" value="'+String(v).replace('.',',')+'">'+(h?'<small class="mut">'+h+'</small>':'')+'</label>'};
+  return '<div class="card" style="margin-top:12px;max-width:760px"><h3 style="margin:0 0 4px">Custos e taxas do negócio</h3><p class="mut" style="margin:0 0 12px">Estes números alimentam o “Lucro estimado”. Mudar aqui recalcula na hora.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
+   +F('cu1','Custo de cada placa (R$)',c.custo_placa.toFixed(2),'O que você paga ao fornecedor por placa.')
+   +F('cu2','ICMS por pedido (%)',c.icms_pct,'Percentual sobre o valor do pedido.')
+   +F('cu3','Taxa do Pix no Mercado Pago (%)',c.taxa_pix_pct,'Usada só quando a taxa real ainda não foi buscada.')
+   +F('cu4','Taxa do cartão no Mercado Pago (%)',c.taxa_cartao_pct,'Idem. Confira na sua conta do Mercado Pago.')
+   +F('cu5','Custo médio de envio por pedido (R$)',c.custo_envio_padrao.toFixed(2),'Usado nos pedidos sem custo real informado. Você cobra '+R(c.frete_fixo)+' de frete.')
+   +F('cu6','Aviso de estoque baixo (placas)',c.estoque_minimo,'Alerta quando o disponível ficar abaixo disso.')+'</div>'
+   +'<label style="display:flex;align-items:center;gap:8px;margin-top:14px"><input type="checkbox" id="cu7" style="width:auto" '+(c.icms_base_frete?'checked':'')+'> Calcular o ICMS também sobre o frete cobrado</label>'
+   +'<label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="cu8" style="width:auto" '+(c.custo_usar_medio?'checked':'')+'> Usar o custo médio das minhas compras (Fornecedores) no lugar do custo fixo'+(c.custo_medio_compras?' — hoje '+R(c.custo_medio_compras):'')+'</label>'
+   +'<div class="row"><button class="btn p" onclick="salvarCus()">Salvar custos e taxas</button></div></div>'}
+async function salvarCus(){try{CUS=await api('/admin/gestao/custos',{method:'PUT',body:JSON.stringify({custo_placa:$('cu1').value,icms_pct:$('cu2').value,taxa_pix_pct:$('cu3').value,taxa_cartao_pct:$('cu4').value,custo_envio_padrao:$('cu5').value,estoque_minimo:$('cu6').value,icms_base_frete:$('cu7').checked,custo_usar_medio:$('cu8').checked})});LUC=null;draw();toast('Custos e taxas salvos ✓')}catch(e){alert(e.message)}}
+
+function msgConf(r){return {pago:'✔ Pagamento aprovado no Mercado Pago. O pedido foi marcado como PAGO e as placas foram geradas.',pendente:'O Mercado Pago ainda mostra este pagamento como pendente (o cliente ainda não pagou ou o Pix ainda não compensou).',cancelado:'O Mercado Pago informa que o pagamento foi recusado ou expirou. O pedido foi cancelado.',sem_pagamento:'Não encontrei nenhum pagamento deste pedido no Mercado Pago.',divergente:'Encontrei um pagamento, mas o valor ou a data não conferem com este pedido, então NÃO confirmei automaticamente. Se você recebeu o dinheiro, use "Confirmar pagamento".',ja_pago:'Este pedido já está pago.',sem_token:'O Mercado Pago não está configurado no servidor (MP_ACCESS_TOKEN).',nao_encontrado:'Pedido não encontrado.'}[r.resultado]||'Resultado: '+r.resultado}
+async function recarregar(){await loadAll();draw()}
+async function conferirPed(id){try{var r=await api('/admin/orders/'+id+'/conferir',{method:'POST'});alert(msgConf(r));await recarregar()}catch(e){alert(e.message)}}
+async function conferirTodos(){try{var r=await api('/admin/orders-conferir-todos',{method:'POST'});alert('Conferidos: '+r.verificados+' pedido(s).\nPagos agora: '+r.pagos+' · Cancelados: '+r.cancelados+' · Ainda pendentes: '+r.pendentes+(r.divergentes?' · Com divergência: '+r.divergentes:'')+(r.erros?'\nNão consegui consultar '+r.erros+' pedido(s) agora.':''));await recarregar()}catch(e){alert(e.message)}}
+async function confirmarPag(id){var o=ORDERS.filter(function(x){return x.id===id})[0];
+  var n=prompt('Confirmar o pagamento do pedido #'+String(id).padStart(5,'0')+' ('+(o?o.reseller_name+' · '+R(o.total):'')+').\n\nComo o pagamento foi recebido? (fica registrado)\nEx.: Pix direto na conta em 02/10');
+  if(n===null)return;try{await api('/admin/orders/'+id+'/confirmar-pagamento',{method:'POST',body:JSON.stringify({observacao:n})});alert('Pedido marcado como PAGO e placas geradas para o revendedor.');await recarregar()}catch(e){alert(e.message)}}
+async function cancelarPed(id){if(!confirm('Cancelar o pedido #'+String(id).padStart(5,'0')+'? Use para pedidos que não serão mais pagos.'))return;try{await api('/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status:'cancelado'})});await recarregar()}catch(e){alert(e.message)}}
+function endTxt(o){return [o.ship_name,'Tel/WhatsApp: '+(o.ship_phone||'—'),(o.ship_street||'')+', '+(o.ship_number||'s/n')+(o.ship_complement?' - '+o.ship_complement:''),(o.ship_district||''),(o.ship_city||'')+' - '+(o.ship_state||''),'CEP '+(o.ship_cep||'').replace(/^(\d{5})(\d{3})$/,'$1-$2')].join('\n')}
+function verEnt(id){var o=ORDERS.filter(function(x){return x.id===id})[0];if(!o)return;window.ENTTXT=endTxt(o);
+var wa=(o.ship_phone||'').replace(/\D/g,'');if(wa&&wa.length<=11)wa='55'+wa;
+mo('<h3 style="margin:0">Entrega · pedido #'+String(o.id).padStart(5,'0')+'</h3><p class="mut" style="margin:0">Revendedor: '+E(o.reseller_name)+' · '+o.qty_azul+' azul, '+o.qty_preta+' preta</p>'
++'<pre id="entpre" style="white-space:pre-wrap;background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:12px;margin:0;font:14px/1.5 inherit">'+E(window.ENTTXT)+'</pre>'
++'<div class="row"><button class="btn p" id="entcp" onclick="cpEnt()">Copiar endereço</button>'+(wa?'<a class="btn" target="_blank" rel="noopener" href="https://wa.me/'+wa+'">WhatsApp do destinatário</a>':'')+'<button class="btn" onclick="cl()">Fechar</button></div>')}
+function cpEnt(){var ok=function(){$('entcp').textContent='Copiado ✓'};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(window.ENTTXT).then(ok,function(){});else{var r=document.createRange();r.selectNode($('entpre'));getSelection().removeAllRanges();getSelection().addRange(r);try{document.execCommand('copy');ok()}catch(e){}}}
+async function rstLink(id){try{var r=await api('/admin/resellers/'+id+'/reset-link',{method:'POST'});window.RSTL=r.link;
+mo('<h3 style="margin:0">Link para criar nova senha</h3><p class="mut" style="margin:0">Envie para '+E(r.nome)+' (vale por 24 horas e só pode ser usado uma vez).</p><input id="rstin" readonly value="'+E(r.link)+'" onclick="this.select()"><div class="row"><button class="btn p" id="rstcp" onclick="cpRst()">Copiar link</button><button class="btn" onclick="cl()">Fechar</button></div>')}catch(e){alert(e.message)}}
+function cpRst(){var i=$('rstin');i.select();var ok=function(){$('rstcp').textContent='Link copiado ✓'};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(window.RSTL).then(ok,function(){try{document.execCommand('copy');ok()}catch(e){}});else{try{document.execCommand('copy');ok()}catch(e){}}}
+var SIS=null;
+var EVT=[];
+async function loadSis(){try{SIS=await api('/admin/sistema');EVT=await api('/admin/payment-events')}catch(e){if(!SIS)SIS=null}if(cur==='dados')draw()}
+function evTxt(e){var m={pedido_pago:'✔ Pedido marcado como pago',ja_estava_pago:'Já estava pago',divergente:'⚠ Não confere ('+(e.detalhe||'')+')',aguardando:'Aguardando pagamento',sem_pedido:'Pagamento sem pedido ('+(e.detalhe||'')+')',erro:'✖ Erro: '+(e.detalhe||''),pago_manual:'✔ Pago manualmente: '+(e.detalhe||''),pedido_cancelado:'Pedido cancelado',status_em_producao:'▶ Produção iniciada',status_enviado:'📦 Enviado ('+(e.detalhe||'')+')',status_entregue:'✔ Entregue',status_cancelado:'Pedido cancelado',rastreio_alterado:'Rastreio alterado ('+(e.detalhe||'')+')',etapa_desfeita:'↩ Etapa desfeita ('+(e.detalhe||'')+')'}[e.resultado];return m||(e.resultado||'').replace('status_','Status: ')}
+function kb(n){return n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+function dh(s){return U(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function vDados(){head('Dados e backups','Proteja e recupere os dados da plataforma.');
+  if(!SIS)return '<div class="card mut">Carregando…</div>';
+  var c=SIS.contagens,ok=SIS.dados_persistentes&&SIS.integridade==='ok';
+  var K=function(l,v){return '<div class="k"><div><small>'+l+'</small><b>'+v+'</b></div></div>'};
+  return '<div class="card" style="border-color:'+(ok?'#16a34a':'#dc2626')+'"><b style="color:'+(ok?'#16a34a':'#dc2626')+'">'+(ok?'✔ Dados protegidos':'⚠ Atenção')+'</b>'
+  +'<p class="mut" style="margin:6px 0 0">'+(SIS.dados_persistentes?'O banco está num Volume permanente: atualizar o sistema não apaga cadastros.':'O banco NÃO está num Volume. Crie um Volume (em /data) no Railway e conecte ao serviço, senão os dados somem a cada atualização.')+' Verificação de integridade: <b>'+E(SIS.integridade)+'</b>.</p></div>'
+  +'<div class="grid" style="margin-top:12px">'+K('Revendedores',c.revendedores)+K('Pedidos',c.pedidos)+K('Placas',c.placas)+K('Vendas registradas',c.vendas)+K('Leituras de placas',c.leituras)+'</div>'
+  +'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Guardar uma cópia no seu computador</h3><p class="mut" style="margin:0 0 10px">Recomendado: baixe uma cópia de vez em quando (semanalmente). Se precisar, é este arquivo que restaura tudo.</p>'
+  +'<div class="row" style="margin:0"><button class="btn p" onclick="baixarBackup()">⬇ Baixar backup completo (.db)</button><button class="btn" onclick="baixarCsv()">⬇ Lista de revendedores (planilha)</button></div></div>'
+  +'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Recuperar dados</h3><p class="mut" style="margin:0 0 10px">Antes de qualquer restauração, o sistema guarda uma cópia do estado atual. Nada se perde sem volta.</p>'
+  +'<label>Enviar um backup (.db) que você baixou antes<input type="file" id="rsf" accept=".db,application/octet-stream"></label>'
+  +'<label style="margin-top:10px">Como restaurar<select id="rsm"><option value="revendedores">Só recuperar revendedores que estão faltando (não apaga nada)</option><option value="substituir">Substituir TUDO pelo conteúdo do backup</option></select></label>'
+  +'<div class="row"><button class="btn p" onclick="restaurarUpload()">Restaurar do arquivo</button></div></div>'
+  +'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Backups guardados no servidor</h3><div class="tw"><table><tr><th>Arquivo</th><th>Criado em</th><th>Tamanho</th><th></th></tr>'
+  +(SIS.backups.length?SIS.backups.map(function(b){return '<tr><td>'+E(b.nome)+'</td><td>'+dh(b.criado_em)+'</td><td>'+kb(b.tamanho)+'</td><td style="white-space:nowrap"><button class="btn s" onclick="restaurarLocal(\''+E(b.nome)+'\',\'revendedores\')">Recuperar revendedores</button> <button class="btn s" onclick="restaurarLocal(\''+E(b.nome)+'\',\'substituir\')">Restaurar tudo</button></td></tr>'}).join(''):'<tr><td colspan="4" class="mut">Nenhum backup ainda — o primeiro é criado automaticamente.</td></tr>')
+  +'</table></div><small class="mut">Um backup automático é criado todo dia e a cada atualização do sistema.</small></div>'
+  +'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Notificações de pagamento (Mercado Pago)</h3><p class="mut" style="margin:0 0 10px">O que o sistema recebeu e conferiu sobre cada pedido. Útil para entender por que um pedido ficou pendente.</p><div class="tw"><table><tr><th>Quando</th><th>Origem</th><th>Pedido</th><th>Status no MP</th><th>Resultado</th></tr>'+(EVT.length?EVT.map(function(e){return '<tr><td>'+fdh(e.created_at)+'</td><td>'+E(e.origem)+'</td><td>'+(e.order_id?'#'+String(e.order_id).padStart(5,'0'):'—')+'</td><td>'+E(e.mp_status||'—')+'</td><td>'+E(evTxt(e))+'</td></tr>'}).join(''):'<tr><td colspan="5" class="mut">Nenhuma notificação recebida ainda.</td></tr>')+'</table></div></div>'
+  +'<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Reativar um revendedor</h3><p class="mut" style="margin:0 0 10px">Para quem já tinha conta e não aparece mais: cadastre aqui e envie o link para a pessoa escolher uma nova senha.</p>'
+  +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px"><label>Nome<input id="nr1"></label><label>E-mail<input id="nr2" type="email"></label><label>WhatsApp<input id="nr3" inputmode="tel"></label></div>'
+  +'<div class="row"><button class="btn p" onclick="novoRev()">Cadastrar e gerar link</button></div></div>'}
+async function baixarArq(url,nome){try{var r=await fetch(API_BASE+url,{headers:{Authorization:'Bearer '+TOKEN}});if(!r.ok)throw new Error('Não foi possível gerar o arquivo agora.');var b=await r.blob(),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},5000)}catch(e){alert(e.message)}}
+function baixarCsv(){baixarArq('/admin/export/revendedores','nextap-revendedores-'+new Date().toISOString().slice(0,10)+'.csv')}
+function resumoRestore(r){return (r.modo==='revendedores'?'Revendedores recuperados: '+r.acrescentados+'.':'Dados restaurados.')+'\nAgora: '+r.depois.revendedores+' revendedores, '+r.depois.pedidos+' pedidos, '+r.depois.placas+' placas.\n(Antes: '+r.antes.revendedores+' revendedores, '+r.antes.pedidos+' pedidos, '+r.antes.placas+' placas. Uma cópia do estado anterior ficou guardada.)'}
+async function restaurarLocal(nome,modo){
+  if(!confirm(modo==='substituir'?'Substituir TODOS os dados pelo conteúdo de '+nome+'? Uma cópia do estado atual será guardada antes.':'Recuperar os revendedores que estão em '+nome+' e não existem agora? Nada será apagado.'))return;
+  try{var r=await api('/admin/restore-local',{method:'POST',body:JSON.stringify({nome:nome,modo:modo})});alert(resumoRestore(r));await loadAll();await loadSis()}catch(e){alert(e.message)}}
+async function restaurarUpload(){
+  var f=$('rsf').files[0],modo=$('rsm').value;if(!f)return alert('Escolha o arquivo de backup (.db).');
+  if(!confirm(modo==='substituir'?'Substituir TODOS os dados pelo conteúdo de '+f.name+'? Uma cópia do estado atual será guardada antes.':'Recuperar os revendedores de '+f.name+' que não existem agora? Nada será apagado.'))return;
+  try{var r=await fetch(API_BASE+'/admin/restore?modo='+modo,{method:'POST',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/octet-stream'},body:f});var j=await r.json();if(!r.ok)throw new Error(j.error||'Falha ao restaurar.');alert(resumoRestore(j));await loadAll();await loadSis()}catch(e){alert(e.message)}}
+async function novoRev(){
+  try{var r=await api('/admin/resellers',{method:'POST',body:JSON.stringify({name:$('nr1').value,email:$('nr2').value,whatsapp:$('nr3').value})});await loadAll();window.RSTL=r.link;
+  mo('<h3 style="margin:0">Revendedor cadastrado ✓</h3><p class="mut" style="margin:0">Envie este link para a pessoa criar a senha (vale 72 horas, uso único).</p><input id="rstin" readonly value="'+E(r.link)+'" onclick="this.select()"><div class="row"><button class="btn p" id="rstcp" onclick="cpRst()">Copiar link</button><button class="btn" onclick="cl()">Fechar</button></div>');draw()}catch(e){alert(e.message)}}
+/* placas */
+function vPlacas(){head('Placas emitidas','Todas as placas já geradas no sistema, por revendedor.');
+return '<div class="card"><div class="tw"><table><tr><th>Código</th><th>Revendedor</th><th>Cor</th><th>Status</th><th>Cliente final</th><th>Destino</th></tr>'+(PLATES.length?PLATES.map(function(p){return '<tr><td>#'+String(p.id).padStart(4,'0')+'</td><td>'+E(p.reseller_name)+'</td><td>'+p.color+'</td><td>'+stTag(p.status)+'</td><td>'+E(p.client_name||'—')+'</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">'+E(p.destination_url||'—')+'</td></tr>'}).join(''):'<tr><td colspan="6" class="mut">Nenhuma placa emitida ainda.</td></tr>')+'</table></div></div>'}
+/* financeiro */
+function finResumo(){var pagos=ORDERS.filter(isPg),aw=ORDERS.filter(isAw);
+var fr=pagos.reduce(function(s,o){return s+(o.shipping_fee||0)},0),fat=sm(pagos),n=pagos.reduce(function(s,o){return s+o.qty_azul+o.qty_preta},0),man=pagos.filter(function(o){return o.paid_manually}).length;
+var porRev={};pagos.forEach(function(o){porRev[o.reseller_name]=(porRev[o.reseller_name]||0)+o.total});
+var forma={pix:0,credit_card:0};pagos.forEach(function(o){forma[o.payment_method]=(forma[o.payment_method]||0)+o.total});
+return '<div class="k"><div><small>Faturamento (recebido)</small><b>'+R(fat)+'</b></div><div><small>A receber (aguardando pagamento)</small><b>'+R(sm(aw))+'</b></div><div><small>Pedidos pagos</small><b>'+pagos.length+'</b></div><div><small>Ticket médio por pedido</small><b>'+R(pagos.length?fat/pagos.length:0)+'</b></div><div><small>Placas vendidas a revendedores</small><b>'+n+'</b></div><div><small>Receita só das placas (sem frete)</small><b>'+R(fat-fr)+'</b></div><div><small>Frete cobrado dos clientes</small><b>'+R(fr)+'</b></div></div>'+
+'<div class="g2"><div class="card"><h3>Faturamento por revendedor</h3>'+(Object.keys(porRev).length?Object.keys(porRev).map(function(k){return '<div class="bar"><span>'+E(k)+'</span><b>'+R(porRev[k])+'</b></div>'}).join(''):'<p class="mut">Sem faturamento ainda.</p>')+'</div>'+
+'<div class="card"><h3>Recebido por forma de pagamento</h3><div class="bar"><span>Pix</span><b>'+R(forma.pix||0)+'</b></div><div class="bar"><span>Cartão</span><b>'+R(forma.credit_card||0)+'</b></div>'+(man?'<p class="mut" style="margin:10px 0 0">'+man+' pedido(s) confirmado(s) manualmente — veja a observação em Pedidos.</p>':'')+'<p class="mut" style="margin:10px 0 0">Só entram aqui pedidos pagos, em produção, enviados e entregues. O faturamento inclui o frete cobrado (veja a separação nos cartões acima); o custo real dos Correios você lança por fora. Pedidos aguardando pagamento aparecem em "A receber".</p></div></div>'+semPed()}
+var SEMP=null;
+function semPed(){return '<div class="card" style="margin-top:12px"><h3 style="margin:0 0 6px">Conferir com o Mercado Pago</h3><p class="mut" style="margin:0 0 10px">Procura pagamentos aprovados de placas NexTap (últimos 90 dias) que ainda não estão ligados a nenhum pedido aqui — por exemplo, vendas anteriores à proteção dos dados.</p><div class="row" style="margin:0 0 10px"><button class="btn p" onclick="buscarSemPed()">🔎 Buscar pagamentos sem pedido</button></div>'+(SEMP===null?'':SEMP.sem_token?'<p class="mut">O Mercado Pago não está configurado no servidor.</p>':SEMP.itens.length?'<div class="tw"><table><tr><th>Data</th><th>Cliente</th><th>E-mail</th><th>Valor</th><th>Mercado Pago</th></tr>'+SEMP.itens.map(function(x){return '<tr><td>'+fdh(x.data)+'</td><td>'+E(x.nome||'—')+'</td><td>'+E(x.email||'—')+'</td><td>'+R(x.valor)+'</td><td>#'+E(x.id)+'</td></tr>'}).join('')+'</table></div><small class="mut">Total: '+SEMP.itens.length+' pagamento(s) · '+R(SEMP.itens.reduce(function(s,x){return s+x.valor},0))+'. Entre em contato com essas pessoas para refazer o pedido (e o cadastro, se precisar: Dados e backups → Reativar um revendedor).</small>':'<p style="color:#16a34a;margin:0"><b>✔ Tudo conciliado:</b> todos os pagamentos aprovados têm pedido no sistema.</p>')+'</div>'}
+async function buscarSemPed(){try{SEMP=await api('/admin/mp-sem-pedido')}catch(e){alert(e.message);return}draw()}
+/* preços */
+var TT=null;
+var FRETE=null;
+async function loadFrete(){try{FRETE=(await api('/admin/frete')).frete}catch(e){FRETE=null}if(cur==='cfg')draw()}
+async function fSave(){var v=String($('fv').value).replace(',','.');try{var r=await api('/admin/frete',{method:'PUT',body:JSON.stringify({valor:v})});FRETE=r.frete;draw();toast('Frete salvo: '+R(FRETE)+' por pedido ✓')}catch(e){alert(e.message)}}
+function freteCard(){return '<div class="card" style="max-width:520px;margin-top:14px"><h3 style="margin:0 0 6px">Frete fixo por pedido</h3><p class="mut" style="margin:0 0 10px">Valor somado ao total de <b>cada pedido</b> (não por placa), para qualquer CEP do Brasil. Aparece para o revendedor antes de pagar e é cobrado junto, no Pix ou no cartão.</p>'+(FRETE===null?'<p class="mut">Carregando…</p>':'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">R$ <input id="fv" style="width:110px;font-size:18px;font-weight:700" inputmode="decimal" value="'+FRETE.toFixed(2).replace('.',',')+'"> <button class="btn p" onclick="fSave()">Salvar frete</button></div><small class="mut" style="display:block;margin-top:8px">Vale na hora para novos pedidos. Pedidos já feitos mantêm o frete que foi cobrado. Use R$ 0,00 para frete grátis.</small>')+'</div>'}
+function vCfg(){TT=TT||TIERS.map(function(t){return {min_qty:t.min_qty,max_qty:t.max_qty,unit_price:t.unit_price}});head('Configurações de preço','Faixas de quantidade usadas no site e no painel do revendedor.');
+return '<div class="card" style="max-width:520px"><div id="tl">'+TT.map(function(x,i){return '<div class="tier"><input style="width:70px" value="'+x.min_qty+'" onchange="tEd('+i+',\'min_qty\',this.value)"> a <input style="width:70px" value="'+(x.max_qty>=1000000?'':x.max_qty)+'" placeholder="∞" onchange="tEd('+i+',\'max_qty\',this.value)"> placas → R$ <input style="width:80px" value="'+x.unit_price+'" onchange="tEd('+i+',\'unit_price\',this.value)"> <button class="btn s d" onclick="tDel('+i+')">✕</button></div>'}).join('')+'</div><button class="btn s" onclick="tAdd()">＋ Faixa</button><div class="row"><button class="btn p" onclick="tSave()">Salvar tabela</button></div><small class="mut">Estes preços passam a valer imediatamente no site, no painel do revendedor e na cobrança. O <b>pedido mínimo</b> é onde começa a primeira faixa (hoje: '+(TT.length?Math.min.apply(null,TT.map(function(x){return x.min_qty})):1)+' placas).</small></div>'+freteCard()}
+function tEd(i,k,v){TT[i][k]=(v===''&&k==='max_qty')?1000000:+v}
+function tAdd(){TT.push({min_qty:1,max_qty:1,unit_price:15});draw()}
+function tDel(i){TT.splice(i,1);draw()}
+async function tSave(){try{await api('/admin/price-tiers',{method:'POST',body:JSON.stringify({tiers:TT})});TIERS=await api('/admin/price-tiers');alert('Tabela salva.')}catch(e){alert(e.message)}}
+
+(function(){var t=null;try{t=localStorage.getItem('nx_admin_token')}catch(e){}
+if(t){TOKEN=t;boot().catch(function(){out()})}})();
+</script></body></html>
