@@ -1,96 +1,95 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
-const db = require('./database.js'); // abre o banco (e aplica migrações) já no boot
+const { persistente, backupAgora, limparAntigos } = require('./db.js');
+const engine = require('./engine.js');
+const ig = require('./instagram.js');
+const eventos = require('./eventos.js');
+const { semear } = require('./seed.js');
 
-// Sem JWT_SECRET o login quebra em runtime (jwt.sign lança erro). Melhor falhar já no boot,
-// com uma mensagem clara nos logs do Railway.
-if (!process.env.JWT_SECRET) {
-  console.error('ERRO: a variável de ambiente JWT_SECRET não está definida. Configure em Variables no Railway.');
+const senhaAdmin = process.env.ADMIN_PASSWORD || '';
+if (senhaAdmin.length < 8) {
+  console.error('[ERRO] Defina ADMIN_PASSWORD (mínimo 8 caracteres, de preferência longa) nas variáveis de ambiente.');
   process.exit(1);
 }
-if (!process.env.MP_ACCESS_TOKEN) console.warn('AVISO: MP_ACCESS_TOKEN não definido — pagamentos ficarão indisponíveis.');
-if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) console.warn('AVISO: ADMIN_EMAIL/ADMIN_PASSWORD não definidos — login de admin desativado.');
+if (semear()) console.log('[BOT] Fluxos iniciais da NexTap criados. Edite pelo painel.');
+if (!persistente) console.warn('[ATENÇÃO] Sem Volume no Railway: os dados serão APAGADOS a cada deploy. Crie um Volume e conecte a este serviço.');
 
 const app = express();
-app.set('trust proxy', 1); // Railway fica atrás de um proxy
-// Domínio principal (ex.: SITE_HOST=www.seudominio.com.br): quem entrar por outro endereço (sem www, ou o endereço
-// .up.railway.app) é levado ao principal. Só páginas (GET): o webhook do Mercado Pago e o /health nunca são redirecionados.
-app.use((req, res, next) => {
-  if (SITE_HOST && ['GET', 'HEAD'].includes(req.method) && req.hostname !== SITE_HOST
-      && req.path !== '/health' && !req.path.startsWith('/api/payments/webhook')) {
-    return res.redirect(301, 'https://' + SITE_HOST + req.originalUrl);
-  }
-  next();
-});
-
-// Cabeçalhos de segurança
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  if (req.secure && SITE_HOST && req.hostname === SITE_HOST) {
-    res.setHeader('Strict-Transport-Security', 'max-age=15552000'); // 180 dias: o navegador só abre o site em HTTPS
-  }
-  if (/^\/(admin|revendedor|api)/.test(req.path)) res.setHeader('Cache-Control', 'no-store'); // nada de dados em cache
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
   next();
 });
 
-// Google: pode indexar o site de vendas; painéis e API ficam de fora.
-app.get('/robots.txt', (req, res) => res.type('text/plain').send(
-  'User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /revendedor\nDisallow: /api\n' +
-  (SITE_HOST ? `Sitemap: https://${SITE_HOST}/sitemap.xml\n` : '')));
-app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://${SITE_HOST || req.hostname}/</loc></url></urlset>`));
-
-// CORS: se FRONTEND_URL estiver definido, aceita só ele (mais seguro); vírgula separa vários domínios.
-const SITE_HOST = (process.env.SITE_HOST || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-const origins = (process.env.FRONTEND_URL || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean);
-if (SITE_HOST) origins.push('https://' + SITE_HOST, 'https://' + SITE_HOST.replace(/^www\./, ''), 'https://www.' + SITE_HOST.replace(/^www\./, ''));
-app.use(cors(origins.length ? { origin: origins } : {}));
-app.use(express.json({ limit: '1mb' }));
-
-// Health check (Railway usa para saber se o deploy subiu)
-app.get('/health', (req, res) => res.json({ ok: true, dados_persistentes: db.meta.persistente }));
-
-app.use('/api/auth', require('./routes-auth.js'));
-app.use('/api/resellers', require('./routes-resellers.js'));
-app.use('/api/payments', require('./routes-payments.js'));
-app.use('/api/admin', require('./routes-admin.js'));
-app.use('/', require('./routes-public.js')); // /r/:code — link do QR Code / NFC da placa e /api/public/stats
-
-// Site (/), painel do revendedor (/revendedor) e painel admin (/admin) — servidos pelo próprio backend,
-// no mesmo domínio da API, então não há problema de CORS.
-['logo.png', 'placa.jpg', 'placas-nextap.jpg', 'favicon.png'].forEach(f =>
-  app.get('/' + f, (req, res) => res.sendFile(path.join(__dirname, f), { maxAge: '1d' })));
-const page = f => (req, res) => res.sendFile(path.join(__dirname, f));
-app.get('/', page('site.html'));
-app.get(['/revendedor', '/revendedor/'], page('revendedor.html'));
-app.get(['/admin', '/admin/'], page('admin.html'));
-
-// 404 e erro genérico em JSON (evita devolver stack trace e HTML para o frontend)
-app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
-app.use((err, req, res, next) => {
-  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido.' });
-  console.error('Erro não tratado:', err);
-  res.status(500).json({ error: 'Erro interno do servidor.' });
+// ---------- Webhook do Instagram ----------
+app.get('/webhook/instagram', (req, res) => {
+  const ok = req.query['hub.mode'] === 'subscribe' && process.env.META_VERIFY_TOKEN
+    && req.query['hub.verify_token'] === process.env.META_VERIFY_TOKEN;
+  eventos.registrar('verificação', ok ? 'ok' : 'recusada', ok ? 'Meta validou o webhook' : 'Token de verificação não confere com META_VERIFY_TOKEN');
+  if (ok) return res.status(200).send(String(req.query['hub.challenge'] || ''));
+  res.sendStatus(403);
 });
+
+app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
+  const segredo = process.env.META_APP_SECRET;
+  const semAssinatura = process.env.ALLOW_UNSIGNED === '1' && process.env.NODE_ENV !== 'production';
+  if (!semAssinatura) {
+    if (!segredo) { eventos.registrar('evento', 'recusado', 'META_APP_SECRET ausente'); console.error('[IG] META_APP_SECRET ausente: não aceito eventos sem conferir a assinatura.'); return res.sendStatus(500); }
+    if (!ig.assinaturaValida(req.body, req.get('X-Hub-Signature-256'), segredo)) { eventos.registrar('evento', 'recusado', 'Assinatura inválida: confira se META_APP_SECRET é o segredo do app do Instagram'); return res.sendStatus(401); }
+  }
+  let corpo;
+  try { corpo = JSON.parse(req.body.toString('utf8')); } catch (e) { return res.sendStatus(400); }
+  res.status(200).send('EVENT_RECEIVED'); // a Meta exige resposta rápida; o processamento segue em seguida
+
+  const { mensagens, comentarios } = ig.lerWebhook(corpo);
+  eventos.registrar('evento', 'recebido', `${mensagens.length} mensagem(ns), ${comentarios.length} comentário(s)`);
+  (async () => {
+    for (const ev of mensagens) {
+      try { const r = await engine.processarMensagem(ev, ig.sender); console.log('[IG] msg', ev.extId, JSON.stringify(r)); eventos.registrar('mensagem', r.acao, r.fluxo || r.motivo || ''); }
+      catch (e) { console.error('[IG] erro ao tratar mensagem:', e.message); eventos.registrar('mensagem', 'erro', e.message); }
+    }
+    for (const ev of comentarios) {
+      try { const r = await engine.processarComentario(ev, ig.sender); console.log('[IG] comentário', ev.commentId, JSON.stringify(r)); eventos.registrar('comentário', r.acao, r.fluxo || r.motivo || ''); }
+      catch (e) { console.error('[IG] erro ao tratar comentário:', e.message); eventos.registrar('comentário', 'erro', e.message); }
+    }
+  })();
+});
+
+// ---------- Painel e API ----------
+app.use(express.json({ limit: '1mb' }));
+const marca = require('./marca.js');
+app.use('/media', (req, res, next) => {
+  const d = require('path').join(require('path').dirname(require('./db.js').arquivo === ':memory:' ? require('os').tmpdir() + '/x' : require('./db.js').arquivo), 'media');
+  express.static(d, { maxAge: '7d', index: false, dotfiles: 'deny', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') })(req, res, next);
+});
+app.get('/brand', (req, res) => res.json(marca.publica()));
+app.get(['/logo', '/favicon.ico'], marca.servirLogo);
+app.use('/api', require('./routes-api.js'));
+// Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT + mensagem de acompanhamento) e leva ao site
+app.get('/go/:token', (req, res) => {
+  let destino = null;
+  try { destino = engine.registrarClique(req.params.token); } catch (e) { console.error('[GO]', e.message); }
+  res.set('Cache-Control', 'no-store').redirect(302, destino || require('./db.js').getSetting('site_url') || '/');
+});
+app.get('/health', (req, res) => res.json({ ok: true, dados_persistentes: persistente }));
+app.get(['/', '/painel'], (req, res) => res.sendFile(path.join(__dirname, 'panel.html')));
+app.use((req, res) => res.status(404).json({ error: 'Não encontrado.' }));
 
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`NexTap backend rodando na porta ${PORT}`);
-  require('./routes-payments.js').diagnose().catch(() => {});
-  require('./pedidos.js').agendar(); // confere os pagamentos pendentes direto no Mercado Pago a cada poucos minutos
-});
-
-// No redeploy o Railway manda SIGTERM: fecha o banco direito para não deixar nada pela metade.
-function encerrar() {
-  console.log('Encerrando: fechando o banco com segurança…');
-  server.close(() => { try { db.close(); } catch (e) {} process.exit(0); });
-  setTimeout(() => { try { db.close(); } catch (e) {} process.exit(0); }, 8000).unref();
+if (require.main === module) {
+  try { backupAgora(); } catch (e) { console.error('[BACKUP]', e.message); }
+  // Endereço público (para links rastreados): descoberto sozinho a partir do domínio do Railway, se ainda não configurado
+  const { getSetting, setSetting } = require('./db.js');
+  if (!getSetting('public_url') && process.env.RAILWAY_PUBLIC_DOMAIN) setSetting('public_url', 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN);
+  // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
+  setInterval(() => { if (ig.configurado().token) { engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); engine.completarNomes(ig.sender).catch(() => {}); } }, 15000).unref();
+  setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();
+  setInterval(() => ig.renovarSeNecessario().catch(() => {}), 6 * 3600e3).unref();
+  setInterval(() => { try { backupAgora(); limparAntigos(); } catch (e) { console.error('[BACKUP]', e.message); } }, 24 * 3600e3).unref();
+  app.listen(PORT, () => console.log(`[BOT] no ar na porta ${PORT} · persistência: ${persistente ? 'SIM' : 'NÃO'}`));
 }
-process.on('SIGTERM', encerrar);
-process.on('SIGINT', encerrar);
+module.exports = app;
