@@ -105,6 +105,19 @@ const MIGRACOES = [
     );
     CREATE INDEX idx_prospect_hist ON prospect_hist(prospect_id, id);
   `),
+  // v4: follow-ups por etapa do funil, sem recomeçar a sequência a cada mensagem.
+  // Só cria o que falta: bancos que rodaram a primeira versão desta mudança (como "v3") já têm as colunas.
+  db => {
+    const tem = (tabela, col) => db.prepare(`PRAGMA table_info(${tabela})`).all().some(c => c.name === col);
+    if (!tem('flows', 'audience')) db.exec('ALTER TABLE flows ADD COLUMN audience TEXT');              // followup: checkout | revenda_qtd | revenda_preco | negocio
+    if (!tem('contacts', 'followup_seq')) db.exec('ALTER TABLE contacts ADD COLUMN followup_seq TEXT'); // sequência (etapa) em que a pessoa está
+    if (!tem('contacts', 'last_followup_at')) db.exec('ALTER TABLE contacts ADD COLUMN last_followup_at INTEGER NOT NULL DEFAULT 0');
+    db.exec(`
+      UPDATE flows SET audience = 'checkout' WHERE kind = 'followup' AND audience IS NULL;
+      UPDATE contacts SET followup_seq = 'checkout' WHERE followup_step > 0 AND followup_seq IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_messages_flow ON messages(flow_id, contact_id, created_at);
+    `);
+  },
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
