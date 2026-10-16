@@ -150,6 +150,11 @@ router.post('/flows/instalar-v2', (req, res) => {
   if (!ok) return res.status(409).json({ error: 'O funil novo já está instalado.' });
   res.json({ ok: true });
 });
+router.post('/flows/instalar-v3', (req, res) => {
+  const ok = require('./seed.js').instalarV3({ desativarAntigos: (req.body || {}).desativar_antigos !== false });
+  if (!ok) return res.status(409).json({ error: 'O funil direto já está instalado.' });
+  res.json({ ok: true });
+});
 router.delete('/flows/:id', (req, res) => {
   const r = db.prepare('DELETE FROM flows WHERE id = ?').run(req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Fluxo não encontrado.' });

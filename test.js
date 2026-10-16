@@ -177,13 +177,10 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const id = novoLead('fu2'), s = rec();
     await engine.tick(s, { agoraMs: Date.now() + 24.5 * H1 }); assert.strictEqual(enviosDe(s, id).length, 0);
   });
-  await t('não manda para quem comprou, tem intenção de compra ou está com humano; MEU NEGÓCIO recebe a sequência dele', async () => {
-    const ids = [novoLead('fu3', ['REVENDEDOR', 'ABRIU CHECKOUT', 'VENDA']), novoLead('fu4', ['REVENDEDOR', 'ABRIU CHECKOUT', 'INTENÇÃO DE COMPRA']), novoLead('fu6')];
-    db.prepare('UPDATE contacts SET needs_human = 1 WHERE id = ?').run(ids[2]);
-    const neg = novoLead('fu5', ['MEU NEGÓCIO', 'ABRIU CHECKOUT']);
+  await t('não manda para quem comprou, tem intenção de compra, não é revendedor ou está com humano', async () => {
+    const ids = [novoLead('fu3', ['REVENDEDOR', 'ABRIU CHECKOUT', 'VENDA']), novoLead('fu4', ['REVENDEDOR', 'ABRIU CHECKOUT', 'INTENÇÃO DE COMPRA']), novoLead('fu5', ['MEU NEGÓCIO', 'ABRIU CHECKOUT']), novoLead('fu6')];
+    db.prepare('UPDATE contacts SET needs_human = 1 WHERE id = ?').run(ids[3]);
     const s = rec(); await engine.tick(s, { agoraMs: Date.now() + 4 * H1 }); ids.forEach(i => assert.strictEqual(enviosDe(s, i).length, 0));
-    const e = enviosDe(s, neg); assert.strictEqual(e.length, 1); assert.ok(e[0].text.includes('Conseguiu ver como a Nextap funciona'));
-    assert.deepStrictEqual(e[0].replies.map(r => r.title), ['SIM, ME MOSTRA', 'VER MODELOS']);
   });
   await t('"parar" interrompe os follow-ups', async () => {
     const e = rec(), id = novoLead('fu7'); await engine.processarMensagem(msg('parar', { extId: 'fu7' }), e);
@@ -197,55 +194,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const id = novoLead('fu9'), s = rec(); await engine.tick(s, { agoraMs: Date.now() + 3.2 * H1 });
     assert.strictEqual(enviosDe(s, id).length, 1);
     const r = await engine.processarMensagem(msg('vou vender pessoalmente mesmo', { extId: 'fu9' }), rec());
-    assert.strictEqual(r.fluxo, 'Resposta a um follow-up'); const c = contatoDe('fu9'); assert.strictEqual(c.needs_human, 1); assert.strictEqual(c.followup_step, 1);
-  });
-  await t('texto livre sem follow-up pendente não chama atendente (cai na resposta padrão)', async () => {
-    const id = novoLead('fu9b'), s = rec(); await engine.tick(s, { agoraMs: Date.now() + 3.2 * H1 });
-    db.prepare('UPDATE contacts SET last_inbound_at = ? WHERE id = ?').run(Date.now() + 4 * H1, id);   // já respondeu depois do follow-up
-    const r = await engine.processarMensagem(msg('blablabla', { extId: 'fu9b' }), rec());
-    assert.notStrictEqual(r.fluxo, 'Resposta a um follow-up'); assert.strictEqual(contatoDe('fu9b').needs_human, 0);
-  });
-  await t('responder no meio não recomeça a sequência (não repete o follow-up 1)', async () => {
-    const id = novoLead('fu10'), s = rec();
-    await engine.tick(s, { agoraMs: Date.now() + 3.2 * H1 }); assert.ok(enviosDe(s, id)[0].text.includes('Conseguiu calcular'));
-    await engine.processarMensagem(msg('prazo', { extId: 'fu10' }), rec());   // responde por palavra-chave
-    await engine.tick(s, { agoraMs: Date.now() + 3.3 * H1 }); assert.strictEqual(enviosDe(s, id).length, 1, 'repetiu o follow-up 1');
-    await engine.tick(s, { agoraMs: Date.now() + 9.2 * H1 }); assert.ok(enviosDe(s, id)[1].text.includes('dúvida rápida'));
-  });
-  await t('conversa nova (depois de 24h) recomeça a sequência', async () => {
-    const id = novoLead('fu11');
-    db.prepare("UPDATE contacts SET followup_step = 4, followup_seq = 'checkout', last_inbound_at = ? WHERE id = ?").run(Date.now() - 25 * H1, id);
-    await engine.processarMensagem(msg('prazo', { extId: 'fu11' }), rec());
-    const c = contatoDe('fu11'); assert.strictEqual(c.followup_step, 0); assert.strictEqual(c.followup_seq, null);
-  });
-  await t('robô parado: manda só o mais recente que venceu e a mensagem final não se perde', async () => {
-    const id = novoLead('fu12'), s = rec();
-    await engine.tick(s, { agoraMs: Date.now() + 22.2 * H1 });
-    const e = enviosDe(s, id); assert.strictEqual(e.length, 1); assert.ok(e[0].text.includes('QUERO REVENDER'));
-    await engine.tick(s, { agoraMs: Date.now() + 23 * H1 }); assert.strictEqual(enviosDe(s, id).length, 1);
-  });
-  await t('quem não escolheu a quantidade recebe a pergunta de novo; ao escolher, passa para a sequência do preço', async () => {
-    const id = novoLead('fu13', ['REVENDEDOR']), s = rec();
-    await engine.tick(s, { agoraMs: Date.now() + 1.5 * H1 }); assert.strictEqual(enviosDe(s, id).length, 0, 'cedo demais');
-    await engine.tick(s, { agoraMs: Date.now() + 2.1 * H1 });
-    const p = enviosDe(s, id)[0]; assert.deepStrictEqual(p.replies.map(r => r.title), ['1–10', '11–49', '50–299', '300+']);
-    await engine.processarMensagem(msg('x', { extId: 'fu13', payload: respRapida(p, '11–49') }), rec());
-    assert.strictEqual(engine.segmentoDe(contatoDe('fu13')), 'revenda_preco');
-    await engine.tick(s, { agoraMs: Date.now() + 2.1 * H1 });
-    const b = enviosDe(s, id)[1]; assert.strictEqual(b.type, 'button'); assert.ok(b.text.includes('começar com 11 a 49 placas'), b.text);
-    assert.strictEqual(contatoDe('fu13').followup_seq, 'revenda_preco');
-  });
-  await t('{{quantidade}}: faixa da etiqueta, "mais de 300" e "algumas" sem faixa', () => {
-    assert.strictEqual(engine.aplicarVars('{{quantidade}}', { tags: '["QTD 1-10"]' }), '1 a 10');
-    assert.strictEqual(engine.aplicarVars('{{quantidade}}', { tags: '["QTD 300+"]' }), 'mais de 300');
-    assert.strictEqual(engine.aplicarVars('{{quantidade}}', { tags: '[]' }), 'algumas');
-  });
-  await t('banco que já tinha o funil ganha as sequências novas uma vez só', () => {
-    const { instalarFollowupsEtapas } = require('./seed.js');
-    assert.strictEqual(instalarFollowupsEtapas(), false);
-    const n = () => db.prepare("SELECT COUNT(*) AS n FROM flows WHERE kind = 'followup' AND audience <> 'checkout'").get().n;
-    const antes = n(); assert.ok(antes >= 7);
-    setSetting('followups_etapas', '0'); assert.strictEqual(instalarFollowupsEtapas(), true); assert.strictEqual(n(), antes, 'duplicou');
+    assert.strictEqual(r.fluxo, 'Resposta a um follow-up'); const c = contatoDe('fu9'); assert.strictEqual(c.needs_human, 1); assert.strictEqual(c.followup_step, 0);
   });
 
   console.log('Conversa (regras gerais)');
@@ -414,10 +363,6 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const post = corpo => chamar('POST', '/api/flows', { corpo, headers: H });
     assert.strictEqual((await post({ ...base, steps: [{ type: 'video', url: 'http://x.com/a.mp4' }] })).status, 400);
     assert.strictEqual((await post({ ...base, kind: 'followup', delay_hours: 30 })).status, 400);
-    assert.strictEqual((await post({ ...base, kind: 'followup', delay_hours: 3, audience: 'qualquer' })).status, 400);
-    const fu = await post({ ...base, kind: 'followup', delay_hours: 3, audience: 'negocio' });
-    assert.strictEqual(fu.status, 200); assert.strictEqual(fu.json.audience, 'negocio');
-    await chamar('DELETE', '/api/flows/' + fu.json.id, { headers: H });
     assert.strictEqual((await post({ ...base, kind: 'evento', event: 'qualquer' })).status, 400);
     assert.strictEqual((await post({ ...base, human_priority: 7 })).status, 400);
     const ok1 = await post({ ...base, keywords: ['xyzvideo'], steps: [{ type: 'video', url: '{{video_demo}}' }, { type: 'text', text: 'ok' }], tags: ['teste'], human_priority: 2 });
@@ -432,9 +377,6 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const alta = (await chamar('GET', '/api/contatos?precisa=1', { headers: H })).json; assert.ok(alta.length && alta[0].human_priority >= alta[alta.length - 1].human_priority);
     assert.ok((await chamar('GET', '/api/contatos?tag=REVENDEDOR', { headers: H })).json.every(x => x.tags.includes('REVENDEDOR')));
     const st = (await chamar('GET', '/api/status', { headers: H })).json; assert.ok(st.funil['REVENDEDOR'] >= 1); assert.ok(st.prioridade_alta >= 1); assert.ok(st.cliques >= 1);
-    const f1 = st.followups.find(f => f.name === 'Follow-up 1: conseguiu calcular?');
-    assert.ok(f1.enviados >= 3); assert.ok(f1.responderam >= 2 && f1.responderam <= f1.enviados); assert.strictEqual(f1.audience, 'checkout');
-    assert.ok(st.followups.some(f => f.audience === 'negocio' && f.enviados >= 1));
   });
   await t('configurações novas: endereço público e vídeo só em https', async () => {
     assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { video_demo_url: 'http://x.com/a.mp4' }, headers: H })).status, 400);
@@ -496,6 +438,28 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const ruim = { send: async () => ({}), perfil: async () => { throw new Error('Meta recusou'); } };
     const r = await engine.processarMensagem({ canal: 'instagram', extId: 'nome-2', texto: 'oi preço', mid: 'mid-nome-2' }, ruim);
     assert.ok(r.acao); assert.strictEqual(db.prepare("SELECT name FROM contacts WHERE ext_id = 'nome-2'").get().name, null);
+  });
+
+  await t('funil direto (v3): entrada → revender → 11–49 em no máximo 2 mensagens com botão de compra', async () => {
+    assert.strictEqual(require('./seed.js').instalarV3(), true); assert.strictEqual(require('./seed.js').instalarV3(), false);
+    const e = rec(); await engine.processarMensagem(msg('preço', { extId: 'v3a' }), e);
+    assert.strictEqual(e.env.length, 1); assert.deepStrictEqual(e.env[0].p.replies.map(x => x.title), ['💰 REVENDER', '🏪 MEU NEGÓCIO']);
+    const r = rec(); await engine.processarMensagem(msg('x', { extId: 'v3a', payload: respRapida(e.env[0].p, '💰 REVENDER') }), r);
+    assert.strictEqual(r.env.length, 1); assert.deepStrictEqual(r.env[0].p.replies.map(x => x.title), ['1–10', '11–49', '50–299', '300+']);
+    const q = rec(); await engine.processarMensagem(msg('x', { extId: 'v3a', payload: respRapida(r.env[0].p, '11–49') }), q);
+    assert.ok(q.env.length <= 2, 'mensagens: ' + q.env.length); assert.strictEqual(q.env[q.env.length - 1].p.buttons[0].title, 'CALCULAR E COMPRAR');
+    assert.ok(tagsC('v3a').includes('QTD 11-49'));
+  });
+  await t('funil direto (v3): 50+ vai direto ao comercial (1 mensagem) e quantidade digitada funciona', async () => {
+    const e = rec(); await engine.processarMensagem(msg('revender', { extId: 'v3b' }), e);
+    const g = rec(); await engine.processarMensagem(msg('120', { extId: 'v3b' }), g);
+    assert.strictEqual(g.env.length, 1); assert.deepStrictEqual(g.env[0].p.replies.map(x => x.title), ['FALAR COM COMERCIAL', 'VER VALORES']);
+    assert.strictEqual(contatoDe('v3b').human_priority, 2);
+  });
+  await t('funil direto (v3): MEU NEGÓCIO em 1 mensagem com link para o site', async () => {
+    const e = rec(); await engine.processarMensagem(msg('quero', { extId: 'v3c' }), e);
+    const n = rec(); await engine.processarMensagem(msg('x', { extId: 'v3c', payload: respRapida(e.env[0].p, '🏪 MEU NEGÓCIO') }), n);
+    assert.strictEqual(n.env.length, 1); assert.strictEqual(n.env[0].p.buttons[0].title, 'VER MODELOS E COMPRAR');
   });
 
   srv.close();

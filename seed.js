@@ -1,68 +1,20 @@
 // Fluxos da NexTap (versão 2: funil de qualificação). Edite tudo pelo painel.
 //   semear()    → na primeira subida (nenhum fluxo): instala o funil.
 //   instalarV2() → botão do painel: desativa os fluxos antigos (não apaga) e instala o funil novo.
-const { db, getSetting, setSetting } = require('./db.js');
+const { db } = require('./db.js');
 
 const NOME_ENTRADA = 'Entrada: REVENDER ou MEU NEGÓCIO';
 
-const ins = () => db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
-  kind, event, delay_hours, tags, human_priority, comment_text, audience) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-const criar = (nome, passos, o = {}) => Number(ins().run(
-  nome, o.prioridade || 0, o.modo || 'contem', JSON.stringify(o.palavras || []), o.comentario ? 1 : 0, o.acao || null,
-  JSON.stringify(passos), Date.now(), o.tipo || 'normal', o.evento || null, o.atraso || 0, JSON.stringify(o.tags || []),
-  o.humano || 0, o.textoComentario || null, o.tipo === 'followup' ? (o.publico || 'checkout') : null).lastInsertRowid);
-const idPorNome = nome => (db.prepare('SELECT id FROM flows WHERE name = ? ORDER BY active DESC, id LIMIT 1').get(nome) || {}).id;
-
-// Follow-ups de quem parou antes da calculadora e do caminho MEU NEGÓCIO (os de quem abriu a calculadora ficam em instalarV2).
-// Respostas rápidas apontam para os fluxos do funil pelo nome; se algum foi renomeado/apagado, a mensagem vai sem esse botão.
-function criarFollowupsEtapas() {
-  const rapidas = (texto, opcoes) => {
-    const replies = opcoes.map(([title, nome]) => ({ title, flow_id: idPorNome(nome) })).filter(r => r.flow_id);
-    return replies.length ? { type: 'quick', text: texto, replies } : { type: 'text', text: texto };
-  };
-  const fu = (nome, passos, publico, atraso) => criar(nome, passos, { tipo: 'followup', publico, atraso, tags: ['FOLLOW-UP'] });
-
-  fu('Follow-up (quantidade) 1: quantas placas?', [
-    rapidas('Oi, {{nome}} 👋\nFicou alguma dúvida? Me diz com quantas placas você pensa em começar que eu te mostro o valor da sua faixa:',
-      [['1–10', 'Quantidade: 1–10'], ['11–49', 'Quantidade: 11–49'], ['50–299', 'Quantidade: 50–299 (lead quente)'], ['300+', 'Quantidade: 300+ (lead quente)']]),
-  ], 'revenda_qtd', 2);
-  fu('Follow-up (quantidade) final', [
-    { type: 'text', text: 'Vou parar por aqui para não te incomodar 😄\nQuando quiser ver os valores de revenda, é só mandar "QUERO REVENDER" aqui. 💚' },
-  ], 'revenda_qtd', 20);
-
-  fu('Follow-up (preço) 1: link da calculadora', [
-    { type: 'button', text: 'Oi, {{nome}} 👋\nDeixei aqui o link para você simular quanto fica começar com {{quantidade}} placas:', buttons: [{ title: 'CALCULAR MEU PEDIDO', url: '{{link}}' }] },
-  ], 'revenda_preco', 2);
-  fu('Follow-up (preço) 2: preço de revenda', [
-    rapidas('Uma dúvida comum de quem está começando: dá para revender pelo preço que eu quiser?\nSim! Você compra direto conosco e define o seu preço final. Quer ajuda para escolher a quantidade?',
-      [['QUERO AJUDA', 'Botão: QUERO AJUDA'], ['VER VALORES', 'Botão: VER VALORES']]),
-  ], 'revenda_preco', 8);
-  fu('Follow-up (preço) final', [
-    { type: 'text', text: 'Vou encerrar por aqui para não ficar te incomodando 😄\nQuando quiser começar sua revenda Nextap, é só mandar "QUERO REVENDER" aqui que retomamos de onde paramos. 💚' },
-  ], 'revenda_preco', 20);
-
-  fu('Follow-up (meu negócio) 1: ver funcionando', [
-    rapidas('Oi, {{nome}} 👋\nConseguiu ver como a Nextap funciona? Seu cliente aproxima o celular e já cai na avaliação da sua empresa no Google. ⭐',
-      [['SIM, ME MOSTRA', 'Botão: SIM, ME MOSTRA'], ['VER MODELOS', 'Botão: VER MODELOS']]),
-  ], 'negocio', 2);
-  fu('Follow-up (meu negócio) final', [
-    { type: 'text', text: 'Vou parar por aqui para não incomodar 😄\nQuando quiser a sua placa no balcão, é só mandar "MEU NEGÓCIO" aqui que continuamos. 💚' },
-  ], 'negocio', 20);
-}
-
-// Bancos que já tinham o funil: acrescenta as sequências novas uma única vez (apagadas pelo painel, não voltam)
-function instalarFollowupsEtapas() {
-  if (getSetting('followups_etapas') === '1') return false;
-  if (!db.prepare('SELECT 1 FROM flows WHERE name = ?').get(NOME_ENTRADA)) return false;
-  db.transaction(() => {
-    if (!db.prepare("SELECT 1 FROM flows WHERE kind = 'followup' AND audience <> 'checkout'").get()) criarFollowupsEtapas();
-    setSetting('followups_etapas', '1');
-  })();
-  return true;
-}
-
 function instalarV2({ desativarAntigos = true } = {}) {
   if (db.prepare('SELECT 1 FROM flows WHERE name = ?').get(NOME_ENTRADA)) return false;
+  const agora = Date.now();
+  const ins = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
+    kind, event, delay_hours, tags, human_priority, comment_text) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const criar = (nome, passos, o = {}) => Number(ins.run(
+    nome, o.prioridade || 0, o.modo || 'contem', JSON.stringify(o.palavras || []), o.comentario ? 1 : 0, o.acao || null,
+    JSON.stringify(passos), agora, o.tipo || 'normal', o.evento || null, o.atraso || 0, JSON.stringify(o.tags || []),
+    o.humano || 0, o.textoComentario || null).lastInsertRowid);
+
   db.transaction(() => {
     if (desativarAntigos) db.prepare('UPDATE flows SET active = 0').run();
 
@@ -179,7 +131,7 @@ function instalarV2({ desativarAntigos = true } = {}) {
       { type: 'text', text: 'Boa! 🙌 Vou pedir para alguém do time te enviar o roteiro de abordagem por aqui. Já já te chamamos.' },
     ], { tipo: 'botao', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
     criar('Follow-up 1: conseguiu calcular?', [
-      { type: 'text', text: 'Oi, {{nome}} 👋\nConseguiu calcular seu pedido da Nextap?\nSe estiver em dúvida entre {{quantidade}} placas e outra faixa, me fala que eu te ajudo a encontrar a melhor.' },
+      { type: 'text', text: 'Oi, {{nome}} 👋\nConseguiu calcular seu pedido da Nextap?\nSe quiser, me fala quantas unidades está pensando e eu te ajudo a encontrar a melhor faixa.' },
     ], { tipo: 'followup', atraso: 3, tags: ['FOLLOW-UP'] });
     criar('Follow-up 2: pergunta rápida', [
       { type: 'text', text: 'Uma dúvida rápida: sua ideia é começar vendendo pessoalmente para empresas da sua região ou pela internet?' },
@@ -193,15 +145,130 @@ function instalarV2({ desativarAntigos = true } = {}) {
     criar('Resposta a um follow-up', [
       { type: 'text', text: 'Boa! 💚 Vou chamar alguém do time para continuar essa conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
-    criarFollowupsEtapas();
-    setSetting('followups_etapas', '1');
+  })();
+  return true;
+}
+
+
+// ---------------------------------------------------------------------------
+// Funil DIRETO (v3): menos mensagens, sempre com chamada para calcular/comprar.
+// Entrada → REVENDER/MEU NEGÓCIO → quantidade → (vídeo) + botão "calcular e comprar".
+// Lead grande (50+) vai direto para o comercial. Só 2 follow-ups.
+// ---------------------------------------------------------------------------
+const NOME_ENTRADA_V3 = 'Entrada: direto ao ponto';
+
+function instalarV3({ desativarAntigos = true } = {}) {
+  if (db.prepare('SELECT 1 FROM flows WHERE name = ?').get(NOME_ENTRADA_V3)) return false;
+  const agora = Date.now();
+  const ins = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
+    kind, event, delay_hours, tags, human_priority, comment_text) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const criar = (nome, passos, o = {}) => Number(ins.run(
+    nome, o.prioridade || 0, o.modo || 'contem', JSON.stringify(o.palavras || []), o.comentario ? 1 : 0, o.acao || null,
+    JSON.stringify(passos), agora, o.tipo || 'normal', o.evento || null, o.atraso || 0, JSON.stringify(o.tags || []),
+    o.humano || 0, o.textoComentario || null).lastInsertRowid);
+
+  db.transaction(() => {
+    if (desativarAntigos) db.prepare('UPDATE flows SET active = 0').run();
+    const CALC = [{ title: 'CALCULAR E COMPRAR', url: '{{link}}' }];
+
+    // ---------- fechamento ----------
+    const jaVouComprar = criar('Botão: JÁ VOU COMPRAR', [
+      { type: 'text', text: 'Perfeito! 🔥 Finalize pelo link da calculadora. Qualquer dúvida de pagamento ou envio, me chama aqui.' },
+    ], { tipo: 'botao', tags: ['INTENÇÃO DE COMPRA', 'QUENTE'] });
+    const queroAjuda = criar('Botão: QUERO AJUDA', [
+      { type: 'text', text: 'Já avisei o time: em instantes alguém fecha com você por aqui. Se preferir, WhatsApp: {{telefone}} 💚' },
+    ], { tipo: 'botao', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
+    criar('Depois do clique na calculadora', [
+      { type: 'quick', text: 'Ficou alguma dúvida de quantidade ou pagamento? Eu te ajudo a fechar agora.', replies: [
+        { title: 'QUERO AJUDA', flow_id: queroAjuda }, { title: 'JÁ VOU COMPRAR', flow_id: jaVouComprar },
+      ] },
+    ], { tipo: 'evento', evento: 'clique_link' });
+    const comercial = criar('Botão: FALAR COM COMERCIAL', [
+      { type: 'text', text: 'Combinado! 🔥 Já chamei o comercial: você será atendido com prioridade aqui mesmo. WhatsApp: {{telefone}}' },
+    ], { tipo: 'botao', acao: 'handoff', humano: 2, tags: ['QUENTE'] });
+    const preco = criar('Botão: VER VALORES', [
+      { type: 'button', text: 'Aqui você vê o valor exato do seu pedido e já finaliza 👇', buttons: CALC },
+    ], { tipo: 'botao', tags: ['VIU PREÇO'] });
+
+    // ---------- quantidade ----------
+    const video = { type: 'video', url: '{{video_demo}}' };
+    const pequeno = (nome, evento, faixa, lbl) => criar(nome, [
+      video,
+      { type: 'button', text: `Sem app: o cliente aproxima o celular e cai direto na avaliação. Você compra direto da fábrica e define seu preço. Para ${lbl} placas o valor por unidade já cai. Veja quanto fica 👇`, buttons: CALC },
+    ], { tipo: 'botao', evento, tags: ['QUANTIDADE', 'QTD ' + faixa, 'VIU DEMO', 'VIU PREÇO'] });
+    const grande = (nome, evento, faixa, lbl) => criar(nome, [
+      { type: 'quick', text: `Para ${lbl} placas você entra nas melhores condições de atacado. 💚\nQuer falar direto com o comercial ou ver os valores agora?`, replies: [
+        { title: 'FALAR COM COMERCIAL', flow_id: comercial }, { title: 'VER VALORES', flow_id: preco },
+      ] },
+    ], { tipo: 'botao', evento, humano: 2, tags: ['QUANTIDADE', 'QTD ' + faixa, 'LEAD GRANDE', 'QUENTE'] });
+    const q1 = pequeno('Qtd 1–10', 'qtd_1_10', '1-10', '1 a 10');
+    const q2 = pequeno('Qtd 11–49', 'qtd_11_49', '11-49', '11 a 49');
+    const q3 = grande('Qtd 50–299 (lead quente)', 'qtd_50_299', '50-299', '50 a 299');
+    const q4 = grande('Qtd 300+ (lead quente)', 'qtd_300', '300+', '300 ou mais');
+
+    const revender = criar('REVENDER: quantas placas?', [
+      { type: 'quick', text: 'Boa! 🚀 Você compra direto da fábrica e define seu preço de venda. Quantas placas quer começar?', replies: [
+        { title: '1–10', flow_id: q1 }, { title: '11–49', flow_id: q2 }, { title: '50–299', flow_id: q3 }, { title: '300+', flow_id: q4 },
+      ] },
+    ], { prioridade: 15, palavras: ['revender', 'revenda', 'revendedor', 'revendedora', 'quero revender', 'ser revendedor'], comentario: true, tags: ['REVENDEDOR'],
+      textoComentario: 'Oi! 👋💚 Perfeito, vamos de revenda! Quantas placas você pensa em começar? Responda com um número, ex.: 20' });
+
+    // ---------- MEU NEGÓCIO (1 mensagem) ----------
+    const negocio = criar('MEU NEGÓCIO: ver modelos', [
+      { type: 'button', text: 'Seu cliente aproxima o celular e cai direto na sua avaliação do Google, sem app. ⭐ Escolha o modelo e peça a sua 👇', buttons: [{ title: 'VER MODELOS E COMPRAR', url: '{{site}}' }] },
+    ], { prioridade: 15, palavras: ['meu negocio', 'minha empresa', 'minha loja', 'para meu negocio'], tags: ['MEU NEGÓCIO', 'VIU PREÇO'] });
+
+    // ---------- entrada (1 mensagem) ----------
+    criar(NOME_ENTRADA_V3, [
+      { type: 'quick', text: 'Oi! 👋💚 Aqui é a NexTap: placas NFC + QR Code que levam o cliente direto para a sua avaliação no Google.\nVocê quer para:', replies: [
+        { title: '💰 REVENDER', flow_id: revender }, { title: '🏪 MEU NEGÓCIO', flow_id: negocio },
+      ] },
+    ], { prioridade: 10, comentario: true,
+      palavras: ['preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
+      textoComentario: 'Oi! 👋💚 Para te mostrar a melhor opção, responda por aqui: REVENDER ou MEU NEGÓCIO.' });
+
+    // ---------- objeções (curtas, sempre com botão para calcular) ----------
+    const obj = (nome, palavras, texto) => criar(nome, [{ type: 'button', text: texto, buttons: CALC }], { prioridade: 20, palavras });
+    obj('Objeção: Como funciona?', ['como funciona', 'funciona', 'como e', 'como usa', 'aproximar'], 'A placa tem NFC + QR Code: o cliente aproxima o celular (ou lê o QR) e abre sua página, sem app. Veja quanto fica o seu pedido 👇');
+    obj('Objeção: Já tenho QR Code', ['ja tenho qr code', 'ja tenho qrcode', 'ja tenho qr', 'tenho qr code', 'tenho qr', 'qr code', 'qrcode'], 'Ótimo, e ele continua útil. A NexTap soma o NFC: o cliente só aproxima o celular. Menos passos, mais avaliações. Veja os valores 👇');
+    obj('Objeção: Está caro', ['caro', 'esta caro', 'ta caro', 'muito caro', 'achei caro', 'desconto', 'mais barato', 'barato'], 'Entendo! Quanto maior a quantidade, menor o valor por placa, e na revenda você ainda define seu preço final. Simule aqui 👇');
+    criar('Prazo e entrega', [
+      { type: 'button', text: 'Produção em ~5 dias úteis após a confirmação, com envio rastreado 📦 O frete é calculado pelo seu CEP na hora de fechar.', buttons: CALC },
+    ], { prioridade: 20, palavras: ['prazo', 'entrega', 'frete', 'envio', 'correios', 'rastreio', 'quanto tempo', 'demora'] });
+    criar('Nota fiscal', [
+      { type: 'text', text: 'Sobre nota fiscal, vou chamar alguém da equipe para te explicar direitinho. Já já respondemos! 🙂' },
+    ], { prioridade: 20, palavras: ['nota fiscal', 'nf', 'nfe', 'cnpj', 'cpf', 'nota'], acao: 'handoff', humano: 1 });
+
+    // ---------- atendente e parada ----------
+    criar('Falar com atendente', [
+      { type: 'text', text: 'Certo! Já avisei a equipe e uma pessoa vai te responder em breve. WhatsApp: {{telefone}} 💚' },
+    ], { prioridade: 100, palavras: ['atendente', 'humano', 'falar com alguem', 'falar com pessoa', 'falar com atendente', 'suporte', 'ajuda'], acao: 'handoff', humano: 1 });
+    criar('Parar mensagens', [
+      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+    ], { prioridade: 200, palavras: ['parar', 'sair', 'stop', 'cancelar', 'descadastrar'], acao: 'silenciar', modo: 'exato' });
+    criar('Parar mensagens (frases)', [
+      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+    ], { prioridade: 200, palavras: ['nao quero receber', 'nao quero mais receber', 'nao enviar', 'nao envie', 'pare de enviar'], acao: 'silenciar' });
+
+    // ---------- follow-ups: só 2 (dentro das 24h do Instagram) ----------
+    criar('Follow-up 1: conseguiu calcular?', [
+      { type: 'quick', text: 'Oi, {{nome}} 👋 Conseguiu ver os valores? Me diz a quantidade e eu te passo a melhor faixa.', replies: [
+        { title: 'QUERO AJUDA', flow_id: queroAjuda }, { title: 'JÁ VOU COMPRAR', flow_id: jaVouComprar },
+      ] },
+    ], { tipo: 'followup', atraso: 3, tags: ['FOLLOW-UP'] });
+    criar('Follow-up final', [
+      { type: 'button', text: 'Última mensagem por aqui 😄 Se quiser fechar, é só calcular e finalizar o pedido, ou me chamar que eu te ajudo.', buttons: CALC },
+    ], { tipo: 'followup', atraso: 20, tags: ['FOLLOW-UP'] });
+    criar('Resposta a um follow-up', [
+      { type: 'text', text: 'Boa! 💚 Vou chamar alguém do time para fechar com você por aqui.' },
+    ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
   })();
   return true;
 }
 
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) return false;
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { semear, instalarV2, instalarFollowupsEtapas, NOME_ENTRADA };
+module.exports = { semear, instalarV2, instalarV3, NOME_ENTRADA, NOME_ENTRADA_V3 };
