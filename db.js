@@ -88,6 +88,15 @@ const MIGRACOES = [
     CREATE INDEX idx_agenda_due ON agenda(done, run_at);
     UPDATE settings SET value = '30' WHERE key = 'max_replies_hour' AND value = '8';  -- o funil novo envia mais mensagens por conversa
   `),
+  // v3: follow-ups por etapa do funil, sem recomeçar a sequência a cada mensagem
+  db => db.exec(`
+    ALTER TABLE flows ADD COLUMN audience TEXT;                                -- followup: checkout | revenda_qtd | revenda_preco | negocio
+    ALTER TABLE contacts ADD COLUMN followup_seq TEXT;                         -- sequência (etapa) em que a pessoa está
+    ALTER TABLE contacts ADD COLUMN last_followup_at INTEGER NOT NULL DEFAULT 0;
+    UPDATE flows SET audience = 'checkout' WHERE kind = 'followup';
+    UPDATE contacts SET followup_seq = 'checkout' WHERE followup_step > 0;
+    CREATE INDEX idx_messages_flow ON messages(flow_id, contact_id, created_at);
+  `),
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });

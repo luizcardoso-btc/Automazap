@@ -55,8 +55,28 @@ router.get('/status', (req, res) => {
     prioridade_alta: n("SELECT COUNT(*) AS n FROM contacts WHERE needs_human = 1 AND human_priority >= 2 AND channel <> 'sim'"),
     cliques: n("SELECT COALESCE(SUM(clicks), 0) AS n FROM links"),
     erros_24h: n("SELECT COUNT(*) AS n FROM messages WHERE status = 'erro' AND created_at > ?", Date.now() - 86400e3),
+    followups: metricasFollowup(),
   });
 });
+
+// Por follow-up: quantas pessoas receberam, quantas responderam (antes do próximo follow-up, em até 24h) e quantas compraram
+function metricasFollowup() {
+  return db.prepare(`
+    WITH env AS (
+      SELECT m.flow_id, m.contact_id, MIN(m.created_at) AS at, MIN(m.id) AS mid FROM messages m JOIN flows f ON f.id = m.flow_id JOIN contacts c ON c.id = m.contact_id
+      WHERE f.kind = 'followup' AND m.direction = 'out' AND m.status = 'ok' AND c.channel <> 'sim' GROUP BY m.flow_id, m.contact_id
+    ), env2 AS (
+      SELECT env.*, MIN(env.at + 86400000, COALESCE((SELECT MIN(p.at) FROM env p WHERE p.contact_id = env.contact_id AND p.at > env.at), env.at + 86400000)) AS ate
+      FROM env
+    )
+    SELECT f.id, f.name, f.audience, f.delay_hours, f.active,
+      COUNT(e.contact_id) AS enviados,
+      COALESCE(SUM(EXISTS (SELECT 1 FROM messages i WHERE i.contact_id = e.contact_id AND i.direction = 'in' AND i.id > e.mid AND i.created_at <= e.ate)), 0) AS responderam,
+      COALESCE(SUM(c.tags LIKE '%"VENDA"%'), 0) AS venderam
+    FROM flows f LEFT JOIN env2 e ON e.flow_id = f.id LEFT JOIN contacts c ON c.id = e.contact_id
+    WHERE f.kind = 'followup'
+    GROUP BY f.id ORDER BY CASE f.audience WHEN 'revenda_qtd' THEN 1 WHEN 'revenda_preco' THEN 2 WHEN 'checkout' THEN 3 ELSE 4 END, f.delay_hours, f.id`).all();
+}
 
 // ---------- fluxos ----------
 function validarPassos(passos) {
@@ -110,6 +130,8 @@ function validarFluxo(b) {
   if (tipo === 'evento' && !['clique_link', 'resposta_followup'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
   const atraso = Number(b.delay_hours) || 0;
   if (tipo === 'followup' && !(atraso >= 0.5 && atraso <= 23)) return { erro: 'Follow-up: envie entre 0,5 e 23 horas após a última mensagem da pessoa (limite de 24h do Instagram).' };
+  const publico = tipo === 'followup' ? (b.audience || 'checkout') : null;
+  if (publico && !engine.SEGMENTOS[publico]) return { erro: 'Follow-up: escolha para qual etapa do funil ele é enviado.' };
   const humano = Number(b.human_priority) || 0;
   if (![0, 1, 2].includes(humano)) return { erro: 'Prioridade de atendimento inválida.' };
   const tags = [...new Set((Array.isArray(b.tags) ? b.tags : []).map(t => String(t).trim().toUpperCase()).filter(Boolean))];
@@ -119,7 +141,7 @@ function validarFluxo(b) {
   if (![null, undefined, '', 'handoff', 'silenciar'].includes(b.action)) return { erro: 'Ação inválida.' };
   const passos = validarPassos(b.steps);
   if (typeof passos === 'string') return { erro: passos };
-  return { valor: { nome, prioridade, modo: b.match_mode, palavras, comentario: tipo === 'normal' && b.on_comment ? 1 : 0, acao: b.action || null, ativo: b.active === false ? 0 : 1, passos, tipo, evento: tipo === 'evento' || tipo === 'botao' ? evento : null, atraso: tipo === 'followup' ? atraso : 0, humano, tags, textoComentario } };
+  return { valor: { nome, prioridade, modo: b.match_mode, palavras, comentario: tipo === 'normal' && b.on_comment ? 1 : 0, acao: b.action || null, ativo: b.active === false ? 0 : 1, passos, tipo, evento: tipo === 'evento' || tipo === 'botao' ? evento : null, atraso: tipo === 'followup' ? atraso : 0, humano, tags, textoComentario, publico } };
 }
 
 router.get('/flows', (req, res) => {
@@ -130,18 +152,18 @@ router.post('/flows', (req, res) => {
   if (v.erro) return res.status(400).json({ error: v.erro });
   const x = v.valor;
   const id = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
-      kind, event, delay_hours, tags, human_priority, comment_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      kind, event, delay_hours, tags, human_priority, comment_text, audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(x.nome, x.ativo, x.prioridade, x.modo, JSON.stringify(x.palavras), x.comentario, x.acao, JSON.stringify(x.passos), Date.now(),
-      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario).lastInsertRowid;
+      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico).lastInsertRowid;
   res.json(engine.fluxoPorId(Number(id)));
 });
 router.put('/flows/:id', (req, res) => {
   const v = validarFluxo(req.body);
   if (v.erro) return res.status(400).json({ error: v.erro });
   const x = v.valor;
-  const r = db.prepare('UPDATE flows SET name=?, active=?, priority=?, match_mode=?, keywords=?, on_comment=?, action=?, steps=?, kind=?, event=?, delay_hours=?, tags=?, human_priority=?, comment_text=? WHERE id=?')
+  const r = db.prepare('UPDATE flows SET name=?, active=?, priority=?, match_mode=?, keywords=?, on_comment=?, action=?, steps=?, kind=?, event=?, delay_hours=?, tags=?, human_priority=?, comment_text=?, audience=? WHERE id=?')
     .run(x.nome, x.ativo, x.prioridade, x.modo, JSON.stringify(x.palavras), x.comentario, x.acao, JSON.stringify(x.passos),
-      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, req.params.id);
+      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico, req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Fluxo não encontrado.' });
   res.json(engine.fluxoPorId(Number(req.params.id)));
 });
@@ -229,7 +251,7 @@ router.put('/settings', (req, res) => {
 router.get('/contatos', (req, res) => {
   const so = (req.query.precisa === '1' ? ' AND c.needs_human = 1' : '') + (req.query.tag ? ' AND c.tags LIKE @tag' : '');
   const lista = db.prepare(`
-    SELECT c.id, c.channel, c.username, c.name, c.needs_human, c.human_priority, c.bot_paused_until, c.last_inbound_at, c.tags, c.followup_step,
+    SELECT c.id, c.channel, c.username, c.name, c.needs_human, c.human_priority, c.bot_paused_until, c.last_inbound_at, c.tags, c.followup_step, c.followup_seq,
       (SELECT MAX(created_at) FROM messages m WHERE m.contact_id = c.id) AS last_at,
       (SELECT text FROM messages m WHERE m.contact_id = c.id ORDER BY id DESC LIMIT 1) AS last_text
     FROM contacts c WHERE c.channel <> 'sim'${so} ORDER BY c.needs_human DESC, c.human_priority DESC, last_at DESC LIMIT 200`)
