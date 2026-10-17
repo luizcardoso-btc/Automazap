@@ -462,6 +462,61 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(n.env.length, 1); assert.strictEqual(n.env[0].p.buttons[0].title, 'VER MODELOS E COMPRAR');
   });
 
+  console.log('Prospecção');
+  const gfake = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => {
+    const j = JSON.parse(b || '{}'); res.setHeader('content-type', 'application/json');
+    if (req.headers['x-goog-api-key'] === 'ruim') { res.statusCode = 403; return res.end(JSON.stringify({ error: { message: 'API não ativada' } })); }
+    const lugar = (i, n, r, tel, st) => ({ id: 'p' + i, displayName: { text: n }, formattedAddress: `Rua A, ${i} - Centro, Feira de Santana - BA, 44000-000, Brasil`, nationalPhoneNumber: tel, rating: r, userRatingCount: n.length * 0 + i * 9, businessStatus: st || 'OPERATIONAL', location: { latitude: -12.2, longitude: -38.9 } });
+    res.end(JSON.stringify(j.pageToken ? { places: [lugar(4, 'Pág2', 4.8, '75 90000-0004')] } : { places: [lugar(1, 'Loja Um', 3.8, '75 90000-0001'), lugar(2, 'Loja Fechada', 4, '75 90000-0002', 'CLOSED_PERMANENTLY'), lugar(3, 'Loja Sem Fone', 4.9, '')], nextPageToken: 'x' }));
+  }); });
+  await new Promise(r => gfake.listen(0, r));
+  process.env.GOOGLE_PLACES_BASE = 'http://localhost:' + gfake.address().port;
+  await t('prospecção exige login', async () => assert.strictEqual((await chamar('GET', '/api/prospeccao')).status, 401));
+  await t('busca sem chave do Google explica o que falta', async () => {
+    delete process.env.GOOGLE_PLACES_API_KEY;
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H });
+    assert.strictEqual(r.status, 400); assert.ok(/GOOGLE_PLACES_API_KEY/.test(r.json.error));
+  });
+  await t('busca: exige segmento e local; recusa do Google vira erro claro', async () => {
+    process.env.GOOGLE_PLACES_API_KEY = 'boa';
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { local: 'Centro' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'x' }, headers: H })).status, 400);
+    process.env.GOOGLE_PLACES_API_KEY = 'ruim';
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H });
+    assert.strictEqual(r.status, 502); assert.ok(/API não ativada/.test(r.json.error)); process.env.GOOGLE_PLACES_API_KEY = 'boa';
+  });
+  let achados;
+  await t('busca: junta páginas, tira empresa fechada e ordena por oportunidade', async () => {
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro, Feira de Santana', paginas: 2 }, headers: H });
+    assert.strictEqual(r.status, 200); achados = r.json.resultados;
+    assert.deepStrictEqual(achados.map(x => x.nome), ['Loja Um', 'Pág2', 'Loja Sem Fone']);
+    assert.strictEqual(achados[0].bairro, 'Centro'); assert.strictEqual(achados[0].nivel, 'alta'); assert.ok(achados[0].score > achados[2].score);
+  });
+  await t('salvar não duplica a mesma empresa do Google', async () => {
+    const a = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: achados }, headers: H }); assert.strictEqual(a.json.novos, 3);
+    const b = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: achados }, headers: H }); assert.strictEqual(b.json.novos, 0); assert.strictEqual(b.json.repetidos, 3);
+    const c = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H }); assert.ok(c.json.resultados.every(x => x.ja_salvo));
+  });
+  await t('registrar contato muda status, agenda retorno e guarda histórico', async () => {
+    const lista = (await chamar('GET', '/api/prospeccao', { headers: H })).json; const id = lista.find(x => x.nome === 'Loja Um').id;
+    assert.strictEqual(lista.find(x => x.id === id).status, 'novo');
+    const r = await chamar('POST', `/api/prospeccao/${id}/contato`, { corpo: { tipo: 'whatsapp', texto: 'Abordagem', prox_contato: '2030-01-02' }, headers: H });
+    assert.strictEqual(r.json.status, 'abordado'); assert.strictEqual(r.json.prox_contato, '2030-01-02');
+    assert.strictEqual((await chamar('POST', `/api/prospeccao/${id}/contato`, { corpo: { tipo: 'nota', texto: '' }, headers: H })).status, 400);
+    const d = (await chamar('GET', `/api/prospeccao/${id}`, { headers: H })).json; assert.strictEqual(d.historico.length, 1); assert.strictEqual(d.contatos, 1);
+    const p = await chamar('POST', `/api/prospeccao/${id}/contato`, { corpo: { tipo: 'ligacao', texto: 'Sem interesse', status: 'perdido', motivo_perda: 'Já tem solução' }, headers: H });
+    assert.strictEqual(p.json.status, 'perdido'); assert.strictEqual(p.json.motivo_perda, 'Já tem solução');
+  });
+  await t('cadastro manual, importação de lista (sem repetir) e exclusão', async () => {
+    assert.strictEqual((await chamar('POST', '/api/prospeccao', { corpo: { nome: '' }, headers: H })).status, 400);
+    const m = await chamar('POST', '/api/prospeccao', { corpo: { nome: 'Salão Bela', telefone: '75 91111-2222', segmento: 'Salão' }, headers: H }); assert.strictEqual(m.json.origem, 'manual');
+    const i = await chamar('POST', '/api/prospeccao/importar', { corpo: { texto: 'Salão Bela; 75 91111-2222\nPet do Zé; 75 93333-4444; Pet shop; Centro', segmento: 'Loja' }, headers: H });
+    assert.strictEqual(i.json.novos, 1); assert.strictEqual(i.json.repetidos, 1);
+    assert.strictEqual((await chamar('DELETE', `/api/prospeccao/${m.json.id}`, { headers: H })).json.ok, true);
+    assert.strictEqual((await chamar('GET', `/api/prospeccao/${m.json.id}`, { headers: H })).status, 404);
+  });
+  gfake.close();
+
   srv.close();
   console.log(`\n${ok} passaram, ${falhou} falharam`);
   process.exit(falhou ? 1 : 0);

@@ -88,14 +88,22 @@ const MIGRACOES = [
     CREATE INDEX idx_agenda_due ON agenda(done, run_at);
     UPDATE settings SET value = '30' WHERE key = 'max_replies_hour' AND value = '8';  -- o funil novo envia mais mensagens por conversa
   `),
-  // v3: follow-ups por etapa do funil, sem recomeçar a sequência a cada mensagem
+  // v3: prospecção de empresas locais (busca no Google, funil de vendas e histórico de contatos)
   db => db.exec(`
-    ALTER TABLE flows ADD COLUMN audience TEXT;                                -- followup: checkout | revenda_qtd | revenda_preco | negocio
-    ALTER TABLE contacts ADD COLUMN followup_seq TEXT;                         -- sequência (etapa) em que a pessoa está
-    ALTER TABLE contacts ADD COLUMN last_followup_at INTEGER NOT NULL DEFAULT 0;
-    UPDATE flows SET audience = 'checkout' WHERE kind = 'followup';
-    UPDATE contacts SET followup_seq = 'checkout' WHERE followup_step > 0;
-    CREATE INDEX idx_messages_flow ON messages(flow_id, contact_id, created_at);
+    CREATE TABLE prospects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT, nome TEXT NOT NULL, segmento TEXT NOT NULL DEFAULT '', contato TEXT NOT NULL DEFAULT '',
+      telefone TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', endereco TEXT NOT NULL DEFAULT '', bairro TEXT NOT NULL DEFAULT '',
+      nota REAL, avaliacoes INTEGER NOT NULL DEFAULT 0, site TEXT NOT NULL DEFAULT '', maps_url TEXT NOT NULL DEFAULT '', lat REAL, lng REAL,
+      origem TEXT NOT NULL DEFAULT 'manual', obs TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'novo', prox_contato TEXT,
+      motivo_perda TEXT NOT NULL DEFAULT '', criado_em TEXT NOT NULL DEFAULT (datetime('now')), atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX idx_prospects_place ON prospects(place_id) WHERE place_id IS NOT NULL;
+    CREATE INDEX idx_prospects_status ON prospects(status, prox_contato);
+    CREATE TABLE prospect_hist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT 'nota', texto TEXT NOT NULL DEFAULT '',
+      criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_prospect_hist ON prospect_hist(prospect_id, id);
   `),
 ];
 

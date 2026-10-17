@@ -41,6 +41,8 @@ router.use((req, res, next) => {
   res.status(401).json({ error: 'Sessão expirada. Entre novamente.' });
 });
 
+router.use('/prospeccao', require('./prospeccao.js'));
+
 // ---------- status ----------
 router.get('/status', (req, res) => {
   const n = (sql, ...a) => db.prepare(sql).get(...a).n;
