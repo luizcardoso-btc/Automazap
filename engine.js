@@ -6,7 +6,6 @@
 const { db, getSetting } = require('./db.js');
 
 const agora = () => Date.now();
-const JANELA = 24 * 3600e3, MARGEM = 30 * 60e3;   // janela do Instagram; não tenta enviar nos últimos 30 min dela
 
 // minúsculas, sem acento, sem pontuação: "Qual o PREÇO?" → "qual o preco"
 const normalizar = s => String(s == null ? '' : s)
@@ -91,15 +90,7 @@ function registrarClique(token) {
   return l.url;
 }
 
-// Faixa escolhida pela pessoa (etiqueta "QTD 11-49") em texto: "11 a 49"; sem faixa: "algumas"
-function quantidadeDe(contato) {
-  const q = tagsDe(contato).find(t => t.startsWith('QTD '));
-  if (!q) return 'algumas';
-  const f = q.slice(4);
-  return f.endsWith('+') ? 'mais de ' + f.slice(0, -1) : f.replace('-', ' a ');
-}
-
-// {{nome}}, {{site}}, {{link}} (link do site com rastreio), {{telefone}}, {{video_demo}}, {{quantidade}}
+// {{nome}}, {{site}}, {{link}} (link do site com rastreio), {{telefone}}, {{video_demo}}
 function aplicarVars(texto, contato) {
   // Só usa um nome de verdade: @usuario com números/pontos/_ não vira "Oi, joao_88"
   const bruto = String(contato.name || '').trim() || (/^[A-Za-zÀ-ÿ]+$/.test(contato.username || '') ? contato.username : '');
@@ -113,7 +104,6 @@ function aplicarVars(texto, contato) {
     .replace(/\{\{\s*link\s*\}\}/g, () => criarLink(contato, urlDoSite()))
     .replace(/\{\{\s*telefone\s*\}\}/g, getSetting('telefone') || '')
     .replace(/\{\{\s*video_demo\s*\}\}/g, getSetting('video_demo_url') || '')
-    .replace(/\{\{\s*quantidade\s*\}\}/g, () => quantidadeDe(contato))
     .replace(/\s+([!,.?])/g, '$1');
 }
 function passoComVars(passo, contato) {
@@ -258,9 +248,7 @@ async function processarMensagem(ev, sender) {
   if (ev.mid && !marcarProcessado('m:' + ev.mid)) return { acao: 'ignorada', motivo: 'duplicada' };
   let contato = upsertContato(ev);
   contato = await enriquecerContato(contato, sender);
-  // A sequência de follow-up continua de onde parou; só recomeça numa conversa nova (janela de 24h já fechada)
-  if (agora() - contato.last_inbound_at > JANELA) db.prepare('UPDATE contacts SET followup_step = 0, followup_seq = NULL WHERE id = ?').run(contato.id);
-  db.prepare('UPDATE contacts SET last_inbound_at = ? WHERE id = ?').run(agora(), contato.id);
+  db.prepare('UPDATE contacts SET last_inbound_at = ?, followup_step = 0 WHERE id = ?').run(agora(), contato.id);
   registrar(contato.id, 'in', 'texto', ev.texto || (ev.payload ? `[botão] ${ev.payload}` : ''));
 
   const atual = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contato.id);
@@ -278,7 +266,7 @@ async function processarMensagem(ev, sender) {
   }
 
   // Respondeu (texto livre) a um follow-up: quem está engajado vai para uma pessoa, em vez de cair na resposta padrão
-  if (contato.last_followup_at > contato.last_inbound_at) {
+  if (contato.followup_step > 0) {
     const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'resposta_followup' AND active = 1 ORDER BY id LIMIT 1").get();
     if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
   }
@@ -327,20 +315,8 @@ async function processarComentario(ev, sender) {
 
 // ---------- agenda e follow-ups ----------
 // Roda a cada ~15s: (1) envia o que foi agendado (ex.: mensagem após o clique no link); (2) follow-ups dentro da janela de 24h.
+const JANELA = 24 * 3600e3, MARGEM = 30 * 60e3;   // não tenta enviar nos últimos 30 min da janela
 const SEM_FOLLOWUP = ['VENDA', 'INTENÇÃO DE COMPRA'];
-// Cada etapa do funil tem a sua sequência de follow-ups (flows.audience)
-const SEGMENTOS = {
-  revenda_qtd: 'Revenda: não escolheu a quantidade',
-  revenda_preco: 'Revenda: viu o preço, não abriu a calculadora',
-  checkout: 'Revenda: abriu a calculadora',
-  negocio: 'Meu negócio',
-};
-function segmentoDe(c) {
-  const tg = tagsDe(c);
-  if (SEM_FOLLOWUP.some(x => tg.includes(x))) return null;
-  if (tg.includes('REVENDEDOR')) return tg.includes('ABRIU CHECKOUT') ? 'checkout' : tg.includes('QUANTIDADE') ? 'revenda_preco' : 'revenda_qtd';
-  return tg.includes('MEU NEGÓCIO') ? 'negocio' : null;
-}
 let rodando = false;
 async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
   if (rodando) return { agenda: 0, followups: 0, ocupado: true };
@@ -356,31 +332,24 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
       await enviarFluxo(c, f, sender); out.agenda++;
     }
     if (getSetting('followups_enabled') === '1') {
-      const porSeg = {};
-      for (const f of db.prepare("SELECT * FROM flows WHERE kind = 'followup' AND active = 1 ORDER BY delay_hours, id").all().map(lerFluxo)) {
-        (porSeg[f.audience || 'checkout'] = porSeg[f.audience || 'checkout'] || []).push(f);
-      }
-      const cand = db.prepare(`SELECT * FROM contacts WHERE channel = ? AND needs_human = 0 AND bot_paused_until <= ? AND last_inbound_at > ?
-        AND (tags LIKE '%"REVENDEDOR"%' OR tags LIKE '%"MEU NEGÓCIO"%')`).all(canal, t0, t0 - JANELA);
-      for (const c of cand) {
-        const seg = segmentoDe(c), fus = porSeg[seg];
-        if (!fus) continue;
-        // Avançou de etapa (ex.: escolheu a quantidade): começa a sequência da etapa nova
-        const passo = c.followup_seq && c.followup_seq !== seg ? 0 : c.followup_step;
-        // O mais recente que já venceu: se o robô ficou parado, não manda os atrasados em fila e a mensagem final não se perde
-        let j = -1;
-        for (let k = passo; k < fus.length; k++) if (t0 >= c.last_inbound_at + fus[k].delay_hours * 3600e3) j = k;
-        if (j < 0) continue;
-        const ultimaSaida = (db.prepare("SELECT MAX(created_at) AS m FROM messages WHERE contact_id = ? AND direction = 'out' AND status = 'ok'").get(c.id).m) || 0;
-        const devido = Math.max(seg === 'checkout' ? c.last_click_at + 3600e3 : 0, ultimaSaida + 1800e3);
-        if (t0 < devido || t0 > c.last_inbound_at + JANELA - MARGEM) continue;
-        // antes de enviar: nunca duplica
-        db.prepare('UPDATE contacts SET followup_step = ?, followup_seq = ?, last_followup_at = ? WHERE id = ?').run(j + 1, seg, t0, c.id);
-        await enviarFluxo(db.prepare('SELECT * FROM contacts WHERE id = ?').get(c.id), fus[j], sender); out.followups++;
+      const fus = db.prepare("SELECT * FROM flows WHERE kind = 'followup' AND active = 1 ORDER BY delay_hours, id").all().map(lerFluxo);
+      if (fus.length) {
+        const cand = db.prepare(`SELECT * FROM contacts WHERE channel = ? AND needs_human = 0 AND bot_paused_until <= ? AND followup_step < ?
+          AND last_inbound_at > ? AND last_click_at > 0 AND tags LIKE '%ABRIU CHECKOUT%'`).all(canal, t0, fus.length, t0 - JANELA);
+        for (const c of cand) {
+          const tg = tagsDe(c);
+          if (!tg.includes('ABRIU CHECKOUT') || !tg.includes('REVENDEDOR') || SEM_FOLLOWUP.some(x => tg.includes(x))) continue;
+          const f = fus[c.followup_step];
+          const ultimaSaida = (db.prepare("SELECT MAX(created_at) AS m FROM messages WHERE contact_id = ? AND direction = 'out' AND status = 'ok'").get(c.id).m) || 0;
+          const devido = Math.max(c.last_inbound_at + f.delay_hours * 3600e3, c.last_click_at + 3600e3, ultimaSaida + 1800e3);
+          if (t0 < devido || t0 > c.last_inbound_at + JANELA - MARGEM) continue;
+          db.prepare('UPDATE contacts SET followup_step = followup_step + 1 WHERE id = ?').run(c.id);   // antes de enviar: nunca duplica
+          await enviarFluxo(db.prepare('SELECT * FROM contacts WHERE id = ?').get(c.id), f, sender); out.followups++;
+        }
       }
     }
   } finally { rodando = false; }
   return out;
 }
 
-module.exports = { ETAPAS, SEGMENTOS, segmentoDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
+module.exports = { ETAPAS, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
