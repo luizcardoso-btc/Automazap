@@ -22,3 +22,7 @@ Entrada → REVENDER / MEU NEGÓCIO → quantidade (1–10, 11–49, 50–299, 3
 - 50+ placas: entra na fila humana com prioridade alta na hora (o robô continua a conversa). Com TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID você recebe aviso.
 - Em Configurações, preencha o link do vídeo (.mp4, https) e confira o endereço público. No painel, "Instalar funil novo" desliga os fluxos antigos (não apaga).
 - Rodar testes: STEP_DELAY_MS=0 CLICK_DELAY_MS=0 npm test
+
+
+## Prospecção grátis (OpenStreetMap)
+A busca usa por padrão o mapa livre (Nominatim + Overpass): sem chave, sem cartão. Traz nome, endereço, telefone, site e Instagram quando cadastrados no mapa. **Não traz nota/avaliações** nem cobre 100% das empresas: use o link grátis "Ver nota no Google" e digite a nota na ficha. O Google Places continua opcional (`GOOGLE_PLACES_API_KEY`). Variáveis opcionais: `OVERPASS_URLS`, `NOMINATIM_BASE`.

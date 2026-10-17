@@ -474,20 +474,20 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   await t('prospecção exige login', async () => assert.strictEqual((await chamar('GET', '/api/prospeccao')).status, 401));
   await t('busca sem chave do Google explica o que falta', async () => {
     delete process.env.GOOGLE_PLACES_API_KEY;
-    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H });
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', segmento: 'barbearia', local: 'Centro' }, headers: H });
     assert.strictEqual(r.status, 400); assert.ok(/GOOGLE_PLACES_API_KEY/.test(r.json.error));
   });
   await t('busca: exige segmento e local; recusa do Google vira erro claro', async () => {
     process.env.GOOGLE_PLACES_API_KEY = 'boa';
-    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { local: 'Centro' }, headers: H })).status, 400);
-    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'x' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', local: 'Centro' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', segmento: 'x' }, headers: H })).status, 400);
     process.env.GOOGLE_PLACES_API_KEY = 'ruim';
-    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H });
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', segmento: 'barbearia', local: 'Centro' }, headers: H });
     assert.strictEqual(r.status, 502); assert.ok(/API não ativada/.test(r.json.error)); process.env.GOOGLE_PLACES_API_KEY = 'boa';
   });
   let achados;
   await t('busca: junta páginas, tira empresa fechada e ordena por oportunidade', async () => {
-    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro, Feira de Santana', paginas: 2 }, headers: H });
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', segmento: 'barbearia', local: 'Centro, Feira de Santana', paginas: 2 }, headers: H });
     assert.strictEqual(r.status, 200); achados = r.json.resultados;
     assert.deepStrictEqual(achados.map(x => x.nome), ['Loja Um', 'Pág2', 'Loja Sem Fone']);
     assert.strictEqual(achados[0].bairro, 'Centro'); assert.strictEqual(achados[0].nivel, 'alta'); assert.ok(achados[0].score > achados[2].score);
@@ -495,7 +495,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   await t('salvar não duplica a mesma empresa do Google', async () => {
     const a = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: achados }, headers: H }); assert.strictEqual(a.json.novos, 3);
     const b = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: achados }, headers: H }); assert.strictEqual(b.json.novos, 0); assert.strictEqual(b.json.repetidos, 3);
-    const c = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro' }, headers: H }); assert.ok(c.json.resultados.every(x => x.ja_salvo));
+    const c = await chamar('POST', '/api/prospeccao/buscar', { corpo: { fonte: 'google', segmento: 'barbearia', local: 'Centro' }, headers: H }); assert.ok(c.json.resultados.every(x => x.ja_salvo));
   });
   await t('registrar contato muda status, agenda retorno e guarda histórico', async () => {
     const lista = (await chamar('GET', '/api/prospeccao', { headers: H })).json; const id = lista.find(x => x.nome === 'Loja Um').id;
@@ -514,6 +514,32 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(i.json.novos, 1); assert.strictEqual(i.json.repetidos, 1);
     assert.strictEqual((await chamar('DELETE', `/api/prospeccao/${m.json.id}`, { headers: H })).json.ok, true);
     assert.strictEqual((await chamar('GET', `/api/prospeccao/${m.json.id}`, { headers: H })).status, 404);
+  });
+  await t('mapa livre (OSM): geocodifica, busca por etiqueta, ordena e salva sem nota', async () => {
+    const osmf = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url.startsWith('/search')) return res.end(JSON.stringify(/Nada/.test(decodeURIComponent(req.url)) ? [] : [{ lat: '-12.2', lon: '-38.9', display_name: 'Centro, Feira de Santana' }]));
+      global.__q = decodeURIComponent(b);
+      res.end(JSON.stringify({ elements: [
+        { type: 'node', id: 1, lat: -12.201, lon: -38.901, tags: { name: 'Barbearia do Zé', shop: 'hairdresser', phone: '+55 75 99999-0001', 'addr:street': 'Rua A', 'addr:housenumber': '10' } },
+        { type: 'way', id: 2, center: { lat: -12.25, lon: -38.95 }, tags: { name: 'Barber Top', shop: 'hairdresser', website: 'https://x.com', 'contact:instagram': 'https://instagram.com/bartop' } },
+        { type: 'node', id: 3, lat: -12.2, lon: -38.9, tags: { shop: 'hairdresser' } },
+        { type: 'node', id: 1, lat: -12.201, lon: -38.901, tags: { name: 'Barbearia do Zé', shop: 'hairdresser' } }] }));
+    }); });
+    await new Promise(r => osmf.listen(0, r));
+    process.env.NOMINATIM_BASE = process.env.OVERPASS_URLS = ''; process.env.NOMINATIM_BASE = 'http://localhost:' + osmf.address().port; process.env.OVERPASS_URLS = 'http://localhost:' + osmf.address().port + '/api';
+    const r = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Centro, Feira de Santana', raio: 3000 }, headers: H });
+    assert.strictEqual(r.status, 200, JSON.stringify(r.json)); assert.strictEqual(r.json.fonte, 'osm');
+    assert.deepStrictEqual(r.json.resultados.map(x => x.nome), ['Barbearia do Zé', 'Barber Top']);
+    const z = r.json.resultados[0]; assert.strictEqual(z.nota, null); assert.strictEqual(z.place_id, 'osm:node/1'); assert.strictEqual(z.nivel, 'alta'); assert.ok(z.maps_url.includes('google.com/maps'));
+    assert.strictEqual(r.json.resultados[1].instagram, 'bartop'); assert.ok(/around:3000,-12.2,-38.9/.test(global.__q) && /"shop"="hairdresser"/.test(global.__q));
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Nada aqui' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'xyzabc', local: 'Centro' }, headers: H })).status, 400);
+    const s1 = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: r.json.resultados, segmento: 'Barbearia' }, headers: H }); assert.strictEqual(s1.json.novos, 2);
+    const reg = (await chamar('GET', '/api/prospeccao', { headers: H })).json.find(x => x.nome === 'Barber Top'); assert.strictEqual(reg.origem, 'osm'); assert.strictEqual(reg.instagram, 'bartop');
+    const up = await chamar('PUT', `/api/prospeccao/${reg.id}`, { corpo: { ...reg, nota: '4,3', avaliacoes: '27' }, headers: H }); assert.strictEqual(up.json.nota, 4.3); assert.strictEqual(up.json.avaliacoes, 27);
+    const bad = await chamar('PUT', `/api/prospeccao/${reg.id}`, { corpo: { ...reg, nota: '9', avaliacoes: '' }, headers: H }); assert.strictEqual(bad.json.nota, null);
+    osmf.close();
   });
   gfake.close();
 
