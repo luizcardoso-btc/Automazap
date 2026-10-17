@@ -112,6 +112,24 @@ for (let v = versaoAtual; v < MIGRACOES.length; v++) {
   db.transaction(() => { MIGRACOES[v](db); db.pragma(`user_version = ${v + 1}`); })();
 }
 
+// Rede de segurança: garante as tabelas da prospecção mesmo que a versão do banco já esteja "adiantada" (ex.: arquivos subidos fora de ordem).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS prospects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT, nome TEXT NOT NULL, segmento TEXT NOT NULL DEFAULT '', contato TEXT NOT NULL DEFAULT '',
+    telefone TEXT NOT NULL DEFAULT '', instagram TEXT NOT NULL DEFAULT '', endereco TEXT NOT NULL DEFAULT '', bairro TEXT NOT NULL DEFAULT '',
+    nota REAL, avaliacoes INTEGER NOT NULL DEFAULT 0, site TEXT NOT NULL DEFAULT '', maps_url TEXT NOT NULL DEFAULT '', lat REAL, lng REAL,
+    origem TEXT NOT NULL DEFAULT 'manual', obs TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'novo', prox_contato TEXT,
+    motivo_perda TEXT NOT NULL DEFAULT '', criado_em TEXT NOT NULL DEFAULT (datetime('now')), atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_prospects_place ON prospects(place_id) WHERE place_id IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_prospects_status ON prospects(status, prox_contato);
+  CREATE TABLE IF NOT EXISTS prospect_hist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT 'nota', texto TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_prospect_hist ON prospect_hist(prospect_id, id);
+`);
+
 const SETTINGS_PADRAO = {
   site_url: process.env.SITE_URL || 'https://www.nextapbrasil.com.br',
   telefone: '75 988209055',
