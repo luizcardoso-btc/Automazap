@@ -26,3 +26,6 @@ Entrada → REVENDER / MEU NEGÓCIO → quantidade (1–10, 11–49, 50–299, 3
 
 ## Prospecção grátis (OpenStreetMap)
 A busca usa por padrão o mapa livre (Nominatim + Overpass): sem chave, sem cartão. Traz nome, endereço, telefone, site e Instagram quando cadastrados no mapa. **Não traz nota/avaliações** nem cobre 100% das empresas: use o link grátis "Ver nota no Google" e digite a nota na ficha. O Google Places continua opcional (`GOOGLE_PLACES_API_KEY`). Variáveis opcionais: `OVERPASS_URLS`, `NOMINATIM_BASE`.
+
+### Varredura da cidade
+Em Prospecção → **Varrer a cidade** você marca vários nichos (barbearia, tatuagem, ótica, padaria, roupas masculinas/femininas, calçados, restaurantes, academias, clínicas e mais ~30) e o sistema procura em **toda a cidade**, mostrando quantas empresas existem em cada nicho (com telefone, sem site) e a dica do que oferecer. Depois é só marcar as de oportunidade alta e salvar. Usa o OpenStreetMap (grátis); nichos pequenos podem aparecer incompletos.

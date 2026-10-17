@@ -541,6 +541,29 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const bad = await chamar('PUT', `/api/prospeccao/${reg.id}`, { corpo: { ...reg, nota: '9', avaliacoes: '' }, headers: H }); assert.strictEqual(bad.json.nota, null);
     osmf.close();
   });
+  await t('varredura da cidade: vários nichos, cidade inteira com fallback para raio, sem repetir empresa', async () => {
+    const consultas = [];
+    const f = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => {
+      res.setHeader('content-type', 'application/json'); if (req.url.startsWith('/search')) return res.end(JSON.stringify([{ lat: '-12.26', lon: '-38.96', display_name: 'Feira de Santana, Bahia' }]));
+      const q = decodeURIComponent(b); consultas.push(q); const el = (id, nome, tags) => ({ type: 'node', id, lat: -12.26, lon: -38.96, tags: { name: nome, ...tags } });
+      if (/"tattoo"/.test(q)) return res.end(JSON.stringify({ elements: [el(11, 'Dark Ink', { shop: 'tattoo', phone: '75 98888-0001' })] }));
+      if (/"optician"/.test(q)) return res.end(JSON.stringify({ elements: /area\.a/.test(q) ? [] : [el(12, 'Ótica Visão', { shop: 'optician', website: 'https://o.com' })] }));
+      if (/"clothes"="men"/.test(q)) return res.end(JSON.stringify({ elements: [el(11, 'Dark Ink', { shop: 'tattoo' }), el(13, 'Moda Homem', { shop: 'clothes', clothes: 'men', phone: '75 97777-0001' })] }));
+      res.end(JSON.stringify({ elements: [] })); }); });
+    await new Promise(r => f.listen(0, r)); process.env.NOMINATIM_BASE = 'http://localhost:' + f.address().port; process.env.OVERPASS_URLS = 'http://localhost:' + f.address().port + '/api'; process.env.VARRER_PAUSA_MS = '0';
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/varrer', { corpo: { nichos: [] }, headers: H })).status, 400);
+    const r = await chamar('POST', '/api/prospeccao/varrer', { corpo: { nichos: ['tatuagem', 'otica', 'roupa_masc', 'padaria'], cidade: 'Feira de Santana' }, headers: H });
+    assert.strictEqual(r.status, 200, JSON.stringify(r.json));
+    assert.deepStrictEqual(r.json.resumo.map(x => [x.id, x.total]), [['tatuagem', 1], ['otica', 1], ['roupa_masc', 1], ['padaria', 0]], 'Dark Ink não conta duas vezes');
+    assert.strictEqual(r.json.total, 3); assert.ok(r.json.resultados.find(x => x.nome === 'Dark Ink').segmento === 'Estúdio de tatuagem');
+    assert.ok(consultas.some(q => /area\["name"="Feira de Santana"\]\["boundary"="administrative"\]/.test(q) && /"shop"="tattoo"\]\(area\.a\)/.test(q)), 'consulta por área da cidade');
+    assert.ok(consultas.some(q => /"optician"\]\(around:/.test(q)), 'sem área → cai no raio');
+    assert.ok(consultas.some(q => /"clothes"="men"/.test(q) && /"name"~"masc\|homem/.test(q)), 'roupa masculina por etiqueta e por nome');
+    const nich = (await chamar('GET', '/api/prospeccao/nichos', { headers: H })).json; assert.ok(['tatuagem', 'otica', 'padaria', 'roupa_masc', 'roupa_fem'].every(i => nich.some(n => n.id === i)) && nich.every(n => n.dica));
+    const sv = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: r.json.resultados }, headers: H }); assert.strictEqual(sv.json.novos, 3);
+    assert.ok((await chamar('GET', '/api/prospeccao', { headers: H })).json.some(x => x.nome === 'Ótica Visão' && x.segmento === 'Ótica'));
+    f.close();
+  });
   gfake.close();
 
   srv.close();
