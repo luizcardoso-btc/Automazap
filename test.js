@@ -932,6 +932,20 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(JSON.parse(db.prepare('SELECT steps FROM flows WHERE id = ?').get(pc.id).steps)[0].text, 'Texto que eu escrevi no painel.');
     db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(pc.steps, pc.id);
   });
+  await t('"Como funciona?" (primeira mensagem dos anúncios) abre a entrada; perguntas específicas vão para a dúvida', async () => {
+    for (const [txt, fluxo] of [['Como funciona?', 'Entrada: 3 toques'], ['Olá! Como funciona?', 'Entrada: 3 toques'], ['como funciona a placa?', 'Dúvida: como funciona?'], ['funciona no iPhone?', 'Dúvida: como funciona?']]) {
+      const r = await engine.processarMensagem(msg(txt, { extId: 'cf' + txt.length }), rec()); assert.strictEqual(r.fluxo, fluxo, txt);
+    }
+    // banco antigo: aplica uma vez e não mexe nas outras palavras
+    const sd = require('./seed.js');
+    const ent = db.prepare("SELECT id, keywords FROM flows WHERE name = 'Entrada: 3 toques'").get(), duv = db.prepare("SELECT id, keywords FROM flows WHERE name = 'Dúvida: como funciona?'").get();
+    db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(JSON.stringify(['preco', 'minha palavra']), ent.id);
+    db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(JSON.stringify(['como funciona', 'funciona', 'como e']), duv.id);
+    setSetting('palavras_v5', '0'); assert.strictEqual(sd.atualizarPalavrasV5(), 2); assert.strictEqual(sd.atualizarPalavrasV5(), 0);
+    assert.deepStrictEqual(JSON.parse(db.prepare('SELECT keywords FROM flows WHERE id = ?').get(ent.id).keywords), ['como funciona', 'preco', 'minha palavra']);
+    const kd = JSON.parse(db.prepare('SELECT keywords FROM flows WHERE id = ?').get(duv.id).keywords); assert.ok(!kd.includes('como funciona') && !kd.includes('funciona') && kd.includes('como e') && kd.includes('funciona no'));
+    db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(ent.keywords, ent.id);
+  });
   await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
     const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);
     assert.strictEqual((await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { endpoint: 'http://x' } }, headers: H })).status, 400);

@@ -8,6 +8,9 @@ const NOME_ENTRADA_V3 = 'Entrada: direto ao ponto';
 const NOME_ENTRADA_V4 = 'Entrada: funil de vendas';
 
 const NOME_ENTRADA_V5 = 'Entrada: 3 toques';
+// "Como funciona?" é a primeira mensagem de quem vem dos anúncios: ela abre a entrada do funil.
+// A resposta de dúvida fica para perguntas específicas ("como funciona a placa?", "funciona no iPhone?").
+const DUVIDA_FUNCIONA = ['como funciona a placa', 'como funciona o nfc', 'como funciona o qr', 'como funciona o painel', 'funciona no', 'funciona com', 'funciona em', 'como usa', 'aproximar'];
 
 // Funil em que os fluxos criados agora entram (cada instalação cria o seu, para aparecer organizado no fluxograma)
 let FUNIL = null;
@@ -533,12 +536,12 @@ function instalarV5({ desativarAntigos = true } = {}) {
         { title: '💰 REVENDER', flow_id: revender }, { title: '🏪 MEU NEGÓCIO', flow_id: negocio },
       ] },
     ], { prioridade: 10, comentario: true,
-      palavras: ['preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
+      palavras: ['como funciona', 'preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
       textoComentario: 'Olá! 👋 Responda por aqui: a placa é para REVENDER ou para o seu NEGÓCIO?' });
 
     // ---------- respostas por palavra-chave (1 mensagem cada) ----------
     const obj = (nome, palavras, texto, extra = {}) => criar(nome, [{ type: 'button', text: texto, buttons: [PEDIR] }], { prioridade: 20, palavras, ...extra });
-    obj('Dúvida: como funciona?', ['como funciona', 'funciona', 'como e', 'como usa', 'aproximar'], 'O cliente aproxima o celular da placa (ou lê o QR Code) e abre direto a avaliação no Google, sem aplicativo.\n\nVocê configura cada placa pelo painel do revendedor.');
+    obj('Dúvida: como funciona?', DUVIDA_FUNCIONA, 'O cliente aproxima o celular da placa (ou lê o QR Code) e abre direto a avaliação no Google, sem aplicativo.\n\nVocê configura cada placa pelo painel do revendedor.');
     obj('Dúvida: já tenho QR Code', ['ja tenho qr code', 'ja tenho qrcode', 'ja tenho qr', 'tenho qr code', 'tenho qr', 'qr code', 'qrcode'], 'Ótimo, o QR Code continua sendo útil!\n\nA NexTap soma a tecnologia NFC: o cliente só aproxima o celular. Menos passos, mais avaliações.');
     obj('Dúvida: está caro', ['caro', 'esta caro', 'ta caro', 'muito caro', 'achei caro', 'desconto', 'mais barato', 'barato'], 'Vamos fazer a conta juntos: {{qtd}} placas saem por R$ {{total}}.\n\nRevendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}.\n\nE, quanto mais placas, menor o preço de cada uma.');
     obj('Dúvida: prazo e entrega', ['prazo', 'entrega', 'frete', 'envio', 'correios', 'rastreio', 'quanto tempo', 'demora'], 'A produção leva cerca de 5 dias úteis após o pagamento, e o envio é rastreado. 📦\n\nO frete é calculado pelo seu CEP no pedido.');
@@ -574,7 +577,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
     criar('Respondeu a um follow-up', [
       { type: 'text', text: 'Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
-    setSetting('textos_v5', '2');   // instalação nova já vem com os textos revisados
+    setSetting('textos_v5', '2'); setSetting('palavras_v5', '1');   // instalação nova já vem revisada
     criar('Mandou o WhatsApp', [
       { type: 'text', text: 'Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá.' },
     ], { tipo: 'evento', evento: 'recebeu_whatsapp', humano: 1, tags: ['QUENTE'] });
@@ -703,9 +706,28 @@ function atualizarTextosV5() {
   return n;
 }
 
+// Bancos com o funil 3 toques já instalado: "como funciona" passa a abrir a entrada (uma vez; só mexe nessas palavras)
+function atualizarPalavrasV5() {
+  if (getSetting('palavras_v5') === '1') return 0;
+  let n = 0;
+  db.transaction(() => {
+    const doFunil = nome => db.prepare("SELECT f.id, f.keywords FROM flows f JOIN funis u ON u.id = f.funil_id WHERE u.nome = 'Funil 3 toques (v5)' AND f.name = ?").get(nome);
+    const salvar = (f, kws) => { db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(JSON.stringify(kws), f.id); n++; };
+    const ent = doFunil(NOME_ENTRADA_V5);
+    if (ent) { const k = JSON.parse(ent.keywords); if (!k.includes('como funciona')) salvar(ent, ['como funciona', ...k]); }
+    const duv = doFunil('Dúvida: como funciona?');
+    if (duv) {
+      const k = JSON.parse(duv.keywords).filter(x => x !== 'como funciona' && x !== 'funciona');
+      salvar(duv, [...new Set([...DUVIDA_FUNCIONA, ...k])]);
+    }
+    setSetting('palavras_v5', '1');
+  })();
+  return n;
+}
+
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { atualizarTextosV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { atualizarTextosV5, atualizarPalavrasV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
