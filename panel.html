@@ -146,6 +146,85 @@ svg text{font-family:inherit}.gb{transition:opacity .15s}.gb:hover{opacity:1}
 .anr{font-size:10.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);padding:8px 16px;background:color-mix(in srgb,var(--in) 70%,transparent);border-bottom:1px solid var(--br)}
 .anb{display:flex;gap:14px;align-items:center;padding:14px 16px}.av{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:26px;background:var(--tint);flex-shrink:0}
 .card.feito{opacity:.6}
+/* ---------- prédio virtual ---------- */
+.pvw{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}@media(max-width:1000px){.pvw{grid-template-columns:1fr}}
+.pv{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--br);box-shadow:var(--sh2);background:linear-gradient(180deg,#7cc4f5 0%,#bfe3fb 55%,#e9f6ff 100%);padding:34px 18px 0;--chao:#3b3f46}
+.pv.noite{background:linear-gradient(180deg,#0b1430 0%,#1b2a55 60%,#2a3b6e 100%)}
+.pv-astro{position:absolute;top:18px;right:28px;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#fff7c2,#ffd54a 60%,#f5b400);box-shadow:0 0 40px 10px rgba(255,213,74,.45)}
+.pv.noite .pv-astro{background:radial-gradient(circle at 35% 35%,#fff,#dfe6f5 60%,#b9c4dd);box-shadow:0 0 30px 6px rgba(220,230,255,.35)}
+.pv-nuvem{position:absolute;top:22px;width:90px;height:26px;background:#fff;border-radius:30px;opacity:.85;animation:pv-nuvem 70s linear infinite}.pv-nuvem:before,.pv-nuvem:after{content:"";position:absolute;background:#fff;border-radius:50%}
+.pv-nuvem:before{width:40px;height:40px;top:-18px;left:14px}.pv-nuvem:after{width:30px;height:30px;top:-12px;left:46px}.pv-nuvem.n2{top:70px;transform:scale(.7);animation-duration:95s;animation-delay:-40s}
+.pv.noite .pv-nuvem{opacity:.12}
+@keyframes pv-nuvem{from{left:-120px}to{left:110%}}
+.pv-estrelas{position:absolute;inset:0;opacity:0;background-image:radial-gradient(1.5px 1.5px at 12% 18%,#fff,transparent),radial-gradient(1.5px 1.5px at 30% 8%,#fff,transparent),radial-gradient(1px 1px at 52% 22%,#fff,transparent),radial-gradient(1.5px 1.5px at 70% 12%,#fff,transparent),radial-gradient(1px 1px at 86% 30%,#fff,transparent),radial-gradient(1px 1px at 8% 40%,#fff,transparent),radial-gradient(1.5px 1.5px at 92% 52%,#fff,transparent)}
+.pv.noite .pv-estrelas{opacity:.9;animation:pv-brilho 4s ease-in-out infinite alternate}@keyframes pv-brilho{to{opacity:.5}}
+.pv-cidade{position:absolute;left:0;right:0;bottom:46px;height:120px;opacity:.35;background:
+ linear-gradient(#5b7da8,#5b7da8) 2% 100%/7% 60% no-repeat,linear-gradient(#6b8cb5,#6b8cb5) 10% 100%/5% 85% no-repeat,linear-gradient(#5b7da8,#5b7da8) 16% 100%/8% 45% no-repeat,
+ linear-gradient(#6b8cb5,#6b8cb5) 84% 100%/6% 75% no-repeat,linear-gradient(#5b7da8,#5b7da8) 91% 100%/8% 55% no-repeat}
+.pv.noite .pv-cidade{opacity:.6;filter:brightness(.45)}
+.pv-predio{position:relative;max-width:760px;margin:0 auto;z-index:1}
+.pv-teto{position:relative;height:46px;margin:0 -10px;background:linear-gradient(180deg,#2b2f36,#1e2127);border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:center;box-shadow:0 -2px 0 #3a3f48 inset}
+.pv-letreiro{font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff;font-size:15px;padding:4px 14px;border-radius:8px;background:var(--pr);box-shadow:0 0 18px color-mix(in srgb,var(--pr) 70%,transparent)}
+.pv-antena{position:absolute;right:70px;top:-26px;width:3px;height:26px;background:#2b2f36}.pv-antena:after{content:"";position:absolute;top:-5px;left:-3px;width:9px;height:9px;border-radius:50%;background:#ff4d4f;animation:pv-pisca 1.4s infinite}
+@keyframes pv-pisca{50%{opacity:.15}}
+.pv-corpo-predio{position:relative;background:#e9e3d8;border-left:10px solid #cfc6b6;border-right:10px solid #cfc6b6;padding-right:46px}
+.pv.noite .pv-corpo-predio{background:#2a2622;border-color:#1f1c19}
+.pv-sala{position:relative;height:152px;border-bottom:8px solid #b9ae9c;cursor:pointer;overflow:visible;background:var(--parede,#f6f1e7);transition:filter .15s}
+.pv-sala:hover{filter:brightness(1.04)}.pv-sala:hover .pv-placa{background:var(--pr);color:#fff}
+.pv.noite .pv-sala{background:color-mix(in srgb,var(--parede,#f6f1e7) 55%,#3a2f1f);border-bottom-color:#4a4134}
+.pv-sala.s-gerente{--parede:#efe9ff}.pv-sala.s-atendente{--parede:#e6f6ff}.pv-sala.s-prospectora{--parede:#fff1e6}.pv-sala.s-conteudo{--parede:#ffeaf4}.pv-sala.s-recepcao{--parede:#f3f4f6;height:140px}
+.pv-piso{position:absolute;left:0;right:0;bottom:0;height:16px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 28px,rgba(0,0,0,0) 28px 56px)}
+.pv-placa{position:absolute;top:8px;left:10px;font-size:10.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.85);color:#3b3f46;padding:3px 8px;border-radius:6px;z-index:3;transition:background .15s,color .15s}
+.pv.noite .pv-placa{background:rgba(20,22,28,.8);color:#e8eaf0}
+.pv-pend{display:inline-block;margin-left:6px;background:#e5484d;color:#fff;border-radius:99px;padding:0 6px;font-size:10px}
+.pv-janela{position:absolute;top:26px;width:15%;height:52px;border:4px solid #fff;border-radius:6px;background:linear-gradient(180deg,#9fd4f8,#d8efff);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.pv-janela:after{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;background:#fff}
+.pv.noite .pv-janela{background:linear-gradient(180deg,#1a2a55,#2d3f73);border-color:#5a4a33}
+.pv-mesa{position:absolute;bottom:16px;height:30px;width:16%;background:#8b5e3c;border-radius:4px 4px 0 0;box-shadow:inset 0 4px 0 #a5744e}
+.pv-tela{position:absolute;bottom:46px;width:9%;height:26px;background:#1f2937;border-radius:4px;box-shadow:0 0 12px rgba(56,189,248,.45);overflow:hidden}
+.pv-tela:before{content:"";position:absolute;inset:4px;border-radius:2px;background:linear-gradient(90deg,#38bdf8 0 40%,transparent 40%) 0 2px/100% 4px no-repeat,linear-gradient(90deg,#a7f3d0 0 70%,transparent 70%) 0 10px/100% 4px no-repeat,linear-gradient(90deg,#fde68a 0 55%,transparent 55%) 0 18px/100% 4px no-repeat;animation:pv-digita 2.4s steps(4) infinite}
+@keyframes pv-digita{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0 0 0)}}
+.pv-obj{position:absolute;bottom:16px;font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15));user-select:none}
+.pv-quadro{position:absolute;top:24px;width:30%;min-width:150px;height:62px;background:#fff;border:4px solid #c9ced6;border-radius:6px;display:flex;justify-content:space-around;align-items:center;font-size:11px;color:#3b3f46;text-align:center}
+.pv-quadro b{display:block;font-size:19px;line-height:1.1;color:#111}.pv.noite .pv-quadro{background:#f1f2f5}
+.pv-mapa{position:absolute;top:24px;width:26%;height:62px;border:4px solid #c9ced6;border-radius:6px;background:linear-gradient(135deg,#d8f0d0,#bfe3b4);overflow:hidden}
+.pv-mapa i{position:absolute;font-style:normal;font-size:14px;animation:pv-pino 1.6s ease-in-out infinite}.pv-mapa i:nth-child(2){animation-delay:.5s}.pv-mapa i:nth-child(3){animation-delay:1s}
+@keyframes pv-pino{50%{transform:translateY(-4px)}}
+.pv-luz{position:absolute;bottom:40px;width:44px;height:44px;border-radius:50%;border:5px solid #fff;box-shadow:0 0 20px 6px rgba(255,255,255,.8),inset 0 0 10px rgba(255,255,255,.8)}
+.pv-cone{position:absolute;bottom:16px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:24px solid #f97316}
+.pv-fita{position:absolute;bottom:34px;height:7px;background:repeating-linear-gradient(45deg,#facc15 0 10px,#111 10px 20px);border-radius:2px}
+.pv-porta{position:absolute;bottom:16px;width:44px;height:78px;background:linear-gradient(90deg,#9cc9e8,#cfe8f8);border:4px solid #6b7280;border-bottom:0;border-radius:4px 4px 0 0}
+/* agentes */
+.pv-ag{position:absolute;bottom:16px;left:var(--a);z-index:2;animation:pv-andar var(--d,16s) ease-in-out infinite;animation-delay:var(--atraso,0s)}
+.pv-ag .pv-c{display:flex;flex-direction:column;align-items:center;animation:pv-virar var(--d,16s) linear infinite;animation-delay:var(--atraso,0s)}
+.pv-cab{font-size:26px;line-height:1;position:relative;z-index:1;margin-bottom:-3px;animation:pv-balanco .55s ease-in-out infinite}
+.pv-tronco{width:22px;height:20px;background:var(--cor,#2563eb);border-radius:9px 9px 4px 4px}
+.pv-pernas{display:flex;gap:4px;height:13px}.pv-pernas i{display:block;width:6px;height:13px;background:#374151;border-radius:0 0 3px 3px;transform-origin:top center;animation:pv-passo .55s ease-in-out infinite}
+.pv-pernas i:last-child{animation-direction:reverse}
+@keyframes pv-andar{0%,6%{left:var(--a)}42%,58%{left:var(--b)}94%,100%{left:var(--a)}}
+@keyframes pv-virar{0%,42%{transform:scaleX(1)}42.01%,100%{transform:scaleX(-1)}}
+@keyframes pv-passo{0%,100%{transform:rotate(16deg)}50%{transform:rotate(-16deg)}}
+@keyframes pv-balanco{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.pv-sentado{position:absolute;bottom:22px;z-index:2;display:flex;flex-direction:column;align-items:center}.pv-sentado .pv-cab{animation:pv-balanco 1.2s ease-in-out infinite}
+.pv-bal{position:absolute;bottom:68px;left:50%;transform:translateX(-50%);background:#fff;color:#1f2937;font-size:11.5px;font-weight:600;line-height:1.3;padding:6px 9px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);width:max-content;max-width:210px;white-space:normal;text-align:center;transition:opacity .3s;z-index:4}
+.pv-bal:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+.pv-bal.troca{opacity:0}
+/* elevador */
+.pv-elev{position:absolute;top:0;bottom:0;right:0;width:40px;background:#cfc6b6;border-left:3px solid #b9ae9c}.pv.noite .pv-elev{background:#1f1c19;border-color:#4a4134}
+.pv-elev:before{content:"";position:absolute;left:18px;top:0;bottom:0;width:2px;background:rgba(0,0,0,.2)}
+.pv-cabine{position:absolute;left:4px;right:4px;height:54px;background:linear-gradient(90deg,#9ca3af,#d1d5db 50%,#9ca3af);border-radius:4px;animation:pv-elevador 22s ease-in-out infinite;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.pv-cabine:after{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:#6b7280}
+@keyframes pv-elevador{0%,10%{top:calc(100% - 64px)}22%,32%{top:62%}44%,54%{top:12px}66%,76%{top:38%}90%,100%{top:calc(100% - 64px)}}
+.pv-rua{position:relative;height:46px;margin:0 -18px;background:linear-gradient(180deg,#9ca3af 0 10px,var(--chao) 10px);z-index:1}
+.pv-rua:after{content:"";position:absolute;left:0;right:0;top:27px;height:3px;background:repeating-linear-gradient(90deg,#facc15 0 30px,transparent 30px 60px)}
+.pv-carro{position:absolute;top:12px;font-size:24px;animation:pv-carro 18s linear infinite;z-index:2}@keyframes pv-carro{from{left:-60px}to{left:110%}}
+.pv-visita{position:absolute;bottom:16px;left:-30px;z-index:2;animation:pv-entra 6s ease-out forwards}@keyframes pv-entra{0%{left:2%;opacity:0}10%{opacity:1}80%{left:46%;opacity:1}100%{left:50%;opacity:0}}
+.pv-dica{position:absolute;top:10px;left:16px;background:rgba(255,255,255,.85);color:#1f2937;font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;z-index:2}.pv.noite .pv-dica{background:rgba(20,22,28,.75);color:#e8eaf0}
+.pvf h3{display:flex;align-items:center;gap:8px}.pvf .vivo{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pv-vivo 1.6s infinite}@keyframes pv-vivo{70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.pvf-it{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--br);font-size:13px}.pvf-it:first-of-type{border-top:0}.pvf-it span{font-size:18px}
+.pvf-k{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.pvf-k div{background:var(--in);border-radius:10px;padding:8px 10px}.pvf-k b{display:block;font-size:20px}.pvf-k small{color:var(--mut);font-size:11.5px}
+@media(max-width:760px){.pv{padding:30px 8px 0}.pv-sala{height:178px}.pv-sala.s-recepcao{height:150px}.pv-corpo-predio{padding-right:30px}.pv-elev{width:26px}.pv-janela{top:34px}.pv-quadro{top:34px;font-size:9px;min-width:0;width:40%}.pv-quadro b{font-size:14px}.pv-mapa{top:34px}.pv-bal{max-width:118px;font-size:10px;padding:5px 7px}.pv-obj{font-size:22px}.pv-ag{--a:24%!important;--b:56%!important}.pv-dica{display:none}}
+@media(prefers-reduced-motion:reduce){.pv *{animation:none!important}}
 /* entrada */
 #auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:var(--card)}
 #auth .hero{background:radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--pr) 85%,#fff) 0%,var(--pr) 38%,#07120c 115%);color:#fff;padding:52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
@@ -824,15 +903,9 @@ async function pdCarregar(){try{PD=await api('/predio')}catch(e){PD={erro:e.mess
 async function pdSala(s){PSALA=s;draw();try{if(s==='gerente')PDG=await api('/predio/gerente');if(s==='atendente')PDA=await api('/predio/atendente');if(s==='prospectora')PDP=await api('/predio/prospectora');if(s==='conteudo')PDC=await api('/predio/conteudo')}catch(e){alert(e.message)}draw();window.scrollTo(0,0)}
 function vPredio(){if(!PD&&!vPredio.l){vPredio.l=1;pdCarregar().then(function(){vPredio.l=0})}
   if(PSALA){var a=ANDARES.filter(function(x){return x[0]===PSALA})[0];head(a[2]+' '+a[3],a[4]);return '<button class="btn s" style="margin-bottom:12px" onclick="PSALA=null;pdCarregar()">← Voltar para o prédio</button>'+({gerente:salaGerente,atendente:salaAtendente,prospectora:salaProspectora,conteudo:salaConteudo})[PSALA]()}
-  head('Prédio','Seus agentes trabalham sozinhos, sem custo. Cada sala mostra o que foi feito e o que espera você.');
+  head('Prédio','Seus agentes trabalhando agora. Toque numa sala para ver o trabalho dela.');
   if(!PD)return '<p class="mut">Carregando…</p>';
-  var st={gerente:PD.gerente?'Último resumo: '+fdh(PD.gerente.em)+(PD.gerente.prioridades?' · '+PD.gerente.prioridades+' prioridade(s)':''):'O primeiro resumo sai amanhã às '+E(SET.predio_hora||'08:00')+'.',
-    atendente:PD.atendente.novas+' frase(s) para ensinar · '+PD.atendente.menus7+' menu(s) e '+PD.atendente.corrigidas7+' correção(ões) em 7 dias',
-    prospectora:PD.prospectora?PD.prospectora.feitos+' de '+PD.prospectora.total+' contato(s) feitos hoje':'A lista de hoje sai às '+E(SET.predio_hora||'08:00')+'.',
-    conteudo:PD.conteudo.total+' conteúdo(s) na semana · '+PD.conteudo.aprovados+' aprovado(s) · '+PD.conteudo.postados+' postado(s)'};
-  var pend={gerente:PD.gerente?PD.gerente.prioridades:0,atendente:PD.atendente.novas,prospectora:PD.prospectora?PD.prospectora.total-PD.prospectora.feitos:0,conteudo:Math.max(0,PD.conteudo.total-PD.conteudo.postados)};
-  return '<div class="pr">'+ANDARES.map(function(a){return '<div class="an" onclick="pdSala(\''+a[0]+'\')"><div class="anr">'+a[1]+'</div><div class="anb"><span class="av">'+a[2]+'</span><div style="min-width:0;flex:1"><b>'+a[3]+'</b>'+(pend[a[0]]?' <span class="tag er">'+pend[a[0]]+'</span>':'')+'<div class="mut sm">'+a[4]+'</div><div class="sm" style="margin-top:4px"><span class="dot"></span>'+E(st[a[0]])+'</div></div><span class="btn s">Entrar</span></div></div>'}).join('')
-    +'<div class="an off"><div class="anr">Térreo · Em breve</div><div class="anb"><span class="av">🏗️</span><div><b>Fase 2</b><div class="mut sm">Tráfego (anúncios), Financeiro e Editor de vídeo.</div></div></div></div></div>'}
+  return predioVisual()}
 function salaGerente(){var l=PDG;if(!l)return '<p class="mut">Carregando…</p>';
   return '<div class="row" style="margin-bottom:12px"><button class="btn p s" onclick="pdResumo()">Gerar resumo agora</button><span class="mut sm">Sai sozinho todo dia às '+E(SET.predio_hora||'08:00')+' e chega no celular (Configurações → Notificações).</span></div>'
     +(l.length?l.map(function(r,i){return '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">'+E(r.titulo)+'</h3><span class="mut sm">'+fdh(r.criado_em)+'</span></div>'+(i===0?'<div style="white-space:pre-wrap;margin-top:8px;line-height:1.6">'+E(r.texto)+'</div>':'<details style="margin-top:6px"><summary class="mut sm" style="cursor:pointer">ver</summary><div style="white-space:pre-wrap;margin-top:6px;line-height:1.6">'+E(r.texto)+'</div></details>')+'</div>'}).join(''):'<div class="card empty">Nenhum resumo ainda. Toque em "Gerar resumo agora".</div>')}
@@ -870,6 +943,45 @@ async function pdStatus(id,s){try{await api('/predio/conteudo/'+id,{method:'PUT'
 async function pdSalvarCfg(){var b={};['predio_hora','prospeccao_dia','vendedor_nome','cidade','clientes_prova'].forEach(function(k){b[k]=$('p_'+k).value});b.atendente_menu=$('p_atendente_menu').checked?'1':'0';
   try{SET=await api('/settings',{method:'PUT',body:JSON.stringify(b)});toast('Salvo ✓')}catch(e){alert(e.message)}}
 function pdCopiar(id){var t=$('leg'+id);t.select();try{document.execCommand('copy');toast('Legenda copiada ✓')}catch(e){}}
+
+/* ----- prédio virtual: salas, agentes andando e balões com o trabalho ao vivo ----- */
+var PV_I=0,PV_LEADS=null;
+function pvTempo(ms){var m=Math.round((Date.now()-ms)/60000);return m<1?'agora':m<60?'há '+m+' min':m<1440?'há '+Math.round(m/60)+' h':fdh(ms)}
+function pvFalas(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.prospectora,c=d.conteudo||{};
+  return {
+    gerente:g?['Resumo de hoje pronto ✓',(g.novos||0)+' lead(s) novo(s) ontem',g.prioridades?g.prioridades+' prioridade(s) para você hoje':'Nada urgente hoje 👍']:['Preparando o primeiro resumo…'],
+    atendente:a.robo_parado?['⚠️ Estou sem acesso ao Instagram','Troque o token no Railway']:[(a.respostas_hoje||0)+' resposta(s) hoje',a.ultima_resposta?'Última resposta '+pvTempo(a.ultima_resposta.em)+(a.ultima_resposta.nome?' para '+a.ultima_resposta.nome:''):'Esperando a primeira mensagem do dia',at.novas?at.novas+' frase(s) para você me ensinar':'Entendendo tudo por aqui 👍'],
+    prospectora:p?[p.total+' empresa(s) na lista de hoje',p.feitos+' contato(s) feitos',p.proxima?'Próxima: '+p.proxima:'Lista de hoje concluída 🎉']:['Montando a lista de hoje…'],
+    conteudo:[(c.total||0)+' conteúdo(s) nesta semana',c.hoje?'Hoje: '+c.hoje.formato+' "'+c.hoje.titulo+'"':'Sem post para hoje',(c.postados||0)+' postado(s), '+(c.aprovados||0)+' aprovado(s)'],
+    recepcao:[(a.leads_hoje||0)+' lead(s) chegaram hoje',a.esperando?a.esperando+' pessoa(s) esperando atendente':'Ninguém esperando 👍']}}
+function pvBalao(id,i){var f=pvFalas()[id]||[''];return E(f[i%f.length])}
+function pvAgente(id,cab,cor,a,b,d,atraso){return '<div class="pv-ag" style="--a:'+a+';--b:'+b+';--d:'+d+'s;--atraso:-'+atraso+'s;--cor:'+cor+'"><div class="pv-bal" id="pvb-'+id+'">'+pvBalao(id,PV_I)+'</div><div class="pv-c"><span class="pv-cab">'+cab+'</span><span class="pv-tronco"></span><span class="pv-pernas"><i></i><i></i></span></div></div>'}
+function pvPend(n){return n?'<span class="pv-pend">'+n+'</span>':''}
+function predioVisual(){var d=PD,h=Number(new Date(Date.now()-3*3600e3).toISOString().slice(11,13)),noite=h<6||h>=18,g=d.gerente||{},p=d.prospectora,c=d.conteudo||{},at=d.atendente||{},a=d.agora||{};
+  var pend={gerente:g.prioridades||0,atendente:at.novas||0,prospectora:p?p.total-p.feitos:0,conteudo:Math.max(0,(c.total||0)-(c.postados||0))};
+  var nome=E((BRAND&&BRAND.nome)||'NexTap');
+  var sala=function(id,placa,extra,agente){return '<div class="pv-sala s-'+id+'" onclick="pdSala(\''+id+'\')" title="Entrar na sala"><div class="pv-placa">'+placa+pvPend(pend[id])+'</div>'+extra+agente+'<div class="pv-piso"></div></div>'};
+  var predio='<div class="pv'+(noite?' noite':'')+'" id="pv"><div class="pv-estrelas"></div><div class="pv-astro"></div><div class="pv-nuvem"></div><div class="pv-nuvem n2"></div><div class="pv-cidade"></div><div class="pv-dica">Toque numa sala para entrar</div>'
+    +'<div class="pv-predio"><div class="pv-teto"><span class="pv-antena"></span><span class="pv-letreiro">'+nome+'</span></div><div class="pv-corpo-predio">'
+    +sala('gerente','4 · Diretoria · Gerente','<div class="pv-janela" style="left:4%"></div><div class="pv-quadro" style="left:22%"><div><b id="pvq-novos">'+(g.novos||0)+'</b>leads ontem</div><div><b id="pvq-vendas">'+(g.vendas||0)+'</b>vendas</div><div><b id="pvq-prio">'+(g.prioridades||0)+'</b>prioridades</div></div><div class="pv-mesa" style="left:66%"></div><div class="pv-tela" style="left:69%"></div><div class="pv-obj" style="left:88%">🪴</div>',pvAgente('gerente','👩🏽‍💼','#7c3aed','10%','58%',17,3))
+    +sala('atendente','3 · Atendimento · Atendente','<div class="pv-janela" style="left:70%"></div><div class="pv-mesa" style="left:8%;width:24%"></div><div class="pv-tela" style="left:10%"></div><div class="pv-tela" style="left:21%"></div><div class="pv-sentado" style="left:15%"><span class="pv-cab">🧑🏻‍💻</span></div><div class="pv-obj" style="left:88%">☕</div>',pvAgente('atendente','🤖','#0ea5e9','38%','74%',14,6))
+    +sala('prospectora','2 · Vendas · Prospectora','<div class="pv-mapa" style="left:6%"><i style="left:20%;top:20%">📍</i><i style="left:55%;top:40%">📍</i><i style="left:78%;top:14%">📍</i></div><div class="pv-mesa" style="left:62%"></div><div class="pv-obj" style="left:64%;bottom:46px;font-size:22px">☎️</div><div class="pv-janela" style="left:82%"></div>',pvAgente('prospectora','👩🏻','#f97316','36%','74%',15,9))
+    +sala('conteudo','1 · Marketing · Conteúdo','<div class="pv-janela" style="left:5%"></div><div class="pv-luz" style="left:30%"></div><div class="pv-obj" style="left:29%">🎥</div><div class="pv-obj" style="left:58%">🎬</div><div class="pv-mesa" style="left:72%"></div><div class="pv-tela" style="left:75%"></div><div class="pv-obj" style="left:91%">🪴</div>',pvAgente('conteudo','🧑🏾','#ec4899','10%','48%',16,1))
+    +'<div class="pv-sala s-recepcao" onclick="nav(\'chats\')" title="Ver conversas"><div class="pv-placa">Térreo · Recepção</div><div class="pv-porta" style="left:3%"></div><div class="pv-mesa" style="left:30%;width:22%"></div><div class="pv-sentado" style="left:37%;bottom:44px"><span class="pv-cab">💁🏻‍♀️</span><div class="pv-bal" id="pvb-recepcao" style="bottom:34px">'+pvBalao('recepcao',PV_I)+'</div></div>'
+      +'<div class="pv-fita" style="left:66%;width:26%"></div><div class="pv-cone" style="left:67%"></div><div class="pv-cone" style="left:88%"></div><div class="pv-obj" style="left:76%;font-size:22px" title="Fase 2: tráfego, financeiro e vídeo">🏗️</div><div class="pv-piso"></div><div id="pv-visitas"></div></div>'
+    +'<div class="pv-elev"><div class="pv-cabine"></div></div></div></div><div class="pv-rua"><span class="pv-carro">🚗</span><span class="pv-carro" style="animation-duration:26s;animation-delay:-11s">🚚</span></div></div>';
+  var ICON={gerente:'👩🏽‍💼',atendente:'🤖',prospectora:'👩🏻',conteudo:'🧑🏾'};
+  var feed='<div class="card pvf"><h3><span class="vivo"></span>Agora no prédio</h3><div class="pvf-k"><div><b id="pvk-resp">'+(a.respostas_hoje||0)+'</b><small>respostas do robô hoje</small></div><div><b id="pvk-leads">'+(a.leads_hoje||0)+'</b><small>leads hoje</small></div><div><b>'+(p?p.feitos+'/'+p.total:'—')+'</b><small>contatos da Prospectora</small></div><div><b>'+(c.postados||0)+'/'+(c.total||0)+'</b><small>conteúdos postados</small></div></div>'
+    +((d.feed||[]).length?d.feed.map(function(f){return '<div class="pvf-it"><span>'+(ICON[f.agente]||'•')+'</span><div style="min-width:0"><div>'+E(f.titulo)+'</div><div class="mut sm">'+pvTempo(f.criado_em)+'</div></div></div>'}).join(''):'<div class="empty">Os agentes estão começando o primeiro turno…</div>')+'</div>';
+  return '<div class="pvw">'+predio+feed+'</div>'}
+// Atualiza só os balões e números (sem redesenhar: os agentes continuam andando)
+function pvTrocarFalas(){if(cur!=='predio'||PSALA||!$('pv'))return;PV_I++;['gerente','atendente','prospectora','conteudo','recepcao'].forEach(function(id){var b=$('pvb-'+id);if(!b)return;b.classList.add('troca');setTimeout(function(){b.innerHTML=pvBalao(id,PV_I);b.classList.remove('troca')},300)})}
+function pvVisitante(){var v=$('pv-visitas');if(!v)return;var e=document.createElement('div');e.className='pv-visita';e.innerHTML='<div class="pv-c" style="display:flex;flex-direction:column;align-items:center"><span class="pv-cab">'+['🧑🏽','👩🏼','👨🏿','🧔🏻','👩🏾'][Math.floor(Math.random()*5)]+'</span><span class="pv-tronco" style="--cor:#16a34a;background:#16a34a"></span><span class="pv-pernas"><i></i><i></i></span></div>';v.appendChild(e);setTimeout(function(){e.remove()},6500)}
+async function pvAtualizar(){if(cur!=='predio'||PSALA||document.hidden)return;var antes=PD&&PD.agora?PD.agora.leads_hoje:null;try{PD=await api('/predio')}catch(e){return}
+  if(!$('pv')){draw();return}
+  var a=PD.agora||{},g=PD.gerente||{};[['pvk-resp',a.respostas_hoje],['pvk-leads',a.leads_hoje],['pvq-novos',g.novos],['pvq-vendas',g.vendas],['pvq-prio',g.prioridades]].forEach(function(x){var e=$(x[0]);if(e)e.textContent=x[1]||0});
+  if(antes!=null&&a.leads_hoje>antes)for(var i=0;i<Math.min(3,a.leads_hoje-antes);i++)setTimeout(pvVisitante,i*1500)}
+setInterval(pvTrocarFalas,4500);setInterval(pvAtualizar,20000);
 </script>
 </body>
 </html>

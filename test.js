@@ -1061,8 +1061,10 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const ontem = Date.now() - 86400e3; const c = engine.upsertContato({ canal: 'instagram', extId: 'gr1' }); db.prepare('UPDATE contacts SET created_at = ?, needs_human = 1 WHERE id = ?').run(ontem, c.id);
     const r = predio.resumo(); assert.ok(r.texto.includes('📊 Ontem: '), r.texto); assert.ok(/🙋 \d+ pessoa\(s\) esperando atendente/.test(r.texto), r.texto); assert.ok(r.texto.includes('Prospectora'));
     await new Promise(z => setTimeout(z, 30)); assert.ok(pushes.some(x => x.titulo.startsWith('☀️ Resumo de') && x.url === '/#predio'), JSON.stringify(pushes));
-    setSetting('predio_dia', ''); setSetting('predio_hora', '08:00');
+    setSetting('predio_hora', '08:00');
     const base = Date.parse(predio.dataStr(Date.now()) + 'T07:59:00-03:00');
+    setSetting('predio_dia', ''); assert.strictEqual(predio.tick(base), true, 'primeira vez: devia começar na hora, sem esperar');
+    setSetting('predio_dia', '2020-01-01');
     assert.strictEqual(predio.tick(base), false, 'rodou antes da hora'); assert.strictEqual(predio.tick(base + 2 * 60e3), true); assert.strictEqual(predio.tick(base + 5 * 60e3), false, 'rodou duas vezes no dia');
     assert.strictEqual((await chamar('GET', '/api/predio')).status, 401);
     const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.ok(vis.gerente.titulo.startsWith('Resumo de')); assert.ok(vis.conteudo.total === 5);
