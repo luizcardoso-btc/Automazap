@@ -172,6 +172,26 @@ const MIGRACOES = [
     if (!tem('venda_total')) db.exec('ALTER TABLE contacts ADD COLUMN venda_total REAL');    // valor pago (avisado pelo NexTap)
     if (!tem('venda_em')) db.exec('ALTER TABLE contacts ADD COLUMN venda_em INTEGER');
   },
+  // v7: fluxos agrupados em funis (fluxograma), variantes para teste A/B e notificações no celular (push)
+  db => {
+    const tem = (t, col) => db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === col);
+    db.exec(`CREATE TABLE IF NOT EXISTS funis (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, descricao TEXT NOT NULL DEFAULT '', criado_em INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS push_subs (id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT NOT NULL UNIQUE, chaves TEXT NOT NULL,
+        aparelho TEXT NOT NULL DEFAULT '', prefs TEXT NOT NULL DEFAULT '[]', criado_em INTEGER NOT NULL, ultimo_ok INTEGER NOT NULL DEFAULT 0);`);
+    if (!tem('flows', 'funil_id')) db.exec('ALTER TABLE flows ADD COLUMN funil_id INTEGER');          // null = fluxo avulso
+    if (!tem('flows', 'variante_de')) db.exec('ALTER TABLE flows ADD COLUMN variante_de INTEGER');    // variante B do fluxo indicado (teste A/B)
+    if (!tem('contacts', 'ab_grupo')) db.exec('ALTER TABLE contacts ADD COLUMN ab_grupo TEXT');      // A ou B, sorteado na primeira variante
+    // Funis já instalados: cada entrada conhecida vira um funil com os fluxos criados junto com ela (mesma instalação)
+    const entradas = [['Entrada: REVENDER ou MEU NEGÓCIO', 'Funil de qualificação (v2)', 'REVENDER / MEU NEGÓCIO → quantidade → demonstração → calculadora.'],
+      ['Entrada: direto ao ponto', 'Funil direto (v3)', 'Menos mensagens, sempre com botão para calcular e comprar.'],
+      ['Entrada: funil de vendas', 'Funil de vendas (v4)', 'Preço, lucro e pedido montado na conversa.']];
+    for (const [nome, funil, desc] of entradas) {
+      const e = db.prepare('SELECT id, created_at FROM flows WHERE name = ? AND funil_id IS NULL ORDER BY id LIMIT 1').get(nome);
+      if (!e) continue;
+      const id = db.prepare('INSERT INTO funis (nome, descricao, criado_em) VALUES (?, ?, ?)').run(funil, desc, e.created_at).lastInsertRowid;
+      db.prepare('UPDATE flows SET funil_id = ? WHERE funil_id IS NULL AND created_at BETWEEN ? AND ?').run(id, e.created_at - 15000, e.created_at + 15000);
+    }
+  },
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });

@@ -93,6 +93,13 @@ app.use('/media', (req, res, next) => {
   express.static(d, { maxAge: '7d', index: false, dotfiles: 'deny', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') })(req, res, next);
 });
 app.get('/brand', (req, res) => res.json(marca.publica()));
+// Painel instalável no celular (atalho na tela inicial) com notificações push
+app.get('/sw.js', (req, res) => { res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Service-Worker-Allowed': '/', 'Cache-Control': 'no-cache' }); res.sendFile(path.join(__dirname, 'sw.js')); });
+app.get('/manifest.webmanifest', (req, res) => {
+  const b = marca.publica();
+  res.type('application/manifest+json').json({ name: b.nome + ' · Central', short_name: b.nome, start_url: '/', scope: '/', display: 'standalone',
+    background_color: '#0a0c10', theme_color: b.cor, icons: [{ src: b.logo, sizes: 'any', type: 'image/svg+xml', purpose: 'any' }, { src: b.logo, sizes: '512x512', purpose: 'any' }] });
+});
 app.get(['/logo', '/favicon.ico'], marca.servirLogo);
 app.use('/api', require('./routes-api.js'));
 // Link rastreado: registra o clique (etiqueta ABRIU CHECKOUT + mensagem de acompanhamento) e leva ao site

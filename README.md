@@ -50,3 +50,19 @@ Instale em Visão geral → **Instalar funil de vendas** (os fluxos atuais são 
   serviços, o site avisa cadastro, pedido e pagamento: etiquetas CADASTROU, INICIOU PEDIDO e VENDA (com valor) sozinhas.
 - Follow-ups por etapa; o último convida a pessoa a mandar o WhatsApp. Quem manda o número vai para a aba WhatsApp.
 - Se o token do Instagram cair, o painel mostra o alerta e o Telegram avisa (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID).
+
+
+## Funil 3 toques (v5), fluxograma e teste A/B
+- Visão geral → **Instalar funil 3 toques**: entrada → quantidade (5 a 10 · 11 a 49 · 50 ou mais) → **uma** mensagem de oferta
+  com preço, lucro e o botão do pedido montado (o vídeo só abre se a pessoa tocar em "VER FUNCIONANDO"). No máximo 2 follow-ups
+  por pessoa (3h e 20h). Quem escolhe 50+ vai para o comercial com prioridade alta.
+- Aba **Fluxos**: os fluxos ficam agrupados por funil e aparecem como fluxograma (setas = para onde cada botão leva), com o
+  acompanhamento em trilhas por etapa. "Usar este funil" liga o funil inteiro e desliga os outros (os avulsos não mudam).
+- **Teste A/B**: qualquer fluxo pode ganhar uma variante B (botão no editor). Cada pessoa é sorteada uma vez e sempre vê o mesmo
+  lado. O painel mostra, por lado, quem recebeu, abriu o pedido, criou conta e comprou, e a confiança da diferença; "A venceu" /
+  "B venceu" encerra o teste. O v5 já vem com a oferta em teste: A = lucro em destaque, B = "com {{payback}} placas vendidas você
+  paga o pedido".
+- **Notificações no celular**: Configurações → Notificações no celular. Instale o painel na tela inicial (iPhone: Safari →
+  Compartilhar → Adicionar à Tela de Início; Android: Chrome → ⋮ → Adicionar à tela inicial) e ligue. Cada aparelho escolhe o
+  que recebe: lead quente, lead grande, pediu atendente, mandou o WhatsApp, cadastro/pedido no site, venda, mensagem no WhatsApp,
+  robô parado. Tocar no aviso abre a conversa. As chaves (VAPID) são criadas sozinhas e ficam no banco.

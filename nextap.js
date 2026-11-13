@@ -66,7 +66,8 @@ function receberEvento(b) {
   const c = db.prepare('SELECT * FROM contacts WHERE id = ?').get(l.contact_id);
   const nome = [c.name, c.username ? '@' + c.username : ''].filter(Boolean).join(' ') || 'contato ' + c.id;
   const txt = { cadastro: '📝 Lead do robô criou conta no site', pedido: '🛒 Lead do robô iniciou um pedido', pago: '💰 VENDA paga' }[b.evento];
-  engine.avisar(`${txt}: ${nome}${b.qty ? ` · ${b.qty} placa(s)` : ''}${Number(b.total) > 0 ? ` · R$ ${brl(Number(b.total))}` : ''}`);
+  engine.avisar(`${b.qty ? `${b.qty} placa(s)` : ''}${Number(b.total) > 0 ? ` · R$ ${brl(Number(b.total))}` : ''}`.replace(/^ · /, ''), {
+    tipo: b.evento === 'pago' ? 'venda' : 'site', titulo: `${txt}: ${nome}`, url: '/#c=' + c.id, chave: b.evento + c.id });
   return { ok: true, achou: true, contato: c.id, tag };
 }
 

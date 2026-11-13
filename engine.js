@@ -35,7 +35,7 @@ function acharFluxo(texto, { comentario = false } = {}) {
   const t = normalizar(texto);
   if (!t) return null;
   let melhor = null;
-  for (const r of db.prepare("SELECT * FROM flows WHERE active = 1 AND kind = 'normal'" + (comentario ? ' AND on_comment = 1' : '')).all()) {
+  for (const r of db.prepare("SELECT * FROM flows WHERE active = 1 AND kind = 'normal' AND variante_de IS NULL" + (comentario ? ' AND on_comment = 1' : '')).all()) {
     const f = lerFluxo(r);
     let len = -1;
     for (const kw of f.keywords) {
@@ -85,7 +85,7 @@ function registrarClique(token) {
   db.prepare('UPDATE contacts SET last_click_at = ? WHERE id = ?').run(t, l.contact_id);
   addTag(l.contact_id, 'ABRIU CHECKOUT');
   if (l.clicks === 0) {
-    const f = db.prepare("SELECT id FROM flows WHERE kind = 'evento' AND event = 'clique_link' AND active = 1 ORDER BY id LIMIT 1").get();
+    const f = db.prepare("SELECT id FROM flows WHERE kind = 'evento' AND event = 'clique_link' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
     if (f) db.prepare('INSERT INTO agenda (contact_id, flow_id, run_at) VALUES (?, ?, ?)').run(l.contact_id, f.id, t + (Number(process.env.CLICK_DELAY_MS) >= 0 ? Number(process.env.CLICK_DELAY_MS) : 25000));
   }
   return l.url.replace('__LEAD__', l.token);   // o site devolve esse token nos avisos de cadastro/pagamento
@@ -110,6 +110,7 @@ function varDeVenda(v, contato) {
   if (v === 'qtd') return String(c.qtd);
   if (v === 'minimo') return String(nx.minimo());
   if (v === 'link_pedido') return criarLink(contato, nx.urlPedido(c.qtd));
+  if (v === 'payback') return String(Math.min(c.qtd, Math.max(1, Math.ceil(c.total / nx.precoRevenda()))));   // placas vendidas que pagam o pedido
   return nx.brl({ preco: c.unit, total: c.total, receita: c.receita, lucro: c.lucro, preco_venda: nx.precoRevenda() }[v]);
 }
 
@@ -128,14 +129,17 @@ function aplicarVars(texto, contato) {
     .replace(/\{\{\s*telefone\s*\}\}/g, getSetting('telefone') || '')
     .replace(/\{\{\s*video_demo\s*\}\}/g, getSetting('video_demo_url') || '')
     .replace(/\{\{\s*quantidade\s*\}\}/g, () => quantidadeDe(contato))
-    .replace(/\{\{\s*(qtd|preco|total|receita|lucro|preco_venda|minimo|link_pedido)\s*\}\}/g, (_, v) => varDeVenda(v, contato))
+    .replace(/\{\{\s*(qtd|preco|total|receita|lucro|preco_venda|minimo|link_pedido|payback)\s*\}\}/g, (_, v) => varDeVenda(v, contato))
     .replace(/\s+([!,.?])/g, '$1');
 }
 function passoComVars(passo, contato) {
   const p = { ...passo };
   if (passo.text != null) p.text = aplicarVars(passo.text, contato);
   if (passo.url != null) p.url = aplicarVars(passo.url, contato).trim();
-  if (passo.buttons) p.buttons = passo.buttons.map(b => ({ ...b, title: aplicarVars(b.title, contato), url: aplicarVars(b.url, contato) }));
+  if (passo.buttons) {
+    p.buttons = passo.buttons.map(b => ({ ...b, title: aplicarVars(b.title, contato), url: aplicarVars(b.url, contato).trim() })).filter(b => /^https?:\/\/\S+$/.test(b.url));
+    if (!p.buttons.length) { p.type = 'text'; delete p.buttons; }   // sem nenhum link válido: vai como texto
+  }
   if (passo.replies) p.replies = passo.replies.map(r => ({ ...r, title: aplicarVars(r.title, contato) }));
   return p;
 }
@@ -200,27 +204,27 @@ const textoComLink = p => ({ type: 'text', text: (p.type === 'image' ? 'Veja aqu
 const dormir = ms => ms > 0 ? new Promise(r => setTimeout(r, ms)) : null;
 const pausaEntreMensagens = () => Number(process.env.STEP_DELAY_MS) >= 0 && process.env.STEP_DELAY_MS !== '' && process.env.STEP_DELAY_MS != null ? Number(process.env.STEP_DELAY_MS) : 700;
 
-// Aviso opcional no Telegram quando um lead pede (ou merece) atendimento humano
-// Aviso livre no Telegram (venda confirmada, token do Instagram caiu…). Sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID não faz nada.
-async function avisar(texto) {
-  const tk = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
-  if (!tk || !chat || process.env.NODE_ENV === 'test') return false;
-  try {
-    await fetch(`https://api.telegram.org/bot${tk}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chat, text: texto }) });
-    return true;
-  } catch (e) { console.error('[TELEGRAM]', e.message); return false; }
+// Alertas (push no celular e Telegram): veja notificacoes.js
+const nomeDe = c => [c.name, c.username ? '@' + c.username : ''].filter(Boolean).join(' ') || 'contato ' + c.id;
+function avisar(texto, { tipo = 'sistema', titulo, url = '/', chave = '' } = {}) {
+  const linhas = String(texto).split('\n');
+  return require('./notificacoes.js').notificar({ tipo, titulo: titulo || linhas[0], texto: titulo ? texto : linhas.slice(1).join('\n'), url, chave })
+    .catch(e => console.error('[ALERTA]', e.message));
+}
+function avisarHumano(contato, fluxo, prioridade) {
+  return avisar(`Fluxo: ${fluxo.name}. Responda pelo painel (janela de 24h do Instagram).`, {
+    tipo: prioridade >= 2 ? 'alta' : 'atendente', titulo: `${prioridade >= 2 ? '🔥 Prioridade alta' : '🙋 Pediu atendimento'}: ${nomeDe(contato)}`,
+    url: '/#c=' + contato.id, chave: 'c' + contato.id });
 }
 
-async function avisarHumano(contato, fluxo, prioridade) {
-  const tk = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
-  if (!tk || !chat || process.env.NODE_ENV === 'test') return;
-  const nome = [contato.name, contato.username ? '@' + contato.username : ''].filter(Boolean).join(' ') || 'contato ' + contato.id;
-  try {
-    await fetch(`https://api.telegram.org/bot${tk}/sendMessage`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chat, text: `${prioridade >= 2 ? '🔥 PRIORIDADE ALTA' : '🙋 Pediu atendimento'}: ${nome}\nFluxo: ${fluxo.name}\nAbra o painel para responder (janela de 24h do Instagram).` }),
-    });
-  } catch (e) { console.error('[TELEGRAM]', e.message); }
+// Teste A/B: se o fluxo tem uma variante B ligada, cada pessoa é sorteada uma vez (A ou B) e sempre vê o mesmo lado
+function escolherVariante(contato, fluxo) {
+  if (!fluxo || fluxo.variante_de) return fluxo;
+  const b = db.prepare('SELECT * FROM flows WHERE variante_de = ? AND active = 1 ORDER BY id LIMIT 1').get(fluxo.id);
+  if (!b) return fluxo;
+  let g = contato.ab_grupo;
+  if (g !== 'A' && g !== 'B') { g = Math.random() < 0.5 ? 'A' : 'B'; db.prepare('UPDATE contacts SET ab_grupo = ? WHERE id = ?').run(g, contato.id); contato.ab_grupo = g; }
+  return g === 'B' ? lerFluxo(b) : fluxo;
 }
 
 async function enviarFluxo(contato, fluxo, sender) {
@@ -271,7 +275,8 @@ async function enviarFluxo(contato, fluxo, sender) {
 const FAIXAS = [[10, 'qtd_1_10'], [49, 'qtd_11_49'], [299, 'qtd_50_299'], [Infinity, 'qtd_300']];
 // Funil de vendas (preço na conversa): faixas iguais às do site. O número no evento é a quantidade de exemplo da conta.
 const FAIXAS_V4 = [[10, 'qtd4_10'], [49, 'qtd4_20'], [99, 'qtd4_50'], [Infinity, 'qtd4_100']];
-const fluxoDoEvento = ev => lerFluxo(db.prepare("SELECT * FROM flows WHERE kind = 'botao' AND event = ? AND active = 1 ORDER BY id LIMIT 1").get(ev));
+const FAIXAS_V5 = [[10, 'qtd5_10'], [49, 'qtd5_20'], [Infinity, 'qtd5_50']];
+const fluxoDoEvento = ev => lerFluxo(db.prepare("SELECT * FROM flows WHERE kind = 'botao' AND event = ? AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get(ev));
 function numeroDePlacas(texto) {
   const m = /^(?:uns |umas |cerca de |quero |preciso de )?(\d{1,5})(?: (?:placas?|unidades?|pecas?))?$/.exec(normalizar(texto));
   return m && Number(m[1]) >= 1 ? Number(m[1]) : null;
@@ -280,6 +285,10 @@ function fluxoPorQuantidade(texto, contato) {
   if (!tagsDe(contato).includes('REVENDEDOR')) return null;
   const n = numeroDePlacas(texto);
   if (!n) return null;
+  if (fluxoDoEvento('qtd5_10')) {   // funil 3 toques instalado
+    if (n < require('./nextap.js').minimo()) return fluxoDoEvento('qtd5_min') || fluxoDoEvento('qtd5_10');
+    return fluxoDoEvento(FAIXAS_V5.find(f => n <= f[0])[1]);
+  }
   if (fluxoDoEvento('qtd4_10')) {   // funil de vendas instalado
     if (n < require('./nextap.js').minimo()) return fluxoDoEvento('qtd4_min') || fluxoDoEvento('qtd4_10');
     return fluxoDoEvento(FAIXAS_V4.find(f => n <= f[0])[1]);
@@ -316,12 +325,15 @@ async function processarMensagem(ev, sender) {
 
   if (fluxo) {
     // Faixa do funil de vendas: guarda a quantidade para a conta (a digitada; pelo botão, o exemplo da faixa)
-    const fx = /^qtd4_(\d+)$/.exec(fluxo.event || '');
+    const fx = /^qtd[45]_(\d+)$/.exec(fluxo.event || '');
     if (fx) {
       const n = !ev.payload && numeroDePlacas(ev.texto);
       atual.qty = n && n >= require('./nextap.js').minimo() ? n : Number(fx[1]);
       db.prepare('UPDATE contacts SET qty = ? WHERE id = ?').run(atual.qty, atual.id);
+      // Lead quente (o 50+ já avisa como prioridade alta)
+      if (!(Number(fluxo.human_priority) >= 2)) avisar(`${nomeDe(atual)} viu o preço. Se chamar agora, a chance de fechar é maior.`, { tipo: 'quantidade', titulo: `🎯 Lead quente: ${atual.qty} placas`, url: '/#c=' + atual.id, chave: 'q' + atual.id });
     }
+    fluxo = escolherVariante(atual, fluxo);
     const enviados = await enviarFluxo(atual, fluxo, sender);
     return { acao: 'respondeu', fluxo: fluxo.name, enviados: enviados.length };
   }
@@ -332,14 +344,14 @@ async function processarMensagem(ev, sender) {
     db.prepare('UPDATE contacts SET phone = ? WHERE id = ?').run(fone, atual.id);
     addTag(atual.id, 'WHATSAPP');
     try { require('./whatsapp.js').registrarLead(fone, atual.name || (atual.username ? '@' + atual.username : '')); } catch (e) { console.error('[BOT] lead no WhatsApp:', e.message); }
-    avisar(`📱 Lead passou o WhatsApp: ${atual.name || atual.username || 'contato ' + atual.id} · +${fone}`);
-    const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'recebeu_whatsapp' AND active = 1 ORDER BY id LIMIT 1").get();
+    avisar(`+${fone} · já está na aba WhatsApp`, { tipo: 'whatsapp_lead', titulo: `📱 ${nomeDe(atual)} mandou o WhatsApp`, url: '/#c=' + atual.id, chave: 'w' + atual.id });
+    const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'recebeu_whatsapp' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
     if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
   }
 
   // Respondeu (texto livre) a um follow-up: quem está engajado vai para uma pessoa, em vez de cair na resposta padrão
   if (contato.last_followup_at > contato.last_inbound_at) {
-    const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'resposta_followup' AND active = 1 ORDER BY id LIMIT 1").get();
+    const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'resposta_followup' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
     if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
   }
 
@@ -414,11 +426,11 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
       const f = fluxoPorId(a.flow_id);
       if (!c || !f || !f.active || c.bot_paused_until > t0 || t0 - c.last_inbound_at > JANELA - MARGEM) continue;
       if (tagsDe(c).includes('VENDA')) continue;   // já comprou: não recebe "vi que você abriu o pedido"
-      await enviarFluxo(c, f, sender); out.agenda++;
+      await enviarFluxo(c, escolherVariante(c, f), sender); out.agenda++;
     }
     if (getSetting('followups_enabled') === '1') {
       const porSeg = {};
-      for (const f of db.prepare("SELECT * FROM flows WHERE kind = 'followup' AND active = 1 ORDER BY delay_hours, id").all().map(lerFluxo)) {
+      for (const f of db.prepare("SELECT * FROM flows WHERE kind = 'followup' AND active = 1 AND variante_de IS NULL ORDER BY delay_hours, id").all().map(lerFluxo)) {
         (porSeg[f.audience || 'checkout'] = porSeg[f.audience || 'checkout'] || []).push(f);
       }
       const cand = db.prepare(`SELECT * FROM contacts WHERE channel = ? AND needs_human = 0 AND bot_paused_until <= ? AND last_inbound_at > ?
@@ -437,11 +449,12 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
         if (t0 < devido || t0 > c.last_inbound_at + JANELA - MARGEM) continue;
         // antes de enviar: nunca duplica
         db.prepare('UPDATE contacts SET followup_step = ?, followup_seq = ?, last_followup_at = ? WHERE id = ?').run(j + 1, seg, t0, c.id);
-        await enviarFluxo(db.prepare('SELECT * FROM contacts WHERE id = ?').get(c.id), fus[j], sender); out.followups++;
+        const atualC = db.prepare('SELECT * FROM contacts WHERE id = ?').get(c.id);
+        await enviarFluxo(atualC, escolherVariante(atualC, fus[j]), sender); out.followups++;
       }
     }
   } finally { rodando = false; }
   return out;
 }
 
-module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, telefoneDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
+module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, escolherVariante, telefoneDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
