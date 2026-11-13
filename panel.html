@@ -225,6 +225,40 @@ svg text{font-family:inherit}.gb{transition:opacity .15s}.gb:hover{opacity:1}
 .pvf-k{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.pvf-k div{background:var(--in);border-radius:10px;padding:8px 10px}.pvf-k b{display:block;font-size:20px}.pvf-k small{color:var(--mut);font-size:11.5px}
 @media(max-width:760px){.pv{padding:30px 8px 0}.pv-sala{height:178px}.pv-sala.s-recepcao{height:150px}.pv-corpo-predio{padding-right:30px}.pv-elev{width:26px}.pv-janela{top:34px}.pv-quadro{top:34px;font-size:9px;min-width:0;width:40%}.pv-quadro b{font-size:14px}.pv-mapa{top:34px}.pv-bal{max-width:118px;font-size:10px;padding:5px 7px}.pv-obj{font-size:22px}.pv-ag{--a:24%!important;--b:56%!important}.pv-dica{display:none}}
 @media(prefers-reduced-motion:reduce){.pv *{animation:none!important}}
+/* ---------- mapa de agentes (constelação) ---------- */
+.mp-tabs{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+.mp{position:relative;border-radius:20px;overflow:hidden;background:radial-gradient(120% 90% at 50% 45%,#10161a 0%,#07090c 60%,#040506 100%);border:1px solid #1d2328;box-shadow:var(--sh2);--neo:#c6f432;--neo2:#7ee0c3;color:#e8efe9}
+.mp:before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(1px 1px at 8% 12%,#fff8,transparent),radial-gradient(1px 1px at 22% 78%,#fff6,transparent),radial-gradient(1.5px 1.5px at 37% 30%,#fff7,transparent),radial-gradient(1px 1px at 61% 86%,#fff5,transparent),radial-gradient(1px 1px at 74% 18%,#fff8,transparent),radial-gradient(1.5px 1.5px at 88% 64%,#fff6,transparent),radial-gradient(1px 1px at 52% 6%,#fff6,transparent),radial-gradient(1px 1px at 4% 58%,#fff5,transparent),radial-gradient(1px 1px at 95% 92%,#fff6,transparent);animation:mp-estrela 6s ease-in-out infinite alternate}
+@keyframes mp-estrela{to{opacity:.55}}
+.mp svg{display:block;width:100%;height:auto}
+.mp-cena{transition:transform .7s cubic-bezier(.2,.7,.2,1);transform-origin:0 0}
+.mp-l{stroke:#3a4a3f;stroke-width:1.3;fill:none}.mp-l.on{stroke:var(--neo);stroke-opacity:.55;stroke-dasharray:3 9;animation:mp-fluxo 1.6s linear infinite}
+.mp-l.warn{stroke:#f5b942;stroke-opacity:.6;stroke-dasharray:3 9;animation:mp-fluxo 2.4s linear infinite}.mp-l.lock{stroke:#2a3036;stroke-dasharray:2 6}
+@keyframes mp-fluxo{to{stroke-dashoffset:-24}}
+.mp-n{cursor:pointer}.mp-n circle.b{fill:#0d1214;stroke:var(--neo);stroke-width:1.6;transition:stroke-width .15s}
+.mp-n:hover circle.b{stroke-width:3}.mp-n.warn circle.b{stroke:#f5b942}.mp-n.err circle.b{stroke:#ff6b6e}.mp-n.lock circle.b{stroke:#3a4148;fill:#0b0e10}.mp-n.lock{opacity:.55}
+.mp-n .g{fill:var(--neo);opacity:.18;filter:blur(6px)}.mp-n.warn .g{fill:#f5b942}.mp-n.err .g{fill:#ff6b6e}.mp-n.lock .g{opacity:0}
+.mp-n.on .g{animation:mp-pulso 2.2s ease-in-out infinite}@keyframes mp-pulso{50%{opacity:.4}}
+.mp-n text{font-family:inherit;fill:#e8efe9;pointer-events:none}.mp-n .ic{font-size:15px;dominant-baseline:central;text-anchor:middle}
+.mp-n .rot{font-size:10.5px;font-weight:650;text-anchor:middle;fill:#cfd8d2}.mp-n .sub{font-size:9px;text-anchor:middle;fill:#7d8a83}
+.mp-d .rotd{font-size:15px;font-weight:800;letter-spacing:.09em;text-anchor:middle;fill:#f2f6f3;paint-order:stroke;stroke:#07090c;stroke-width:4px}
+.mp-d .subd{font-size:10px;text-anchor:middle;fill:#8a978f;letter-spacing:.04em}
+.mp-h .anel{fill:none;stroke:var(--neo);stroke-width:1;stroke-dasharray:2 7;transform-origin:600px 410px;animation:mp-gira 30s linear infinite}@keyframes mp-gira{to{transform:rotate(360deg)}}
+.mp-dim{opacity:.18;transition:opacity .2s}
+.mp-bar{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;justify-content:space-between;align-items:center;z-index:2;pointer-events:none}
+.mp-bar>*{pointer-events:auto}.mp-marca{display:flex;align-items:center;gap:8px;background:rgba(13,18,20,.8);border:1px solid #232b30;border-radius:10px;padding:6px 10px;font-weight:800;font-size:12px;letter-spacing:.12em;color:#e8efe9;text-transform:uppercase}
+.mp-marca i{width:16px;height:16px;border-radius:5px;background:var(--neo);box-shadow:0 0 10px var(--neo)}
+.mp-busca{background:rgba(13,18,20,.85);border:1px solid #232b30;color:#e8efe9;border-radius:10px;padding:7px 10px;width:200px;font-size:12.5px}.mp-busca::placeholder{color:#6f7c75}
+.mp-painel{position:absolute;top:58px;right:12px;width:300px;max-height:calc(100% - 70px);overflow:auto;background:rgba(10,14,16,.92);border:1px solid #232b30;border-radius:14px;padding:14px;z-index:3;backdrop-filter:blur(8px);color:#e8efe9;animation:pop .2s ease-out}
+.mp-painel h3{margin:0 0 4px;color:#fff}.mp-painel .mut{color:#8a978f}
+.mp-it{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid #1d2428;cursor:pointer}.mp-it:hover b{color:var(--neo)}
+.mp-it .st{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:var(--neo);box-shadow:0 0 8px var(--neo)}.mp-it .st.warn{background:#f5b942;box-shadow:0 0 8px #f5b942}.mp-it .st.err{background:#ff6b6e;box-shadow:0 0 8px #ff6b6e}.mp-it .st.lock{background:#3a4148;box-shadow:none}
+.mp-it b{display:block;font-size:13.5px}.mp-it small{color:#8a978f;font-size:12px}
+.mp-voltar{background:rgba(13,18,20,.85);border:1px solid #2d363b;color:#e8efe9;border-radius:10px;padding:6px 11px;font-weight:600;font-size:12.5px;cursor:pointer}
+.mp-leg{position:absolute;left:12px;bottom:10px;display:flex;gap:12px;font-size:11px;color:#8a978f;z-index:2;flex-wrap:wrap}.mp-leg span:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:var(--c)}
+.ls-t{width:100%;border-collapse:collapse;font-size:13.5px}.ls-t td,.ls-t th{padding:10px;border-bottom:1px solid var(--br);text-align:left}.ls-t th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+@media(max-width:760px){.mp-scroll{overflow:auto;max-height:70vh}.mp svg{width:980px;max-width:none}.mp-bar{position:relative;top:0;left:0;right:0;padding:10px}.mp-marca{font-size:10.5px}.mp-leg{position:relative;left:0;bottom:0;padding:8px 12px}.mp-painel{position:relative;top:auto;right:auto;width:auto;margin:0 10px 10px;max-height:none}.mp-busca{width:120px}}
+@media(prefers-reduced-motion:reduce){.mp *,.mp:before{animation:none!important}}
 /* entrada */
 #auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:var(--card)}
 #auth .hero{background:radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--pr) 85%,#fff) 0%,var(--pr) 38%,#07120c 115%);color:#fff;padding:52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
@@ -903,9 +937,11 @@ async function pdCarregar(){try{PD=await api('/predio')}catch(e){PD={erro:e.mess
 async function pdSala(s){PSALA=s;draw();try{if(s==='gerente')PDG=await api('/predio/gerente');if(s==='atendente')PDA=await api('/predio/atendente');if(s==='prospectora')PDP=await api('/predio/prospectora');if(s==='conteudo')PDC=await api('/predio/conteudo')}catch(e){alert(e.message)}draw();window.scrollTo(0,0)}
 function vPredio(){if(!PD&&!vPredio.l){vPredio.l=1;pdCarregar().then(function(){vPredio.l=0})}
   if(PSALA){var a=ANDARES.filter(function(x){return x[0]===PSALA})[0];head(a[2]+' '+a[3],a[4]);return '<button class="btn s" style="margin-bottom:12px" onclick="PSALA=null;pdCarregar()">← Voltar para o prédio</button>'+({gerente:salaGerente,atendente:salaAtendente,prospectora:salaProspectora,conteudo:salaConteudo})[PSALA]()}
-  head('Prédio','Seus agentes trabalhando agora. Toque numa sala para ver o trabalho dela.');
+  head('Prédio','Seus agentes trabalhando agora. Toque num departamento ou numa sala para ver o trabalho.');
   if(!PD)return '<p class="mut">Carregando…</p>';
-  return predioVisual()}
+  var tabs='<div class="mp-tabs"><div class="seg"><button class="'+(PVIEW==='mapa'?'on':'')+'" onclick="PVIEW=\'mapa\';draw()">Mapa</button><button class="'+(PVIEW==='predio'?'on':'')+'" onclick="PVIEW=\'predio\';draw()">Prédio</button><button class="'+(PVIEW==='lista'?'on':'')+'" onclick="PVIEW=\'lista\';draw()">Lista</button></div></div>';
+  if(PVIEW==='mapa')setTimeout(mpCentralizar,0);
+  return tabs+(PVIEW==='mapa'?vMapa():PVIEW==='lista'?vListaAgentes():predioVisual())}
 function salaGerente(){var l=PDG;if(!l)return '<p class="mut">Carregando…</p>';
   return '<div class="row" style="margin-bottom:12px"><button class="btn p s" onclick="pdResumo()">Gerar resumo agora</button><span class="mut sm">Sai sozinho todo dia às '+E(SET.predio_hora||'08:00')+' e chega no celular (Configurações → Notificações).</span></div>'
     +(l.length?l.map(function(r,i){return '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">'+E(r.titulo)+'</h3><span class="mut sm">'+fdh(r.criado_em)+'</span></div>'+(i===0?'<div style="white-space:pre-wrap;margin-top:8px;line-height:1.6">'+E(r.texto)+'</div>':'<details style="margin-top:6px"><summary class="mut sm" style="cursor:pointer">ver</summary><div style="white-space:pre-wrap;margin-top:6px;line-height:1.6">'+E(r.texto)+'</div></details>')+'</div>'}).join(''):'<div class="card empty">Nenhum resumo ainda. Toque em "Gerar resumo agora".</div>')}
@@ -978,10 +1014,77 @@ function predioVisual(){var d=PD,h=Number(new Date(Date.now()-3*3600e3).toISOStr
 function pvTrocarFalas(){if(cur!=='predio'||PSALA||!$('pv'))return;PV_I++;['gerente','atendente','prospectora','conteudo','recepcao'].forEach(function(id){var b=$('pvb-'+id);if(!b)return;b.classList.add('troca');setTimeout(function(){b.innerHTML=pvBalao(id,PV_I);b.classList.remove('troca')},300)})}
 function pvVisitante(){var v=$('pv-visitas');if(!v)return;var e=document.createElement('div');e.className='pv-visita';e.innerHTML='<div class="pv-c" style="display:flex;flex-direction:column;align-items:center"><span class="pv-cab">'+['🧑🏽','👩🏼','👨🏿','🧔🏻','👩🏾'][Math.floor(Math.random()*5)]+'</span><span class="pv-tronco" style="--cor:#16a34a;background:#16a34a"></span><span class="pv-pernas"><i></i><i></i></span></div>';v.appendChild(e);setTimeout(function(){e.remove()},6500)}
 async function pvAtualizar(){if(cur!=='predio'||PSALA||document.hidden)return;var antes=PD&&PD.agora?PD.agora.leads_hoje:null;try{PD=await api('/predio')}catch(e){return}
+  if(PVIEW!=='predio'){var a0=document.activeElement;if(!(a0&&a0.classList&&a0.classList.contains('mp-busca')))draw();return}
   if(!$('pv')){draw();return}
   var a=PD.agora||{},g=PD.gerente||{};[['pvk-resp',a.respostas_hoje],['pvk-leads',a.leads_hoje],['pvq-novos',g.novos],['pvq-vendas',g.vendas],['pvq-prio',g.prioridades]].forEach(function(x){var e=$(x[0]);if(e)e.textContent=x[1]||0});
   if(antes!=null&&a.leads_hoje>antes)for(var i=0;i<Math.min(3,a.leads_hoje-antes);i++)setTimeout(pvVisitante,i*1500)}
 setInterval(pvTrocarFalas,4500);setInterval(pvAtualizar,20000);
+
+/* ----- Mapa dos agentes (constelação) ----- */
+var PVIEW='mapa',MPD=null,MPQ='';
+function mpNos(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.prospectora,c=d.conteudo||{},st=ST||{},ig=st.instagram||{};
+  var igOk=ig.token&&ig.appSecret&&ig.verifyToken&&!st.instagram_erro,funil=FLOWS.some(function(f){return f.name==='Entrada: 3 toques'&&f.active}),ab=FLOWS.filter(function(f){return f.variante_de&&f.active}).length;
+  var wa=typeof WS!=='undefined'&&WS?WS:null,vs=st.vendas_site||{n:0,total:0};
+  var L=function(id,nome,ico,s,info,acao){return {id:id,nome:nome,ico:ico,s:s,info:info,acao:acao}};
+  return {hub:{nome:'Gerente',ico:'👩🏽‍💼',s:'on',info:g?(g.prioridades?g.prioridades+' prioridade(s) hoje':'Nada urgente hoje'):'Preparando o primeiro resumo',acao:"pdSala('gerente')"},
+    deps:[
+      {id:'atend',nome:'ATENDIMENTO',sub:'instagram · whatsapp · robô',ico:'💬',filhos:[
+        L('robo','Robô do Instagram','🤖',igOk?'on':'err',igOk?(a.respostas_hoje||0)+' resposta(s) hoje':'Parado: troque o token',"nav('chats')"),
+        L('atendente','Atendente','🧠',at.novas?'warn':'on',at.novas?at.novas+' frase(s) para ensinar':'Entendendo tudo',"pdSala('atendente')"),
+        L('pausa','Pausa inteligente','⏸',a.esperando?'warn':'on',a.esperando?a.esperando+' esperando atendente':'Ninguém esperando',"irChats('humano')"),
+        L('followup','Follow-ups','⏰',SET.followups_enabled==='1'?'on':'off',SET.followups_enabled==='1'?'Até 2 por pessoa':'Desligados',"nav('flows')"),
+        L('whatsapp','WhatsApp','📱',wa&&wa.estado==='open'?'on':'off',wa&&wa.estado==='open'?'Conectado':'Não conectado',"nav('wa')")]},
+      {id:'vendas',nome:'VENDAS',sub:'funil · prospecção · pedidos',ico:'🎯',filhos:[
+        L('prospectora','Prospectora','📋',p?(p.total-p.feitos?'warn':'on'):'on',p?p.feitos+' de '+p.total+' contatos hoje':'Lista sai às '+(SET.predio_hora||'08:00'),"pdSala('prospectora')"),
+        L('funil','Funil 3 toques','🔻',funil?'on':'off',funil?'Ligado':'Desligado',"nav('flows')"),
+        L('ab','Teste A/B','🧪',ab?'on':'off',ab?ab+' teste(s) rodando':'Nenhum teste',"nav('flows')"),
+        L('pedido','Pedido montado','🛒','on','Link com a quantidade no site',"nav('flows')"),
+        L('black','Promoção do site','🖤',st.promo?'on':'off',st.promo?st.promo.nome+' ativa':'Nenhuma ativa',"nav('cfg')")]},
+      {id:'mkt',nome:'MARKETING',sub:'conteúdo · comentários',ico:'🎬',filhos:[
+        L('conteudo','Conteúdo','🗓',c.total&&c.postados<c.total?'warn':'on',(c.postados||0)+' de '+(c.total||0)+' postados',"pdSala('conteudo')"),
+        L('coment','Comentários → direct','💭','on','"Comente BLACK / COMO FUNCIONA"',"nav('flows')"),
+        L('trafego','Tráfego (anúncios)','📈','lock','Fase 2',null)]},
+      {id:'ops',nome:'OPERAÇÕES',sub:'alertas · integrações',ico:'⚙️',filhos:[
+        L('vigia','Vigia do Instagram','🛰',st.instagram_erro?'err':'on',st.instagram_erro?'Token caiu':'Conferindo a cada 15 min',"nav('ig')"),
+        L('push','Notificações','🔔','on','Configure por aparelho',"nav('cfg')"),
+        L('nextap','Integração NexTap','🔗',st.precos&&st.precos.em?'on':'warn',st.precos&&st.precos.em?'Preços lidos '+fdh(st.precos.em):'Site ainda não respondeu',"nav('cfg')"),
+        L('backup','Backup diário','💾','on','Uma cópia por dia',"nav('cfg')")]},
+      {id:'fin',nome:'FINANÇAS',sub:'vendas · relatórios',ico:'💰',filhos:[
+        L('vendas_site','Vendas pelo site',"🧾",vs.n?'on':'off',vs.n+' venda(s) · R$ '+Number(vs.total||0).toFixed(2).replace('.',','),"irChats('vendas')"),
+        L('controller','Controller','📊','lock','Fase 2',null)]},
+      {id:'estudio',nome:'ESTÚDIO',sub:'vídeo · edição',ico:'🎥',filhos:[L('editor','Editor de vídeo','✂️','lock','Fase 2',null)]}]}}
+function mpStatusDep(dp){var s=dp.filhos.map(function(f){return f.s});return s.indexOf('err')>=0?'err':s.every(function(x){return x==='lock'})?'lock':s.indexOf('warn')>=0?'warn':'on'}
+function mpGeo(){var n=mpNos(),cx=600,cy=410,R=215,out=[];
+  n.deps.forEach(function(dp,i){var ang=(-90+i*360/n.deps.length)*Math.PI/180,x=cx+R*Math.cos(ang),y=cy+R*Math.sin(ang),k=dp.filhos.length,passo=30*Math.PI/180;
+    dp.x=x;dp.y=y;dp.ang=ang;dp.lx=x-58*Math.cos(ang);dp.ly=y-58*Math.sin(ang)+6;   // nome do departamento do lado de dentro (virado para a Gerente)
+    dp.filhos.forEach(function(f,j){var a2=ang+(j-(k-1)/2)*passo,c=Math.cos(a2);f.x=x+112*c;f.y=y+112*Math.sin(a2);
+      f.tx=f.x+22*c;f.ty=f.y+22*Math.sin(a2)+4;f.anc=c>.2?'start':c<-.2?'end':'middle';if(f.anc==='middle')f.ty+=Math.sin(a2)>0?8:-2})});
+  return {n:n,cx:cx,cy:cy}}
+function mpCasa(t){var q=MPQ.trim().toLowerCase();return !q||t.toLowerCase().indexOf(q)>=0}
+function vMapa(){var G=mpGeo(),n=G.n,cx=G.cx,cy=G.cy,lin='',nos='',rot='';
+  var cls=function(s){return s==='err'?'err':s==='warn'?'warn':s==='lock'||s==='off'?'lock':'on'};
+  n.deps.forEach(function(dp){var sd=mpStatusDep(dp),dim=MPQ&&!mpCasa(dp.nome+' '+dp.filhos.map(function(f){return f.nome}).join(' '))?' mp-dim':'';
+    lin+='<path class="mp-l '+(sd==='lock'?'lock':sd==='warn'||sd==='err'?'warn':'on')+dim+'" d="M'+cx+','+cy+' L'+dp.x.toFixed(1)+','+dp.y.toFixed(1)+'"/>';
+    dp.filhos.forEach(function(f){var c=cls(f.s),fd=MPQ&&!mpCasa(f.nome)?' mp-dim':'';lin+='<path class="mp-l '+(c==='on'?'on':c==='lock'?'lock':'warn')+fd+'" d="M'+dp.x.toFixed(1)+','+dp.y.toFixed(1)+' L'+f.x.toFixed(1)+','+f.y.toFixed(1)+'"/>';
+      nos+='<g class="mp-n '+c+fd+'" '+(f.acao?'onclick="'+f.acao+'"':'onclick="mpDep(\''+dp.id+'\')"')+'><title>'+E(f.nome+' · '+f.info)+'</title><circle class="g" cx="'+f.x.toFixed(1)+'" cy="'+f.y.toFixed(1)+'" r="17"/><circle class="b" cx="'+f.x.toFixed(1)+'" cy="'+f.y.toFixed(1)+'" r="13"/><text class="ic" style="font-size:13px" x="'+f.x.toFixed(1)+'" y="'+f.y.toFixed(1)+'">'+(f.s==='lock'?'🔒':f.ico)+'</text>'
+        +'<text class="rot" style="text-anchor:'+f.anc+'" x="'+f.tx.toFixed(1)+'" y="'+f.ty.toFixed(1)+'">'+E(f.nome)+'</text></g>'});
+    nos+='<g class="mp-n mp-d '+cls(sd)+dim+'" onclick="mpDep(\''+dp.id+'\')"><title>'+E(dp.nome)+'</title><circle class="g" cx="'+dp.x.toFixed(1)+'" cy="'+dp.y.toFixed(1)+'" r="30"/><circle class="b" cx="'+dp.x.toFixed(1)+'" cy="'+dp.y.toFixed(1)+'" r="24"/><text class="ic" style="font-size:20px" x="'+dp.x.toFixed(1)+'" y="'+dp.y.toFixed(1)+'">'+dp.ico+'</text></g>';
+    rot+='<g class="mp-d'+dim+'" style="cursor:pointer" onclick="mpDep(\''+dp.id+'\')"><text class="rotd" x="'+dp.lx.toFixed(0)+'" y="'+dp.ly.toFixed(0)+'">'+dp.nome+'</text></g>'});
+  var h=n.hub,hub='<g class="mp-n mp-h on" onclick="'+h.acao+'"><title>'+E(h.nome+' · '+h.info)+'</title><circle class="anel" cx="'+cx+'" cy="'+cy+'" r="62"/><circle class="g" cx="'+cx+'" cy="'+cy+'" r="48"/><circle class="b" cx="'+cx+'" cy="'+cy+'" r="38" style="stroke-width:2.2"/><text class="ic" style="font-size:32px" x="'+cx+'" y="'+cy+'">'+h.ico+'</text>'
+    +'<text class="rot" style="font-size:12px;fill:#fff;letter-spacing:.08em" x="'+cx+'" y="'+(cy+56)+'">GERENTE</text><text class="sub" x="'+cx+'" y="'+(cy+69)+'">'+E(h.info)+'</text></g>';
+  var tr='';if(MPD){var dz=n.deps.filter(function(x){return x.id===MPD})[0];if(dz){var s=1.7,alvo=window.innerWidth>760?440:600;tr='transform:translate('+(alvo-dz.x*s).toFixed(0)+'px,'+(410-dz.y*s).toFixed(0)+'px) scale('+s+')'}}
+  var painel='';if(MPD){var dp2=n.deps.filter(function(x){return x.id===MPD})[0];painel='<div class="mp-painel"><div class="row" style="justify-content:space-between"><h3>'+dp2.ico+' '+dp2.nome+'</h3><button class="mp-voltar" onclick="MPD=null;draw()">× fechar</button></div><div class="mut sm">'+E(dp2.sub)+'</div>'
+    +dp2.filhos.map(function(f){return '<div class="mp-it" '+(f.acao?'onclick="'+f.acao+'"':'')+'><span class="st '+cls(f.s)+'"></span><div><b>'+f.ico+' '+E(f.nome)+'</b><small>'+E(f.info)+(f.acao?' · abrir →':'')+'</small></div></div>'}).join('')+'</div>'}
+  return '<div class="mp"><div class="mp-bar"><span class="mp-marca"><i></i>'+E((BRAND&&BRAND.nome)||'NexTap')+' · Agentes</span><span class="row" style="gap:6px">'+(MPD?'<button class="mp-voltar" onclick="MPD=null;draw()">← Visão geral</button>':'')+'<input class="mp-busca" placeholder="Buscar agente…" value="'+E(MPQ)+'" oninput="MPQ=this.value;mpRedesenhar(this)"></span></div>'
+    +'<div class="mp-scroll" id="mpsc"><svg viewBox="0 0 1200 820" role="img" aria-label="Mapa dos agentes da empresa"><g class="mp-cena" style="'+tr+'">'+lin+rot+nos+hub+'</g></svg></div>'
+    +'<div class="mp-leg"><span style="--c:#c6f432">trabalhando</span><span style="--c:#f5b942">pede sua atenção</span><span style="--c:#ff6b6e">parado</span><span style="--c:#3a4148">em breve / desligado</span></div>'+painel+'</div>'}
+function mpDep(id){MPD=MPD===id?null:id;draw()}
+// No celular o mapa abre maior, com rolagem para os lados, começando pelo centro (Gerente)
+function mpCentralizar(){var e=$('mpsc');if(e&&e.scrollWidth>e.clientWidth&&!e.dataset.ok){e.scrollLeft=(e.scrollWidth-e.clientWidth)/2;e.scrollTop=(e.scrollHeight-e.clientHeight)/2;e.dataset.ok=1}}
+function mpRedesenhar(el){var p=el.selectionStart;draw();var n=document.querySelector('.mp-busca');if(n){n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
+function vListaAgentes(){var n=mpNos(),cls={on:'ok',warn:'wa',err:'er',off:'',lock:''},nome={on:'trabalhando',warn:'atenção',err:'parado',off:'desligado',lock:'em breve'};
+  return '<div class="card" style="overflow-x:auto"><table class="ls-t"><tr><th>Departamento</th><th>Agente</th><th>Status</th><th>Agora</th><th></th></tr>'
+    +[['DIRETORIA',[{nome:'Gerente',ico:n.hub.ico,s:'on',info:n.hub.info,acao:n.hub.acao}]]].concat(n.deps.map(function(d){return [d.nome,d.filhos]})).map(function(r){return r[1].map(function(f,i){return '<tr><td class="mut sm">'+(i?'':r[0])+'</td><td><b>'+f.ico+' '+E(f.nome)+'</b></td><td><span class="tag '+cls[f.s]+'">'+nome[f.s]+'</span></td><td class="sm">'+E(f.info)+'</td><td>'+(f.acao?'<button class="btn s" onclick="'+f.acao+'">Abrir</button>':'')+'</td></tr>'}).join('')}).join('')+'</table></div>'}
 </script>
 </body>
 </html>
