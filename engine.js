@@ -191,6 +191,33 @@ async function completarNomes(sender) {
   for (const c of lista) await enriquecerContato(c, sender);
 }
 
+// ---------- pausa inteligente ----------
+const esperaEquipe = () => (Number(getSetting('espera_equipe_min')) || 15) * 60e3;
+const voltaDepois = () => (Number(getSetting('handoff_hours')) || 2) * 3600e3;
+// Contas de teste (Configurações): o robô nunca fica pausado para elas, para dar para testar à vontade
+const contasTeste = () => String(getSetting('contas_teste') || '').toLowerCase().split(/[\s,;]+/).map(x => x.replace(/^@/, '')).filter(Boolean);
+const ehTeste = c => !!(c && c.username) && contasTeste().includes(String(c.username).toLowerCase());
+// Alguém da equipe respondeu (pelo painel ou pelo app do Instagram): o robô fica quieto e volta X horas depois da ÚLTIMA resposta
+function respostaDaEquipe(contatoId, texto, { registrarMsg = true } = {}) {
+  if (registrarMsg) registrar(contatoId, 'out', 'manual', texto);
+  db.prepare('UPDATE contacts SET needs_human = 0, human_priority = 0, handoff_em = NULL, humano_em = ?, bot_paused_until = ? WHERE id = ?')
+    .run(agora(), agora() + voltaDepois(), contatoId);
+}
+// Eco do Instagram: se não foi o robô que mandou, foi alguém da equipe pelo app
+function processarEco(ev) {
+  const c = db.prepare('SELECT * FROM contacts WHERE channel = ? AND ext_id = ?').get(ev.canal || 'instagram', String(ev.extId));
+  if (!c) return { acao: 'ignorado', motivo: 'contato desconhecido' };
+  if (require('./instagram.js').ehMeu(ev.mid)) return { acao: 'ignorado', motivo: 'enviada pelo robô' };
+  const texto = String(ev.texto || '').trim();
+  // segurança extra: a mesma mensagem acabou de sair do robô (o código dela pode não ter voltado ainda)
+  if (texto && db.prepare("SELECT 1 FROM messages WHERE contact_id = ? AND direction = 'out' AND text = ? AND created_at > ?").get(c.id, texto, agora() - 120e3)) {
+    return { acao: 'ignorado', motivo: 'enviada pelo robô' };
+  }
+  if (ehTeste(c)) { registrar(c.id, 'out', 'manual', texto || '[mídia]'); return { acao: 'registrado', motivo: 'conta de teste' }; }
+  respostaDaEquipe(c.id, texto || '[mídia]');
+  return { acao: 'pausado', ate: agora() + voltaDepois() };
+}
+
 function limiteAtingido(contatoId) {
   const max = Number(getSetting('max_replies_hour')) || 8;
   const n = db.prepare("SELECT COUNT(*) AS n FROM messages WHERE contact_id = ? AND direction = 'out' AND status = 'ok' AND created_at > ?")
@@ -263,8 +290,8 @@ async function enviarFluxo(contato, fluxo, sender) {
     avisarHumano(contato, fluxo, prio);
   }
   if (fluxo.action === 'handoff') {
-    const h = Number(getSetting('handoff_hours')) || 12;
-    db.prepare('UPDATE contacts SET bot_paused_until = ? WHERE id = ?').run(agora() + h * 3600e3, contato.id);
+    // Pausa curta, esperando a equipe. Se ninguém responder nesse tempo, o tick religa o robô e avisa o cliente.
+    db.prepare('UPDATE contacts SET bot_paused_until = ?, handoff_em = ? WHERE id = ?').run(agora() + esperaEquipe(), agora(), contato.id);
   } else if (fluxo.action === 'silenciar') {
     db.prepare('UPDATE contacts SET needs_human = 0, human_priority = 0, bot_paused_until = ? WHERE id = ?').run(agora() + 365 * 86400e3, contato.id);
   }
@@ -315,8 +342,9 @@ async function processarMensagem(ev, sender) {
   registrar(contato.id, 'in', 'texto', ev.texto || (ev.payload ? `[botão] ${ev.payload}` : ''));
 
   const atual = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contato.id);
-  if (atual.bot_paused_until > agora()) return { acao: 'ignorada', motivo: 'pausado' };
-  if (limiteAtingido(contato.id)) return { acao: 'ignorada', motivo: 'limite_por_hora' };
+  const teste = ehTeste(atual);
+  if (atual.bot_paused_until > agora() && !teste) return { acao: 'ignorada', motivo: 'pausado' };
+  if (limiteAtingido(contato.id) && !teste) return { acao: 'ignorada', motivo: 'limite_por_hora' };
 
   let fluxo = null;
   const m = /^FLOW:(\d+)$/.exec(ev.payload || '');
@@ -383,7 +411,7 @@ async function processarComentario(ev, sender) {
   let contato = upsertContato({ canal: ev.canal, extId: ev.fromId, username: ev.username });
   contato = await enriquecerContato(contato, sender);
   registrar(contato.id, 'in', 'comentario', ev.texto);
-  if (contato.bot_paused_until > agora()) return { acao: 'ignorada', motivo: 'pausado' };
+  if (contato.bot_paused_until > agora() && !ehTeste(contato)) return { acao: 'ignorada', motivo: 'pausado' };
   const texto = fluxo.comment_text ? aplicarVars(fluxo.comment_text, contato) : passoParaTexto(passoComVars(fluxo.steps[0], contato));
   try {
     await sender.sendPrivateReply(ev.commentId, texto);
@@ -428,6 +456,14 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
       if (tagsDe(c).includes('VENDA')) continue;   // já comprou: não recebe "vi que você abriu o pedido"
       await enviarFluxo(c, escolherVariante(c, f), sender); out.agenda++;
     }
+    // Pediu atendente e ninguém da equipe respondeu a tempo: o robô volta e avisa o cliente (uma vez)
+    for (const c of db.prepare(`SELECT * FROM contacts WHERE channel = ? AND handoff_em IS NOT NULL AND bot_paused_until <= ?
+        AND (humano_em IS NULL OR humano_em < handoff_em)`).all(canal, t0)) {
+      db.prepare('UPDATE contacts SET handoff_em = NULL WHERE id = ?').run(c.id);
+      if (t0 - c.last_inbound_at > JANELA - MARGEM) continue;
+      const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'equipe_demorou' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
+      if (r) { await enviarFluxo(c, lerFluxo(r), sender); out.retomados = (out.retomados || 0) + 1; }
+    }
     if (getSetting('followups_enabled') === '1') {
       const porSeg = {};
       for (const f of db.prepare("SELECT * FROM flows WHERE kind = 'followup' AND active = 1 AND variante_de IS NULL ORDER BY delay_hours, id").all().map(lerFluxo)) {
@@ -457,4 +493,4 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
   return out;
 }
 
-module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, escolherVariante, telefoneDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
+module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, escolherVariante, telefoneDe, processarEco, respostaDaEquipe, ehTeste, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };

@@ -66,3 +66,14 @@ Instale em Visão geral → **Instalar funil de vendas** (os fluxos atuais são 
   Compartilhar → Adicionar à Tela de Início; Android: Chrome → ⋮ → Adicionar à tela inicial) e ligue. Cada aparelho escolhe o
   que recebe: lead quente, lead grande, pediu atendente, mandou o WhatsApp, cadastro/pedido no site, venda, mensagem no WhatsApp,
   robô parado. Tocar no aviso abre a conversa. As chaves (VAPID) são criadas sozinhas e ficam no banco.
+
+
+## Pausa inteligente (robô sempre ligado)
+- O robô responde todo mundo, o tempo todo. Ele só fica quieto numa conversa enquanto alguém da equipe está falando com a pessoa.
+- Pediu atendente: o robô pausa só por alguns minutos (Configurações → padrão 15). Se ninguém da equipe responder nesse tempo,
+  ele volta e manda "Nossa equipe já foi avisada…" (fluxo automático "Equipe não respondeu a tempo").
+- Alguém da equipe respondeu, pelo painel ou **pelo app do Instagram** (o robô reconhece pelo eco da mensagem): o robô volta
+  sozinho X horas depois da última resposta da equipe (padrão 2h).
+- "Parar" continua silenciando a pessoa de vez.
+- **Contas de teste** (Configurações): o robô nunca pausa para elas. Na lista de Conversas aparece "⏸ até 18:40" e o botão
+  "Religar agora".

@@ -33,15 +33,25 @@ function assinaturaValida(corpoBruto, cabecalho, segredo) {
 }
 
 // Transforma o corpo do webhook em eventos simples para o motor. Ignora ecos (mensagens enviadas por nós).
+// Mensagens que o próprio robô enviou (para não confundir o eco delas com uma resposta da equipe pelo app)
+const meus = new Map();
+const lembrar = r => { if (r && r.message_id) { meus.set(r.message_id, Date.now()); if (meus.size > 5000) for (const [k, t] of meus) if (Date.now() - t > 3600e3) meus.delete(k); } return r; };
+const ehMeu = mid => !!mid && meus.has(mid);
+
 function lerWebhook(corpo) {
-  const out = { mensagens: [], comentarios: [] };
+  const out = { mensagens: [], comentarios: [], ecos: [] };
   if (!corpo || corpo.object !== 'instagram') return out;
   for (const entry of corpo.entry || []) {
     const meuId = String(entry.id || '');
     for (const m of entry.messaging || []) {
       const de = String((m.sender && m.sender.id) || '');
+      // Eco: mensagem enviada pela conta (pelo robô ou por alguém da equipe pelo app do Instagram)
+      if (m.message && m.message.is_echo) {
+        const para = String((m.recipient && m.recipient.id) || '');
+        if (para && para !== meuId) out.ecos.push({ canal: 'instagram', extId: para, texto: m.message.text || '', mid: m.message.mid || null });
+        continue;
+      }
       if (!de || de === meuId) continue;
-      if (m.message && m.message.is_echo) continue;
       if (m.message) {
         const texto = m.message.text || '';
         const payload = (m.message.quick_reply && m.message.quick_reply.payload) || null;
@@ -105,19 +115,19 @@ const sender = {
   async send(contato, passo) {
     const destino = { id: contato.ext_id };
     try {
-      return await chamar(`${quem()}/messages`, { recipient: destino, message: montarMensagem(passo) });
+      return lembrar(await chamar(`${quem()}/messages`, { recipient: destino, message: montarMensagem(passo) }));
     } catch (e) {
       // Botão/respostas rápidas podem ser recusados em algumas contas: manda o texto com o link para a pessoa não ficar sem resposta.
       if (passo.type !== 'text' && passo.type !== 'video' && passo.type !== 'image' && e.status === 400) {
         console.warn('[IG] formato rico recusado, reenviando como texto:', e.message);
-        return chamar(`${quem()}/messages`, { recipient: destino, message: { text: emTexto(passo) } });
+        return lembrar(await chamar(`${quem()}/messages`, { recipient: destino, message: { text: emTexto(passo) } }));
       }
       throw e;
     }
   },
   perfil,
   async sendPrivateReply(commentId, texto) {
-    return chamar(`${quem()}/messages`, { recipient: { comment_id: commentId }, message: { text: corta(texto, 1000) } });
+    return lembrar(await chamar(`${quem()}/messages`, { recipient: { comment_id: commentId }, message: { text: corta(texto, 1000) } }));
   },
 };
 
@@ -164,4 +174,4 @@ async function renovarSeNecessario() {
   catch (e) { console.error('[IG] falha ao renovar token:', e.message); require('./db.js').setSetting('ig_token_erro', e.message.slice(0, 200)); return null; }
 }
 
-module.exports = { conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, renovarSeNecessario, montarMensagem };
+module.exports = { ehMeu, conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, renovarSeNecessario, montarMensagem };

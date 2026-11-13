@@ -134,7 +134,7 @@ function validarFluxo(b) {
   if (tipo === 'normal' && !palavras.length) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   if (palavras.length > 50) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   const evento = b.event ? String(b.event).trim().slice(0, 40) : null;
-  if (tipo === 'evento' && !['clique_link', 'resposta_followup', 'recebeu_whatsapp'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
+  if (tipo === 'evento' && !['clique_link', 'resposta_followup', 'recebeu_whatsapp', 'equipe_demorou'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
   const atraso = Number(b.delay_hours) || 0;
   if (tipo === 'followup' && !(atraso >= 0.5 && atraso <= 23)) return { erro: 'Follow-up: envie entre 0,5 e 23 horas após a última mensagem da pessoa (limite de 24h do Instagram).' };
   const publico = tipo === 'followup' ? (b.audience || 'checkout') : null;
@@ -295,7 +295,9 @@ const REGRAS = {
   fallback_enabled: v => v === '0' || v === '1',
   fallback_text: v => v.length <= 1000,
   fallback_cooldown_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 168,
-  handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 720,
+  handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 48,
+  espera_equipe_min: v => /^\d+$/.test(v) && v >= 1 && v <= 240,
+  contas_teste: v => v.length <= 300,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
   wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,
   preco_revenda: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
@@ -390,7 +392,7 @@ router.get('/dashboard', (req, res) => {
 router.get('/contatos', (req, res) => {
   const so = (req.query.precisa === '1' ? ' AND c.needs_human = 1' : '') + (req.query.tag ? ' AND c.tags LIKE @tag' : '');
   const lista = db.prepare(`
-    SELECT c.id, c.channel, c.username, c.name, c.needs_human, c.human_priority, c.bot_paused_until, c.last_inbound_at, c.tags, c.followup_step, c.followup_seq,
+    SELECT c.id, c.channel, c.username, c.name, c.needs_human, c.human_priority, c.bot_paused_until, c.handoff_em, c.last_inbound_at, c.tags, c.followup_step, c.followup_seq,
       (SELECT MAX(created_at) FROM messages m WHERE m.contact_id = c.id) AS last_at,
       (SELECT text FROM messages m WHERE m.contact_id = c.id ORDER BY id DESC LIMIT 1) AS last_text,
       (SELECT direction FROM messages m WHERE m.contact_id = c.id ORDER BY id DESC LIMIT 1) AS last_dir, c.last_click_at
@@ -403,7 +405,7 @@ router.get('/contatos/:id/mensagens', (req, res) => {
     .all(req.params.id).reverse());
 });
 router.post('/contatos/:id/retomar', (req, res) => {
-  const r = db.prepare('UPDATE contacts SET needs_human = 0, human_priority = 0, bot_paused_until = 0 WHERE id = ?').run(req.params.id);
+  const r = db.prepare('UPDATE contacts SET needs_human = 0, human_priority = 0, bot_paused_until = 0, handoff_em = NULL WHERE id = ?').run(req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Contato não encontrado.' });
   res.json({ ok: true });
 });
@@ -425,10 +427,8 @@ router.post('/contatos/:id/responder', async (req, res) => {
   }
   try {
     await ig.sender.send(c, { type: 'text', text: texto });
-    engine.registrar(c.id, 'out', 'manual', texto);
-    // Quem respondeu à mão assume a conversa: o robô fica quieto por um tempo
-    const h = Number(getSetting('handoff_hours')) || 12;
-    db.prepare('UPDATE contacts SET needs_human = 0, human_priority = 0, bot_paused_until = ? WHERE id = ?').run(Date.now() + h * 3600e3, c.id);
+    // Quem respondeu à mão assume a conversa: o robô fica quieto e volta sozinho X horas depois da última resposta
+    engine.respostaDaEquipe(c.id, texto);
     res.json({ ok: true });
   } catch (e) {
     engine.registrar(c.id, 'out', 'manual', texto, { erro: e.message });
