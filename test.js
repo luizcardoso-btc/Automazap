@@ -6,6 +6,7 @@ process.env.META_VERIFY_TOKEN = 'verificar-123';
 process.env.NODE_ENV = 'test';
 process.env.STEP_DELAY_MS = '0';
 process.env.CLICK_DELAY_MS = '0';
+process.env.WA_GAP_MS = '0';
 const assert = require('assert');
 const crypto = require('crypto');
 const http = require('http');
@@ -623,6 +624,136 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     f.close();
   });
   gfake.close();
+
+
+  console.log('WhatsApp (Evolution API simulada)');
+  // Evolution falsa: guarda o que recebeu e responde como a API real
+  const evo = { chamadas: [], estado: 'open', falhar: false };
+  const evoSrv = http.createServer((rq, rs) => {
+    let b = ''; rq.on('data', c => b += c); rq.on('end', () => {
+      const corpo = b ? JSON.parse(b) : null; evo.chamadas.push({ metodo: rq.method, url: rq.url, apikey: rq.headers.apikey, corpo });
+      const ok = j => { rs.writeHead(200, { 'Content-Type': 'application/json' }); rs.end(JSON.stringify(j)); };
+      if (evo.falhar) { rs.writeHead(500); return rs.end('{"message":"caiu"}'); }
+      if (rq.url.startsWith('/instance/connectionState/')) return ok({ instance: { instanceName: 'nextap', state: evo.estado } });
+      if (rq.url.startsWith('/instance/fetchInstances')) return ok([{ name: 'nextap', ownerJid: '5575999990000@s.whatsapp.net' }]);
+      if (rq.url === '/instance/create') { rs.writeHead(403, { 'Content-Type': 'application/json' }); return rs.end('{"response":{"message":["This name \"nextap\" is already in use."]}}'); }
+      if (rq.url.startsWith('/instance/connect/')) return ok({ base64: 'data:image/png;base64,QUJD', pairingCode: 'ABCD1234' });
+      if (rq.url.startsWith('/webhook/set/')) return ok({ webhook: corpo.webhook });
+      if (rq.url.startsWith('/group/fetchAllGroups/')) return ok([{ id: '120363000000000001@g.us', subject: 'Vendas NexTap', size: 42 }]);
+      if (rq.url.startsWith('/message/send')) return ok({ key: { id: 'ID' + evo.chamadas.length, remoteJid: corpo.number } });
+      rs.writeHead(404); rs.end('{}');
+    });
+  });
+  await new Promise(r => evoSrv.listen(0, r));
+  const wa = require('./whatsapp.js');
+  const enviosEvo = () => evo.chamadas.filter(c => c.url.startsWith('/message/send'));
+  await t('sem EVOLUTION_URL: status diz que não está configurado e envio explica o que falta', async () => {
+    const st = (await chamar('GET', '/api/whatsapp/status', { headers: H })).json; assert.strictEqual(st.configurado, false);
+    const c = (await chamar('POST', '/api/whatsapp/conversas', { corpo: { numero: '75 98888-1111' }, headers: H })).json;
+    const r = await chamar('POST', `/api/whatsapp/conversas/${c.id}/enviar`, { corpo: { texto: 'oi' }, headers: H });
+    assert.strictEqual(r.status, 502); assert.ok(r.json.error.includes('EVOLUTION_URL'));
+  });
+  process.env.EVOLUTION_URL = `http://127.0.0.1:${evoSrv.address().port}`; process.env.EVOLUTION_API_KEY = 'chave-evo';
+  await t('números: DDD vira +55, 9º dígito não atrapalha a ligação com a empresa', () => {
+    assert.strictEqual(wa.normalizarNumero('(75) 98820-9055'), '5575988209055');
+    assert.strictEqual(wa.normalizarNumero('+351 912 345 678'), '351912345678');
+    assert.strictEqual(wa.normalizarNumero('123'), '');
+    assert.strictEqual(wa.chaveTel('5575988209055'), wa.chaveTel('557588209055'));
+  });
+  await t('status conectado mostra o número; conectar devolve QR e configura o webhook com token', async () => {
+    const st = (await chamar('GET', '/api/whatsapp/status', { headers: H })).json;
+    assert.strictEqual(st.estado, 'open'); assert.strictEqual(st.numero, '5575999990000');
+    const q = (await chamar('POST', '/api/whatsapp/conectar', { headers: H })).json;
+    assert.ok(q.qr.startsWith('data:image/png;base64,')); assert.strictEqual(q.codigo, 'ABCD1234'); assert.strictEqual(q.webhook, 'ok');
+    const wh = evo.chamadas.find(c => c.url.startsWith('/webhook/set/'));
+    assert.ok(wh.corpo.webhook.url.endsWith('/webhook/whatsapp/' + wa.tokenWebhook())); assert.strictEqual(wh.apikey, 'chave-evo');
+    assert.strictEqual((await chamar('GET', '/api/whatsapp/status')).status, 401);
+  });
+  let pid;
+  await t('abrir conversa por empresa da Prospecção liga o número à empresa; enviar registra no histórico e marca "abordado"', async () => {
+    pid = (await chamar('POST', '/api/prospeccao', { corpo: { nome: 'Barbearia do Zé', telefone: '(75) 98820-9055', segmento: 'Barbearia' }, headers: H })).json.id;
+    const c = (await chamar('POST', '/api/whatsapp/conversas', { corpo: { prospect_id: pid }, headers: H })).json;
+    assert.strictEqual(c.prospect_id, pid); assert.strictEqual(c.jid, '5575988209055@s.whatsapp.net'); assert.strictEqual(c.empresa, 'Barbearia do Zé');
+    const r = await chamar('POST', `/api/whatsapp/conversas/${c.id}/enviar`, { corpo: { texto: 'Oi! Vi a Barbearia do Zé no Google…' }, headers: H });
+    assert.strictEqual(r.status, 200, JSON.stringify(r.json));
+    const env = enviosEvo().pop(); assert.strictEqual(env.url, '/message/sendText/nextap'); assert.strictEqual(env.corpo.number, '5575988209055');
+    const p = (await chamar('GET', '/api/prospeccao/' + pid, { headers: H })).json;
+    assert.strictEqual(p.status, 'abordado'); assert.ok(p.historico.some(h => h.tipo === 'whatsapp' && h.texto.includes('Abordagem')));
+  });
+  await t('webhook: resposta da empresa entra na conversa (mesmo sem o 9), conta como não lida e vai para o histórico', async () => {
+    const corpo = { event: 'messages.upsert', instance: 'nextap', data: { key: { remoteJid: '557588209055@s.whatsapp.net', fromMe: false, id: 'IN1' }, pushName: 'Zé', message: { conversation: 'Pode mandar!' }, messageTimestamp: Math.floor(Date.now() / 1000) } };
+    assert.strictEqual((await chamar('POST', '/webhook/whatsapp/token-errado', { corpo })).status, 401);
+    assert.strictEqual((await chamar('POST', '/webhook/whatsapp/' + wa.tokenWebhook(), { corpo })).status, 200);
+    await chamar('POST', '/webhook/whatsapp/' + wa.tokenWebhook(), { corpo });   // repetido: não duplica
+    await new Promise(r => setTimeout(r, 30));
+    const l = (await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json;
+    const c = l.find(x => x.prospect_id === pid);
+    assert.ok(c, 'conversa da empresa não encontrada: ' + JSON.stringify(l.map(x => x.jid)));
+    assert.strictEqual(c.nao_lidas, 1); assert.strictEqual(c.ultimo_texto, 'Pode mandar!');
+    const det = (await chamar('GET', '/api/whatsapp/conversas/' + c.id, { headers: H })).json;
+    assert.deepStrictEqual(det.mensagens.map(m => m.direcao), ['out', 'in']);
+    assert.strictEqual((await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json.find(x => x.id === c.id).nao_lidas, 0);
+    const p = (await chamar('GET', '/api/prospeccao/' + pid, { headers: H })).json; assert.ok(p.historico.some(h => h.texto.includes('Respondeu no WhatsApp: Pode mandar!')));
+  });
+  await t('webhook ignora grupos e status; mensagem enviada pelo celular aparece como "pelo celular"', async () => {
+    const ev = data => chamar('POST', '/webhook/whatsapp/' + wa.tokenWebhook(), { corpo: { event: 'messages.upsert', data } });
+    await ev({ key: { remoteJid: '120363000000000001@g.us', fromMe: false, id: 'G1' }, message: { conversation: 'msg no grupo' } });
+    await ev({ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'S1' }, message: { conversation: 'story' } });
+    await ev({ key: { remoteJid: '5575977776666@s.whatsapp.net', fromMe: true, id: 'C1' }, message: { extendedTextMessage: { text: 'mandei do celular' } } });
+    await new Promise(r => setTimeout(r, 30));
+    const l = (await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json;
+    assert.ok(!l.some(c => c.jid.endsWith('@g.us')));
+    const c = l.find(x => x.jid === '5575977776666@s.whatsapp.net'); assert.ok(c); assert.strictEqual(c.ultima_direcao, 'out');
+  });
+  await t('limite diário de primeiras mensagens protege o número (conversas respondidas não contam)', async () => {
+    setSetting('wa_max_novos_dia', '1');
+    const a = (await chamar('POST', '/api/whatsapp/conversas', { corpo: { numero: '75 91111-0001' }, headers: H })).json;
+    const r = await chamar('POST', `/api/whatsapp/conversas/${a.id}/enviar`, { corpo: { texto: 'oi' }, headers: H });
+    assert.strictEqual(r.status, 429); assert.ok(r.json.error.includes('bloquear'));
+    const z = (await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json.find(x => x.prospect_id === pid);
+    assert.strictEqual((await chamar('POST', `/api/whatsapp/conversas/${z.id}/enviar`, { corpo: { texto: 'segue o vídeo' }, headers: H })).status, 200);
+    setSetting('wa_max_novos_dia', '30');
+  });
+  await t('grupos: lista os grupos do número conectado', async () => {
+    const g = (await chamar('GET', '/api/whatsapp/grupos', { headers: H })).json;
+    assert.deepStrictEqual(g, [{ jid: '120363000000000001@g.us', nome: 'Vendas NexTap', membros: 42 }]);
+  });
+  await t('próximo envio: único, semanal (dias marcados) e horário de Brasília', () => {
+    const base = Date.parse('2026-11-13T12:00:00-03:00');   // sexta-feira, 12h
+    assert.strictEqual(wa.proximoEnvio({ hora: '09:00', data: '2026-11-14', dias: '[]' }, base), Date.parse('2026-11-14T09:00:00-03:00'));
+    assert.strictEqual(wa.proximoEnvio({ hora: '09:00', data: '2026-11-13', dias: '[]' }, base), null);
+    assert.strictEqual(wa.proximoEnvio({ hora: '18:30', dias: '[5]' }, base), Date.parse('2026-11-13T18:30:00-03:00'));
+    assert.strictEqual(wa.proximoEnvio({ hora: '09:00', dias: '[1,3]' }, base), Date.parse('2026-11-16T09:00:00-03:00'));
+    assert.strictEqual(wa.proximoEnvio({ hora: '09:00', dias: '[5]' }, base), Date.parse('2026-11-20T09:00:00-03:00'));
+  });
+  await t('disparos: validação, envio no horário para o grupo, reagenda a semana e não repete', async () => {
+    const post = corpo => chamar('POST', '/api/whatsapp/disparos', { corpo, headers: H });
+    assert.strictEqual((await post({ alvo_jid: '120363000000000001@g.us', texto: '', hora: '09:00', dias: [1] })).status, 400);
+    assert.strictEqual((await post({ alvo_jid: '120363000000000001@g.us', texto: 'x', hora: '9h', dias: [1] })).status, 400);
+    assert.strictEqual((await post({ alvo_jid: '120363000000000001@g.us', texto: 'x', hora: '09:00', data: '2020-01-01' })).status, 400);
+    const d = (await post({ nome: 'Bom dia', alvo_jid: '120363000000000001@g.us', alvo_nome: 'Vendas NexTap', texto: 'Bom dia, time! 🚀', hora: '08:00', dias: [0, 1, 2, 3, 4, 5, 6] })).json;
+    assert.ok(d.proximo_em > Date.now()); assert.deepStrictEqual(d.dias, [0, 1, 2, 3, 4, 5, 6]);
+    const antes = enviosEvo().length;
+    assert.strictEqual((await wa.tick({ agoraMs: d.proximo_em - 1000 })).enviados, 0);
+    assert.strictEqual((await wa.tick({ agoraMs: d.proximo_em + 1000 })).enviados, 1);
+    const e = enviosEvo().pop(); assert.strictEqual(e.corpo.number, '120363000000000001@g.us'); assert.strictEqual(e.corpo.text, 'Bom dia, time! 🚀');
+    assert.strictEqual((await wa.tick({ agoraMs: d.proximo_em + 2000 })).enviados, 0, 'repetiu');
+    const depois = (await chamar('GET', '/api/whatsapp/disparos', { headers: H })).json.find(x => x.id === d.id);
+    assert.strictEqual(depois.proximo_em, d.proximo_em + 86400e3); assert.strictEqual(depois.enviados, 1); assert.strictEqual(enviosEvo().length, antes + 1);
+    assert.strictEqual((await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json.some(c => c.jid.endsWith('@g.us')), false, 'grupo apareceu na caixa de entrada');
+  });
+  await t('disparo único com imagem: sai uma vez e some da agenda; erro da Evolution fica registrado', async () => {
+    const amanha = new Date(Date.now() - 3 * 3600e3 + 86400e3).toISOString().slice(0, 10);
+    const d = (await chamar('POST', '/api/whatsapp/disparos', { corpo: { alvo_jid: '75 98820-9055', texto: 'Oferta', midia_url: 'https://x.com/oferta.jpg', hora: '10:00', data: amanha }, headers: H })).json;
+    assert.strictEqual(d.alvo_jid, '5575988209055@s.whatsapp.net');
+    await wa.tick({ agoraMs: d.proximo_em + 1000 });
+    const e = enviosEvo().pop(); assert.strictEqual(e.url, '/message/sendMedia/nextap'); assert.strictEqual(e.corpo.mediatype, 'image'); assert.strictEqual(e.corpo.caption, 'Oferta');
+    assert.strictEqual((await chamar('GET', '/api/whatsapp/disparos', { headers: H })).json.find(x => x.id === d.id).proximo_em, null);
+    evo.falhar = true;
+    const r = await chamar('POST', `/api/whatsapp/disparos/${d.id}/enviar-agora`, { headers: H }); evo.falhar = false;
+    assert.strictEqual(r.status, 502); assert.ok((await chamar('GET', '/api/whatsapp/disparos', { headers: H })).json.find(x => x.id === d.id).ultimo_erro.includes('500'));
+  });
+  evoSrv.close();
 
   srv.close();
   console.log(`\n${ok} passaram, ${falhou} falharam`);

@@ -8,6 +8,7 @@ Robô de respostas por palavra-chave. Hoje: **Instagram**. O motor (`engine.js`)
 | `instagram.js` | Webhook assinado, envio de texto/botão/respostas rápidas, resposta privada a comentário, renovação do token |
 | `routes-api.js`, `panel.html` | Painel: fluxos, conversas, simulador, configurações |
 | `prospeccao.js` | Prospecção: busca empresas no Google (Places API) por região, nota de oportunidade, funil de vendas, histórico e script de vendas personalizado (aba **Prospecção** do painel). Precisa de `GOOGLE_PLACES_API_KEY`. |
+| `whatsapp.js` | WhatsApp pela Evolution API: conversas com empresas (roteiros de venda, histórico na Prospecção), disparos programados para grupos e limite diário de primeiras mensagens (aba **WhatsApp**). Guia: **SETUP-WHATSAPP.md** |
 | `seed.js` | Fluxos iniciais da NexTap (preço, NFC, prazo, nota fiscal, atendente, parar) |
 | `db.js` | SQLite com migrações só-aditivas e backup diário |
 | `test.js` | Testes automáticos (`npm test`) |

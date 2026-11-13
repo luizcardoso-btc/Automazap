@@ -42,6 +42,7 @@ router.use((req, res, next) => {
 });
 
 router.use('/prospeccao', require('./prospeccao.js'));
+router.use('/whatsapp', require('./whatsapp.js').router);
 
 // ---------- status ----------
 router.get('/status', (req, res) => {
@@ -197,6 +198,7 @@ const REGRAS = {
   fallback_cooldown_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 168,
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 720,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
+  wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,
 };
 // ---------- vídeo/imagem enviados pelo painel (servidos em /media) ----------
 const dirMidia = () => { const d = path.join(path.dirname(require('./db.js').arquivo === ':memory:' ? path.join(os.tmpdir(), 'x') : require('./db.js').arquivo), 'media'); fs.mkdirSync(d, { recursive: true }); return d; };
