@@ -59,6 +59,16 @@ app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req,
   })();
 });
 
+// ---------- Webhook do WhatsApp (Evolution API) ----------
+// O token no caminho é derivado da senha do painel: só a Evolution configurada pelo painel conhece o endereço.
+const wa = require('./whatsapp.js');
+app.post('/webhook/whatsapp/:token', express.json({ limit: '5mb' }), (req, res) => {
+  const a = Buffer.from(String(req.params.token)), b = Buffer.from(wa.tokenWebhook());
+  if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) return res.sendStatus(401);
+  res.sendStatus(200);
+  try { wa.processarWebhook(req.body); } catch (e) { console.error('[WHATSAPP] webhook:', e.message); }
+});
+
 // ---------- Painel e API ----------
 app.use(express.json({ limit: '1mb' }));
 const marca = require('./marca.js');
@@ -87,6 +97,8 @@ if (require.main === module) {
   if (!getSetting('public_url') && process.env.RAILWAY_PUBLIC_DOMAIN) setSetting('public_url', 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN);
   // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
   setInterval(() => { if (ig.configurado().token) { engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); engine.completarNomes(ig.sender).catch(() => {}); } }, 15000).unref();
+  // Disparos programados do WhatsApp
+  setInterval(() => { wa.tick().catch(e => console.error('[WHATSAPP]', e.message)); }, 20000).unref();
   setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();
   setInterval(() => ig.renovarSeNecessario().catch(() => {}), 6 * 3600e3).unref();
   setInterval(() => { try { backupAgora(); limparAntigos(); } catch (e) { console.error('[BACKUP]', e.message); } }, 24 * 3600e3).unref();

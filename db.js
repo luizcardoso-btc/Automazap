@@ -105,6 +105,65 @@ const MIGRACOES = [
     );
     CREATE INDEX idx_prospect_hist ON prospect_hist(prospect_id, id);
   `),
+  // v4: follow-ups por etapa do funil, sem recomeçar a sequência a cada mensagem.
+  // Só cria o que falta: bancos que rodaram a primeira versão desta mudança (como "v3") já têm as colunas.
+  db => {
+    const tem = (tabela, col) => db.prepare(`PRAGMA table_info(${tabela})`).all().some(c => c.name === col);
+    if (!tem('flows', 'audience')) db.exec('ALTER TABLE flows ADD COLUMN audience TEXT');              // followup: checkout | revenda_qtd | revenda_preco | negocio
+    if (!tem('contacts', 'followup_seq')) db.exec('ALTER TABLE contacts ADD COLUMN followup_seq TEXT'); // sequência (etapa) em que a pessoa está
+    if (!tem('contacts', 'last_followup_at')) db.exec('ALTER TABLE contacts ADD COLUMN last_followup_at INTEGER NOT NULL DEFAULT 0');
+    db.exec(`
+      UPDATE flows SET audience = 'checkout' WHERE kind = 'followup' AND audience IS NULL;
+      UPDATE contacts SET followup_seq = 'checkout' WHERE followup_step > 0 AND followup_seq IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_messages_flow ON messages(flow_id, contact_id, created_at);
+    `);
+  },
+  // v5: WhatsApp (Evolution API) — conversas com empresas e disparos programados. Separado do Instagram de propósito.
+  db => db.exec(`
+    CREATE TABLE IF NOT EXISTS wa_contatos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      jid TEXT NOT NULL UNIQUE,                    -- 5575988887777@s.whatsapp.net ou id do grupo (@g.us)
+      nome TEXT NOT NULL DEFAULT '',
+      grupo INTEGER NOT NULL DEFAULT 0,
+      prospect_id INTEGER,                         -- empresa da Prospecção com o mesmo telefone
+      ultimo_in INTEGER NOT NULL DEFAULT 0,        -- ms
+      ultimo_out INTEGER NOT NULL DEFAULT 0,
+      nao_lidas INTEGER NOT NULL DEFAULT 0,
+      criado_em INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wa_mensagens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contato_id INTEGER NOT NULL REFERENCES wa_contatos(id),
+      direcao TEXT NOT NULL,                       -- in | out
+      origem TEXT NOT NULL DEFAULT 'painel',       -- cliente | painel | celular | disparo
+      texto TEXT NOT NULL DEFAULT '',
+      midia_url TEXT,
+      status TEXT NOT NULL DEFAULT 'ok',           -- ok | erro
+      erro TEXT,
+      wa_id TEXT,                                  -- id da mensagem no WhatsApp (evita duplicar)
+      criado_em INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_wa_msg ON wa_mensagens(contato_id, id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_msg_waid ON wa_mensagens(wa_id) WHERE wa_id IS NOT NULL;
+    CREATE TABLE IF NOT EXISTS wa_disparos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL DEFAULT '',
+      alvo_jid TEXT NOT NULL,
+      alvo_nome TEXT NOT NULL DEFAULT '',
+      texto TEXT NOT NULL DEFAULT '',
+      midia_url TEXT,
+      hora TEXT NOT NULL,                          -- HH:MM (horário de Brasília)
+      data TEXT,                                   -- AAAA-MM-DD, só para envio único
+      dias TEXT NOT NULL DEFAULT '[]',             -- repetir: [0..6] (0 = domingo); vazio = envio único
+      ativo INTEGER NOT NULL DEFAULT 1,
+      proximo_em INTEGER,                          -- ms do próximo envio (null = nada pendente)
+      ultimo_em INTEGER NOT NULL DEFAULT 0,
+      ultimo_erro TEXT,
+      enviados INTEGER NOT NULL DEFAULT 0,
+      criado_em INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_wa_disparos ON wa_disparos(ativo, proximo_em);
+  `),
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
@@ -146,6 +205,7 @@ const SETTINGS_PADRAO = {
   fallback_cooldown_hours: '24',
   handoff_hours: '12',
   max_replies_hour: '30',
+  wa_max_novos_dia: '30',      // WhatsApp: primeiras mensagens para números que nunca responderam, por dia (protege o número de bloqueio)
 };
 const insSet = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 Object.entries(SETTINGS_PADRAO).forEach(([k, v]) => insSet.run(k, v));
