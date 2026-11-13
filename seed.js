@@ -485,23 +485,23 @@ function instalarV5({ desativarAntigos = true } = {}) {
     if (desativarAntigos) db.prepare('UPDATE flows SET active = 0').run();
     const PEDIR = { title: 'FAZER MEU PEDIDO', url: '{{link_pedido}}' };
     const VIDEO = { title: 'VER FUNCIONANDO', url: '{{video_demo}}' };   // some sozinho se o vídeo não estiver configurado
-    const GARANTIA = 'Vai com o roteiro de vendas + troca se vier com defeito.';
-    const ULTIMA = 'Última mensagem por aqui 😄 Se preferir, me manda o seu WhatsApp com DDD que eu te ajudo por lá. 📱';
+    const GARANTIA = '✅ Acompanha o roteiro de vendas e a troca de placas com defeito.';
+    const ULTIMA = 'Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱';
 
     // ---------- fechamento ----------
     const querAjuda = criar('Botão: QUERO AJUDA', [
-      { type: 'text', text: 'Já avisei o time: em instantes alguém te ajuda a finalizar por aqui. 💚' },
+      { type: 'text', text: 'Já avisei a nossa equipe. 💚\n\nEm instantes, alguém vai ajudar você a finalizar por aqui.' },
     ], { tipo: 'botao', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
     const meChama = criar('Botão: SIM, ME CHAMA', [
-      { type: 'text', text: 'Combinado! 🔥 O comercial já foi avisado e vai te chamar aqui em instantes.' },
+      { type: 'text', text: 'Combinado! 🔥\n\nO nosso comercial já foi avisado e vai falar com você aqui em instantes.' },
     ], { tipo: 'botao', acao: 'handoff', humano: 2, tags: ['QUENTE'] });
     const verPedido = criar('Botão: VER MEU PEDIDO', [
-      { type: 'button', text: 'Seu pedido de {{qtd}} placas: R$ {{total}} (frete pelo seu CEP). É só abrir e finalizar 👇', buttons: [PEDIR] },
+      { type: 'button', text: '📦 Seu pedido de {{qtd}} placas: R$ {{total}} (o frete é calculado pelo seu CEP).\n\nÉ só abrir e finalizar: 👇', buttons: [PEDIR] },
     ], { tipo: 'botao', tags: ['VIU PREÇO'] });
 
     // ---------- oferta (o número no evento é a quantidade de exemplo da faixa) ----------
-    const ofertaA = 'Para {{qtd}} placas: R$ {{preco}} cada = R$ {{total}}.\nRevendendo a R$ {{preco_venda}}, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro. 💰\n' + GARANTIA;
-    const ofertaB = 'Com {{payback}} placas vendidas você já paga o pedido inteiro. 🚀\nPara {{qtd}} placas: R$ {{preco}} cada = R$ {{total}} (frete pelo seu CEP). O resto é lucro.\n' + GARANTIA;
+    const ofertaA = '📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n' + GARANTIA;
+    const ofertaB = '🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.\n\n' + GARANTIA;
     const oferta = (nome, evento, faixa) => {
       const tags = ['QUANTIDADE', 'QTD ' + faixa, 'VIU PREÇO'];
       const a = criar(nome, [{ type: 'button', text: ofertaA, buttons: [PEDIR, VIDEO] }], { tipo: 'botao', evento, tags });
@@ -511,79 +511,201 @@ function instalarV5({ desativarAntigos = true } = {}) {
     const q1 = oferta('Oferta: 5 a 10 placas', 'qtd5_10', '5-10');
     const q2 = oferta('Oferta: 11 a 49 placas', 'qtd5_20', '11-49');
     const q3 = criar('Oferta: 50 ou mais (lead quente)', [
-      { type: 'quick', text: 'Para {{qtd}} placas: R$ {{preco}} cada = R$ {{total}}, com R$ {{lucro}} de lucro revendendo a R$ {{preco_venda}}.\nNesse volume o comercial te atende direto. Quer que te chamem agora?', replies: [
+      { type: 'quick', text: '📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?', replies: [
         { title: 'SIM, ME CHAMA', flow_id: meChama }, { title: 'VER MEU PEDIDO', flow_id: verPedido },
       ] },
     ], { tipo: 'botao', evento: 'qtd5_50', humano: 2, tags: ['QUANTIDADE', 'QTD 50+', 'LEAD GRANDE', 'QUENTE', 'VIU PREÇO'] });
     const FAIXAS = [{ title: '5 a 10', flow_id: q1 }, { title: '11 a 49', flow_id: q2 }, { title: '50 ou mais', flow_id: q3 }];
     criar('Abaixo do pedido mínimo', [
-      { type: 'quick', text: 'O mínimo é {{minimo}} placas: é o que faz a revenda valer a pena. Com quantas quer começar?', replies: FAIXAS },
+      { type: 'quick', text: 'O pedido mínimo é de {{minimo}} placas, que é o que faz a revenda valer a pena.\n\nCom quantas você quer começar?', replies: FAIXAS },
     ], { tipo: 'botao', evento: 'qtd5_min' });
 
     // ---------- qualificação e entrada ----------
     const revender = criar('Revender: quantas placas?', [
-      { type: 'quick', text: 'Boa! 🚀 Com quantas placas você quer começar? (mínimo {{minimo}}; pode digitar o número)', replies: FAIXAS },
+      { type: 'quick', text: 'Boa escolha! 🚀\n\nCom quantas placas você quer começar?\n\nO pedido mínimo é de {{minimo}} placas. Você também pode digitar o número.', replies: FAIXAS },
     ], { prioridade: 15, palavras: ['revender', 'revenda', 'revendedor', 'revendedora', 'quero revender', 'ser revendedor'], comentario: true, tags: ['REVENDEDOR'],
-      textoComentario: 'Oi! 👋 Vamos de revenda! Com quantas placas você quer começar? Responda com um número, ex.: 20' });
+      textoComentario: 'Olá! 👋 Vamos falar de revenda!\n\nCom quantas placas você quer começar? Responda com um número, por exemplo: 20.' });
     const negocio = criar('Meu negócio: ver modelos', [
-      { type: 'button', text: 'Seu cliente aproxima o celular e cai direto na sua avaliação do Google, sem app. ⭐ Escolha o modelo e peça a sua:', buttons: [{ title: 'VER MODELOS E PEDIR', url: '{{site}}' }] },
+      { type: 'button', text: 'Com a NexTap, o seu cliente aproxima o celular da placa e abre direto a avaliação da sua empresa no Google, sem aplicativo. ⭐\n\nEscolha o modelo e faça o seu pedido:', buttons: [{ title: 'VER MODELOS E PEDIR', url: '{{site}}' }] },
     ], { prioridade: 15, palavras: ['meu negocio', 'minha empresa', 'minha loja', 'para meu negocio'], tags: ['MEU NEGÓCIO', 'VIU PREÇO'] });
     criar(NOME_ENTRADA_V5, [
-      { type: 'quick', text: 'Oi! 👋 Aqui é a NexTap: placa que leva o cliente direto pra avaliação no Google, sem app.\nÉ pra revender ou pro seu negócio?', replies: [
+      { type: 'quick', text: 'Olá! 👋 Aqui é a NexTap.\n\nA nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?', replies: [
         { title: '💰 REVENDER', flow_id: revender }, { title: '🏪 MEU NEGÓCIO', flow_id: negocio },
       ] },
     ], { prioridade: 10, comentario: true,
       palavras: ['preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
-      textoComentario: 'Oi! 👋 Me responde por aqui: é pra REVENDER ou pro seu NEGÓCIO?' });
+      textoComentario: 'Olá! 👋 Responda por aqui: a placa é para REVENDER ou para o seu NEGÓCIO?' });
 
     // ---------- respostas por palavra-chave (1 mensagem cada) ----------
     const obj = (nome, palavras, texto, extra = {}) => criar(nome, [{ type: 'button', text: texto, buttons: [PEDIR] }], { prioridade: 20, palavras, ...extra });
-    obj('Dúvida: como funciona?', ['como funciona', 'funciona', 'como e', 'como usa', 'aproximar'], 'O cliente aproxima o celular da placa (ou lê o QR Code) e abre a avaliação no Google, sem app. Você configura cada placa no painel do revendedor.');
-    obj('Dúvida: já tenho QR Code', ['ja tenho qr code', 'ja tenho qrcode', 'ja tenho qr', 'tenho qr code', 'tenho qr', 'qr code', 'qrcode'], 'Ótimo, ele continua útil. A NexTap soma o NFC: o cliente só aproxima o celular. Menos passos, mais avaliações.');
-    obj('Dúvida: está caro', ['caro', 'esta caro', 'ta caro', 'muito caro', 'achei caro', 'desconto', 'mais barato', 'barato'], 'Faz a conta comigo: {{qtd}} placas saem R$ {{total}} e, revendendo a R$ {{preco_venda}}, você recebe R$ {{receita}}. Quanto mais placas, menor o preço de cada uma.');
-    obj('Dúvida: prazo e entrega', ['prazo', 'entrega', 'frete', 'envio', 'correios', 'rastreio', 'quanto tempo', 'demora'], 'Produção em ~5 dias úteis após o pagamento, com envio rastreado 📦 O frete é calculado pelo seu CEP no pedido.');
+    obj('Dúvida: como funciona?', ['como funciona', 'funciona', 'como e', 'como usa', 'aproximar'], 'O cliente aproxima o celular da placa (ou lê o QR Code) e abre direto a avaliação no Google, sem aplicativo.\n\nVocê configura cada placa pelo painel do revendedor.');
+    obj('Dúvida: já tenho QR Code', ['ja tenho qr code', 'ja tenho qrcode', 'ja tenho qr', 'tenho qr code', 'tenho qr', 'qr code', 'qrcode'], 'Ótimo, o QR Code continua sendo útil!\n\nA NexTap soma a tecnologia NFC: o cliente só aproxima o celular. Menos passos, mais avaliações.');
+    obj('Dúvida: está caro', ['caro', 'esta caro', 'ta caro', 'muito caro', 'achei caro', 'desconto', 'mais barato', 'barato'], 'Vamos fazer a conta juntos: {{qtd}} placas saem por R$ {{total}}.\n\nRevendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}.\n\nE, quanto mais placas, menor o preço de cada uma.');
+    obj('Dúvida: prazo e entrega', ['prazo', 'entrega', 'frete', 'envio', 'correios', 'rastreio', 'quanto tempo', 'demora'], 'A produção leva cerca de 5 dias úteis após o pagamento, e o envio é rastreado. 📦\n\nO frete é calculado pelo seu CEP no pedido.');
     criar('Dúvida: nota fiscal', [
-      { type: 'text', text: 'Sobre nota fiscal, vou chamar alguém da equipe para te explicar direitinho. Já já respondemos! 🙂' },
+      { type: 'text', text: 'Sobre a nota fiscal, vou chamar alguém da equipe para explicar direitinho.\n\nJá já respondemos! 🙂' },
     ], { prioridade: 20, palavras: ['nota fiscal', 'nf', 'nfe', 'cnpj', 'cpf', 'nota'], acao: 'handoff', humano: 1 });
     criar('Falar com atendente', [
-      { type: 'text', text: 'Certo! Já avisei a equipe e uma pessoa vai te responder em breve. 💚' },
+      { type: 'text', text: 'Certo! Já avisei a equipe. 💚\n\nUma pessoa vai responder você em breve.' },
     ], { prioridade: 100, palavras: ['atendente', 'humano', 'falar com alguem', 'falar com pessoa', 'falar com atendente', 'suporte', 'ajuda'], acao: 'handoff', humano: 1 });
     criar('Parar mensagens', [
-      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+      { type: 'text', text: 'Combinado! Não envio mais mensagens automáticas.\n\nSe precisar, é só chamar. 👋' },
     ], { prioridade: 200, palavras: ['parar', 'sair', 'stop', 'cancelar', 'descadastrar'], acao: 'silenciar', modo: 'exato' });
     criar('Parar mensagens (frases)', [
-      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+      { type: 'text', text: 'Combinado! Não envio mais mensagens automáticas.\n\nSe precisar, é só chamar. 👋' },
     ], { prioridade: 200, palavras: ['nao quero receber', 'nao quero mais receber', 'nao enviar', 'nao envie', 'pare de enviar'], acao: 'silenciar' });
 
     // ---------- acompanhamento: no máximo 2 por pessoa (3h e 20h depois da última mensagem dela) ----------
     const fu = (nome, passos, publico, atraso) => criar(nome, passos, { tipo: 'followup', publico, atraso, tags: ['FOLLOW-UP'] });
     fu('3h · não escolheu a quantidade', [
-      { type: 'quick', text: 'Oi, {{nome}} 👋 A maioria começa com 10 placas. Quer ver quanto fica e quanto sobra de lucro?', replies: [
+      { type: 'quick', text: 'Oi, {{nome}}! 👋\n\nA maioria dos revendedores começa com 10 placas.\n\nQuer ver quanto fica e quanto sobra de lucro?', replies: [
         { title: '10 PLACAS', flow_id: q1 }, { title: 'OUTRA QUANTIDADE', flow_id: revender },
       ] },
     ], 'revenda_qtd', 3);
     fu('3h · viu o preço e não pediu', [
-      { type: 'button', text: 'Oi, {{nome}} 👋 Seu pedido de {{qtd}} placas continua montado: R$ {{total}}, com R$ {{lucro}} de lucro.', buttons: [PEDIR] },
+      { type: 'button', text: 'Oi, {{nome}}! 👋\n\nO seu pedido de {{qtd}} placas continua montado: R$ {{total}}, com R$ {{lucro}} de lucro.', buttons: [PEDIR] },
     ], 'revenda_preco', 3);
     fu('3h · abriu o pedido e não pagou', [
-      { type: 'quick', text: 'Oi, {{nome}} 👋 Travou em algo? Cadastro, frete ou pagamento? Eu te ajudo a finalizar.', replies: [{ title: 'QUERO AJUDA', flow_id: querAjuda }] },
+      { type: 'quick', text: 'Oi, {{nome}}! 👋\n\nFicou alguma dúvida no cadastro, no frete ou no pagamento?\n\nEu ajudo você a finalizar.', replies: [{ title: 'QUERO AJUDA', flow_id: querAjuda }] },
     ], 'checkout', 3);
     for (const [publico, quem] of [['revenda_qtd', 'não escolheu a quantidade'], ['revenda_preco', 'viu o preço'], ['checkout', 'abriu o pedido'], ['negocio', 'meu negócio']]) {
       fu('20h · última (' + quem + ')', [{ type: 'text', text: ULTIMA }], publico, 20);
     }
     criar('Respondeu a um follow-up', [
-      { type: 'text', text: 'Boa! 💚 Vou chamar alguém do time para continuar com você por aqui.' },
+      { type: 'text', text: 'Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
+    setSetting('textos_v5', '2');   // instalação nova já vem com os textos revisados
     criar('Mandou o WhatsApp', [
-      { type: 'text', text: 'Anotado! 📱 Alguém do time vai te chamar no WhatsApp para continuar por lá.' },
+      { type: 'text', text: 'Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá.' },
     ], { tipo: 'evento', evento: 'recebeu_whatsapp', humano: 1, tags: ['QUENTE'] });
   })();
   return true;
 }
 
+// Revisão dos textos do funil 3 toques (parágrafos separados e linguagem revisada). Aplica uma vez nos bancos que já tinham
+// o funil instalado e só troca a mensagem que continua igual à original: o que foi editado pelo painel não é tocado.
+const TROCAS_V5 = [
+[
+"Já avisei o time: em instantes alguém te ajuda a finalizar por aqui. 💚",
+"Já avisei a nossa equipe. 💚\n\nEm instantes, alguém vai ajudar você a finalizar por aqui."
+],
+[
+"Combinado! 🔥 O comercial já foi avisado e vai te chamar aqui em instantes.",
+"Combinado! 🔥\n\nO nosso comercial já foi avisado e vai falar com você aqui em instantes."
+],
+[
+"Seu pedido de {{qtd}} placas: R$ {{total}} (frete pelo seu CEP). É só abrir e finalizar 👇",
+"📦 Seu pedido de {{qtd}} placas: R$ {{total}} (o frete é calculado pelo seu CEP).\n\nÉ só abrir e finalizar: 👇"
+],
+[
+"Para {{qtd}} placas: R$ {{preco}} cada = R$ {{total}}.\nRevendendo a R$ {{preco_venda}}, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro. 💰\nVai com o roteiro de vendas + troca se vier com defeito.",
+"📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito."
+],
+[
+"Com {{payback}} placas vendidas você já paga o pedido inteiro. 🚀\nPara {{qtd}} placas: R$ {{preco}} cada = R$ {{total}} (frete pelo seu CEP). O resto é lucro.\nVai com o roteiro de vendas + troca se vier com defeito.",
+"🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito."
+],
+[
+"Para {{qtd}} placas: R$ {{preco}} cada = R$ {{total}}, com R$ {{lucro}} de lucro revendendo a R$ {{preco_venda}}.\nNesse volume o comercial te atende direto. Quer que te chamem agora?",
+"📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?"
+],
+[
+"O mínimo é {{minimo}} placas: é o que faz a revenda valer a pena. Com quantas quer começar?",
+"O pedido mínimo é de {{minimo}} placas, que é o que faz a revenda valer a pena.\n\nCom quantas você quer começar?"
+],
+[
+"Boa! 🚀 Com quantas placas você quer começar? (mínimo {{minimo}}; pode digitar o número)",
+"Boa escolha! 🚀\n\nCom quantas placas você quer começar?\n\nO pedido mínimo é de {{minimo}} placas. Você também pode digitar o número."
+],
+[
+"Oi! 👋 Vamos de revenda! Com quantas placas você quer começar? Responda com um número, ex.: 20",
+"Olá! 👋 Vamos falar de revenda!\n\nCom quantas placas você quer começar? Responda com um número, por exemplo: 20."
+],
+[
+"Seu cliente aproxima o celular e cai direto na sua avaliação do Google, sem app. ⭐ Escolha o modelo e peça a sua:",
+"Com a NexTap, o seu cliente aproxima o celular da placa e abre direto a avaliação da sua empresa no Google, sem aplicativo. ⭐\n\nEscolha o modelo e faça o seu pedido:"
+],
+[
+"Oi! 👋 Aqui é a NexTap: placa que leva o cliente direto pra avaliação no Google, sem app.\nÉ pra revender ou pro seu negócio?",
+"Olá! 👋 Aqui é a NexTap.\n\nA nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?"
+],
+[
+"Oi! 👋 Me responde por aqui: é pra REVENDER ou pro seu NEGÓCIO?",
+"Olá! 👋 Responda por aqui: a placa é para REVENDER ou para o seu NEGÓCIO?"
+],
+[
+"O cliente aproxima o celular da placa (ou lê o QR Code) e abre a avaliação no Google, sem app. Você configura cada placa no painel do revendedor.",
+"O cliente aproxima o celular da placa (ou lê o QR Code) e abre direto a avaliação no Google, sem aplicativo.\n\nVocê configura cada placa pelo painel do revendedor."
+],
+[
+"Ótimo, ele continua útil. A NexTap soma o NFC: o cliente só aproxima o celular. Menos passos, mais avaliações.",
+"Ótimo, o QR Code continua sendo útil!\n\nA NexTap soma a tecnologia NFC: o cliente só aproxima o celular. Menos passos, mais avaliações."
+],
+[
+"Faz a conta comigo: {{qtd}} placas saem R$ {{total}} e, revendendo a R$ {{preco_venda}}, você recebe R$ {{receita}}. Quanto mais placas, menor o preço de cada uma.",
+"Vamos fazer a conta juntos: {{qtd}} placas saem por R$ {{total}}.\n\nRevendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}.\n\nE, quanto mais placas, menor o preço de cada uma."
+],
+[
+"Produção em ~5 dias úteis após o pagamento, com envio rastreado 📦 O frete é calculado pelo seu CEP no pedido.",
+"A produção leva cerca de 5 dias úteis após o pagamento, e o envio é rastreado. 📦\n\nO frete é calculado pelo seu CEP no pedido."
+],
+[
+"Sobre nota fiscal, vou chamar alguém da equipe para te explicar direitinho. Já já respondemos! 🙂",
+"Sobre a nota fiscal, vou chamar alguém da equipe para explicar direitinho.\n\nJá já respondemos! 🙂"
+],
+[
+"Certo! Já avisei a equipe e uma pessoa vai te responder em breve. 💚",
+"Certo! Já avisei a equipe. 💚\n\nUma pessoa vai responder você em breve."
+],
+[
+"Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋",
+"Combinado! Não envio mais mensagens automáticas.\n\nSe precisar, é só chamar. 👋"
+],
+[
+"Oi, {{nome}} 👋 A maioria começa com 10 placas. Quer ver quanto fica e quanto sobra de lucro?",
+"Oi, {{nome}}! 👋\n\nA maioria dos revendedores começa com 10 placas.\n\nQuer ver quanto fica e quanto sobra de lucro?"
+],
+[
+"Oi, {{nome}} 👋 Seu pedido de {{qtd}} placas continua montado: R$ {{total}}, com R$ {{lucro}} de lucro.",
+"Oi, {{nome}}! 👋\n\nO seu pedido de {{qtd}} placas continua montado: R$ {{total}}, com R$ {{lucro}} de lucro."
+],
+[
+"Oi, {{nome}} 👋 Travou em algo? Cadastro, frete ou pagamento? Eu te ajudo a finalizar.",
+"Oi, {{nome}}! 👋\n\nFicou alguma dúvida no cadastro, no frete ou no pagamento?\n\nEu ajudo você a finalizar."
+],
+[
+"Boa! 💚 Vou chamar alguém do time para continuar com você por aqui.",
+"Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui."
+],
+[
+"Anotado! 📱 Alguém do time vai te chamar no WhatsApp para continuar por lá.",
+"Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá."
+],
+[
+"Última mensagem por aqui 😄 Se preferir, me manda o seu WhatsApp com DDD que eu te ajudo por lá. 📱",
+"Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱"
+]
+];
+function atualizarTextosV5() {
+  if (getSetting('textos_v5') === '2') return 0;
+  const mapa = new Map(TROCAS_V5);
+  let n = 0;
+  db.transaction(() => {
+    for (const f of db.prepare("SELECT f.id, f.steps, f.comment_text FROM flows f JOIN funis u ON u.id = f.funil_id WHERE u.nome = 'Funil 3 toques (v5)'").all()) {
+      const passos = JSON.parse(f.steps || '[]');
+      let mudou = false;
+      for (const p of passos) if (p.text != null && mapa.has(p.text)) { p.text = mapa.get(p.text); mudou = true; }
+      const com = f.comment_text != null && mapa.has(f.comment_text) ? mapa.get(f.comment_text) : f.comment_text;
+      if (mudou || com !== f.comment_text) { db.prepare('UPDATE flows SET steps = ?, comment_text = ? WHERE id = ?').run(JSON.stringify(passos), com, f.id); n++; }
+    }
+    setSetting('textos_v5', '2');
+  })();
+  return n;
+}
+
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { atualizarTextosV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

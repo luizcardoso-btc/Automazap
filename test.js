@@ -868,7 +868,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   await t('A/B: cada pessoa é sorteada uma vez e sempre vê o mesmo lado; a B usa {{payback}}', async () => {
     db.prepare("UPDATE contacts SET ab_grupo = 'B' WHERE ext_id = 'v5a'").run();
     const s = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s);
-    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('Com 5 placas vendidas você já paga o pedido inteiro'), s.env[0].p.text);
+    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('🚀 Com 5 placas vendidas, você já paga o pedido inteiro.\n\n'), s.env[0].p.text);
     const lados = new Set();
     for (let i = 0; i < 30; i++) {
       await engine.processarMensagem(msg('revender', { extId: 'ab' + i }), rec());
@@ -914,7 +914,23 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     for (const h of [1, 3.1, 8, 12, 20.2, 23]) await engine.tick(s, { agoraMs: Date.now() + h * 3600e3 });
     const env = s.env.filter(x => x.c === id).map(x => x.p);
     assert.strictEqual(env.length, 2, JSON.stringify(env.map(p => p.text)));
-    assert.ok(env[0].text.includes('Seu pedido de 10 placas continua montado')); assert.ok(env[1].text.includes('me manda o seu WhatsApp'));
+    assert.ok(env[0].text.includes('O seu pedido de 10 placas continua montado')); assert.ok(env[1].text.includes('envie o seu WhatsApp com DDD'));
+  });
+  await t('textos do v5: parágrafos separados por linha em branco, sem "pra", e a revisão não mexe no que foi editado', async () => {
+    const ofertas = db.prepare("SELECT name, steps FROM flows WHERE name LIKE 'Oferta:%' OR name LIKE 'Entrada: 3 toques'").all();
+    for (const f of ofertas) for (const p of JSON.parse(f.steps)) { assert.ok(p.text.includes('\n\n'), f.name + ' sem parágrafos'); assert.ok(!/\bpr[ao]\b/.test(p.text), f.name + ': ' + p.text); }
+    const s = rec(); await engine.processarMensagem(msg('quanto custa?', { extId: 'v5t' }), s);
+    assert.strictEqual(s.env[0].p.text, 'Olá! 👋 Aqui é a NexTap.\n\nA nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?');
+    // banco antigo: textos originais voltam a ser trocados; um texto editado à mão fica como está
+    const sd = require('./seed.js');
+    const ent = db.prepare("SELECT id, steps FROM flows WHERE name = 'Entrada: 3 toques'").get(), pc = db.prepare("SELECT id, steps FROM flows WHERE name = 'Dúvida: prazo e entrega'").get();
+    const velho = JSON.parse(ent.steps); velho[0].text = 'Oi! 👋 Aqui é a NexTap: placa que leva o cliente direto pra avaliação no Google, sem app.\nÉ pra revender ou pro seu negócio?';
+    const meu = JSON.parse(pc.steps); meu[0].text = 'Texto que eu escrevi no painel.';
+    db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(JSON.stringify(velho), ent.id); db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(JSON.stringify(meu), pc.id);
+    setSetting('textos_v5', '1'); assert.ok(sd.atualizarTextosV5() >= 1); assert.strictEqual(sd.atualizarTextosV5(), 0, 'rodou duas vezes');
+    assert.ok(JSON.parse(db.prepare('SELECT steps FROM flows WHERE id = ?').get(ent.id).steps)[0].text.startsWith('Olá! 👋 Aqui é a NexTap.\n\n'));
+    assert.strictEqual(JSON.parse(db.prepare('SELECT steps FROM flows WHERE id = ?').get(pc.id).steps)[0].text, 'Texto que eu escrevi no painel.');
+    db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(pc.steps, pc.id);
   });
   await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
     const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);

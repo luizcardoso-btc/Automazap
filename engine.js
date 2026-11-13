@@ -130,7 +130,7 @@ function aplicarVars(texto, contato) {
     .replace(/\{\{\s*video_demo\s*\}\}/g, getSetting('video_demo_url') || '')
     .replace(/\{\{\s*quantidade\s*\}\}/g, () => quantidadeDe(contato))
     .replace(/\{\{\s*(qtd|preco|total|receita|lucro|preco_venda|minimo|link_pedido|payback)\s*\}\}/g, (_, v) => varDeVenda(v, contato))
-    .replace(/\s+([!,.?])/g, '$1');
+    .replace(/[ \t]+([!,.?])/g, '$1');   // só espaços: as quebras de linha entre parágrafos ficam
 }
 function passoComVars(passo, contato) {
   const p = { ...passo };
