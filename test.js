@@ -833,6 +833,118 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   });
   nxSrv.close(); delete process.env.NEXTAP_API_BASE;
 
+
+  console.log('Funil 3 toques (v5), funis, teste A/B e notificações');
+  const notif = require('./notificacoes.js');
+  const pushes = []; let pushFalha = null;
+  notif._t.trocarEnvio(async (sub, corpo) => { if (pushFalha) { const e = new Error('gone'); e.statusCode = pushFalha; throw e; } pushes.push({ endpoint: sub.endpoint, ...JSON.parse(corpo) }); });
+  await t('instalação do v5 cria um funil próprio, desliga os outros e os funis antigos aparecem agrupados', async () => {
+    assert.strictEqual((await chamar('POST', '/api/flows/instalar-v5', { corpo: {}, headers: H })).status, 200);
+    assert.strictEqual((await chamar('POST', '/api/flows/instalar-v5', { corpo: {}, headers: H })).status, 409);
+    const fx = (await chamar('GET', '/api/funis', { headers: H })).json;
+    const v5 = fx.funis.find(f => f.nome === 'Funil 3 toques (v5)'), v4 = fx.funis.find(f => f.nome === 'Funil de vendas (v4)');
+    assert.ok(v5 && v4); assert.strictEqual(v5.ativos, v5.total); assert.strictEqual(v4.ativos, 0);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM flows WHERE active = 1 AND (funil_id IS NULL OR funil_id <> ?)').get(v5.id).n, 0);
+    for (const f of db.prepare('SELECT name, steps FROM flows WHERE funil_id = ?').all(v5.id)) {
+      const passos = JSON.parse(f.steps); assert.strictEqual(passos.length, 1, f.name + ' tem mais de uma mensagem');
+      for (const p of passos) { (p.buttons || []).concat(p.replies || []).forEach(b => assert.ok(b.title.length <= 20, f.name + ': ' + b.title)); if (p.type !== 'text') assert.ok(p.text.length <= 640, f.name); }
+    }
+    assert.ok(db.prepare("SELECT COUNT(*) AS n FROM flows WHERE kind = 'followup' AND funil_id = ? AND delay_hours NOT IN (3, 20)").get(v5.id).n === 0);
+  });
+  await t('3 toques: entrada → quantidade → UMA mensagem de oferta com pedido; vídeo sem link vira só o botão do pedido', async () => {
+    const s1 = rec(); await engine.processarMensagem(msg('quanto custa?', { extId: 'v5a' }), s1);
+    assert.strictEqual(s1.env.length, 1); assert.deepStrictEqual(s1.env[0].p.replies.map(r => r.title), ['💰 REVENDER', '🏪 MEU NEGÓCIO']);
+    const s2 = rec(); await engine.processarMensagem(msg('x', { extId: 'v5a', payload: respRapida(s1.env[0].p, '💰 REVENDER') }), s2);
+    assert.strictEqual(s2.env.length, 1); assert.deepStrictEqual(s2.env[0].p.replies.map(r => r.title), ['5 a 10', '11 a 49', '50 ou mais']);
+    db.prepare("UPDATE contacts SET ab_grupo = 'A' WHERE ext_id = 'v5a'").run();
+    const s3 = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s3);
+    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas'); assert.strictEqual(s3.env.length, 1, 'mais de uma mensagem na oferta');
+    const p = s3.env[0].p; assert.strictEqual(p.type, 'button'); assert.ok(p.text.includes('R$ 1.240,20 de lucro'), p.text);
+    assert.deepStrictEqual(p.buttons.map(b => b.title), ['FAZER MEU PEDIDO'], 'botão de vídeo sem link devia sumir');
+    setSetting('video_demo_url', 'https://x.com/demo.mp4');
+    const s4 = rec(); await engine.processarMensagem(msg('11 a 49', { extId: 'v5a', payload: respRapida(s2.env[0].p, '11 a 49') }), s4);
+    assert.deepStrictEqual(s4.env[0].p.buttons.map(b => b.title), ['FAZER MEU PEDIDO', 'VER FUNCIONANDO']); setSetting('video_demo_url', '');
+  });
+  await t('A/B: cada pessoa é sorteada uma vez e sempre vê o mesmo lado; a B usa {{payback}}', async () => {
+    db.prepare("UPDATE contacts SET ab_grupo = 'B' WHERE ext_id = 'v5a'").run();
+    const s = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s);
+    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('Com 5 placas vendidas você já paga o pedido inteiro'), s.env[0].p.text);
+    const lados = new Set();
+    for (let i = 0; i < 30; i++) {
+      await engine.processarMensagem(msg('revender', { extId: 'ab' + i }), rec());
+      const x = rec(); const y = await engine.processarMensagem(msg('20', { extId: 'ab' + i }), x);
+      const g = contatoDe('ab' + i).ab_grupo; lados.add(g);
+      assert.strictEqual(y.fluxo.endsWith('variante B'), g === 'B');
+      const z = await engine.processarMensagem(msg('20', { extId: 'ab' + i }), rec()); assert.strictEqual(z.fluxo, y.fluxo, 'trocou de lado');
+    }
+    assert.deepStrictEqual([...lados].sort(), ['A', 'B'], 'sorteio sempre caiu do mesmo lado');
+  });
+  await t('A/B: resultados por lado e escolha da vencedora (B passa a ser a mensagem principal)', async () => {
+    const ab = (await chamar('GET', '/api/ab', { headers: H })).json; const t1 = ab.find(x => x.a_nome === 'Oferta: 11 a 49 placas');
+    assert.ok(t1.A.recebeu + t1.B.recebeu >= 30, JSON.stringify(t1)); assert.ok('confianca' in t1);
+    const bSteps = db.prepare('SELECT steps FROM flows WHERE id = ?').get(t1.b_id).steps;
+    assert.strictEqual((await chamar('POST', `/api/ab/${t1.b_id}/vencedora`, { corpo: { lado: 'X' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', `/api/ab/${t1.b_id}/vencedora`, { corpo: { lado: 'B' }, headers: H })).status, 200);
+    assert.strictEqual(db.prepare('SELECT steps FROM flows WHERE id = ?').get(t1.a_id).steps, bSteps);
+    const r = await engine.processarMensagem(msg('20', { extId: 'ab0' }), rec()); assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas', 'B desligada ainda respondeu');
+  });
+  await t('A/B pelo painel: criar variante B de qualquer fluxo (uma só por fluxo)', async () => {
+    const a = db.prepare("SELECT id FROM flows WHERE name = 'Botão: VER MEU PEDIDO' AND active = 1").get().id;
+    const b = await chamar('POST', `/api/flows/${a}/variante`, { headers: H }); assert.strictEqual(b.status, 200); assert.strictEqual(b.json.variante_de, a); assert.strictEqual(b.json.event, null);
+    assert.strictEqual((await chamar('POST', `/api/flows/${a}/variante`, { headers: H })).status, 409);
+    assert.strictEqual((await chamar('POST', `/api/flows/${b.json.id}/variante`, { headers: H })).status, 400);
+    await chamar('DELETE', '/api/flows/' + b.json.id, { headers: H });
+  });
+  await t('funis: ligar um funil desliga os outros; mover fluxo de funil pelo editor; apagar funil não apaga fluxos', async () => {
+    const fx = (await chamar('GET', '/api/funis', { headers: H })).json, v4 = fx.funis.find(f => f.nome === 'Funil de vendas (v4)'), v5 = fx.funis.find(f => f.nome === 'Funil 3 toques (v5)');
+    await chamar('POST', `/api/funis/${v4.id}/ativar`, { headers: H });
+    let g = (await chamar('GET', '/api/funis', { headers: H })).json.funis; assert.strictEqual(g.find(f => f.id === v5.id).ativos, 0); assert.strictEqual(g.find(f => f.id === v4.id).ativos, g.find(f => f.id === v4.id).total);
+    await chamar('POST', `/api/funis/${v5.id}/ativar`, { headers: H });
+    const novo = (await chamar('POST', '/api/funis', { corpo: { nome: 'Teste' }, headers: H })).json;
+    const base = { name: 'Fluxo do funil teste', priority: 5, match_mode: 'contem', keywords: ['zzteste'], steps: [{ type: 'text', text: 'oi' }], funil_id: novo.id };
+    const fl = (await chamar('POST', '/api/flows', { corpo: base, headers: H })).json; assert.strictEqual(fl.funil_id, novo.id);
+    assert.strictEqual((await chamar('DELETE', '/api/funis/' + novo.id, { headers: H })).status, 200);
+    assert.strictEqual(engine.fluxoPorId(fl.id).funil_id, null); await chamar('DELETE', '/api/flows/' + fl.id, { headers: H });
+  });
+  await t('v5: no máximo 2 follow-ups por pessoa (3h e 20h), com o pedido montado', async () => {
+    const e = rec(); await engine.processarMensagem(msg('revender', { extId: 'v5f' }), e);
+    db.prepare("UPDATE contacts SET ab_grupo = 'A' WHERE ext_id = 'v5f'").run();
+    await engine.processarMensagem(msg('10', { extId: 'v5f' }), rec());
+    const id = contatoDe('v5f').id, s = rec();
+    for (const h of [1, 3.1, 8, 12, 20.2, 23]) await engine.tick(s, { agoraMs: Date.now() + h * 3600e3 });
+    const env = s.env.filter(x => x.c === id).map(x => x.p);
+    assert.strictEqual(env.length, 2, JSON.stringify(env.map(p => p.text)));
+    assert.ok(env[0].text.includes('Seu pedido de 10 placas continua montado')); assert.ok(env[1].text.includes('me manda o seu WhatsApp'));
+  });
+  await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
+    const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);
+    assert.strictEqual((await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { endpoint: 'http://x' } }, headers: H })).status, 400);
+    const sub = { endpoint: 'https://push.exemplo.com/abc123', keys: { p256dh: 'BChave', auth: 'segredo' } };
+    const a = (await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone (app)' }, headers: H })).json;
+    const b = (await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { ...sub, endpoint: 'https://push.exemplo.com/outro' }, aparelho: 'Android', prefs: ['venda'] }, headers: H })).json;
+    notif._t.limpar(); pushes.length = 0;
+    await engine.processarMensagem(msg('revender', { extId: 'pq1' }), rec()); await engine.processarMensagem(msg('20', { extId: 'pq1' }), rec());
+    await engine.processarMensagem(msg('20', { extId: 'pq1' }), rec());   // repetiu: não avisa de novo
+    await new Promise(r => setTimeout(r, 30));
+    const q = pushes.filter(x => x.titulo.includes('Lead quente')); assert.strictEqual(q.length, 1, JSON.stringify(pushes)); assert.strictEqual(q[0].endpoint, sub.endpoint);
+    assert.ok(q[0].titulo.includes('20 placas')); assert.ok(/^\/#c=\d+$/.test(q[0].url));
+    // reabrir o painel reconfirma a assinatura sem perder as escolhas
+    await chamar('PUT', '/api/push/aparelhos/' + a.id, { corpo: { prefs: ['alta'] }, headers: H });
+    await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone (app)' }, headers: H });
+    assert.deepStrictEqual((await chamar('GET', '/api/push', { headers: H })).json.aparelhos.find(x => x.id === a.id).prefs, ['alta']);
+    pushes.length = 0; await engine.processarMensagem(msg('revender', { extId: 'pq2' }), rec()); await engine.processarMensagem(msg('100', { extId: 'pq2' }), rec());
+    await new Promise(r => setTimeout(r, 30));
+    assert.deepStrictEqual(pushes.map(x => x.endpoint), [sub.endpoint]); assert.ok(pushes[0].titulo.includes('Prioridade alta'));
+    pushFalha = 410; await notif.notificar({ tipo: 'alta', titulo: 'x' }); pushFalha = null;
+    assert.ok(!(await chamar('GET', '/api/push', { headers: H })).json.aparelhos.some(x => x.id === a.id), 'aparelho desinstalado continuou');
+    await chamar('DELETE', '/api/push/aparelhos/' + b.id, { headers: H });
+  });
+  await t('painel instalável: manifest e service worker públicos', async () => {
+    const m = await chamar('GET', '/manifest.webmanifest'); assert.strictEqual(m.status, 200); assert.strictEqual(m.json.display, 'standalone');
+    const w = await chamar('GET', '/sw.js'); assert.strictEqual(w.status, 200); assert.ok(w.texto.includes('showNotification'));
+    assert.strictEqual((await chamar('GET', '/api/push')).status, 401);
+  });
+
   srv.close();
   console.log(`\n${ok} passaram, ${falhou} falharam`);
   process.exit(falhou ? 1 : 0);

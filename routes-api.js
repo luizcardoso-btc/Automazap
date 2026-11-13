@@ -43,6 +43,7 @@ router.use((req, res, next) => {
 
 router.use('/prospeccao', require('./prospeccao.js'));
 router.use('/whatsapp', require('./whatsapp.js').router);
+router.use('/push', require('./notificacoes.js').router);
 
 // ---------- status ----------
 router.get('/status', (req, res) => {
@@ -147,7 +148,8 @@ function validarFluxo(b) {
   if (![null, undefined, '', 'handoff', 'silenciar'].includes(b.action)) return { erro: 'Ação inválida.' };
   const passos = validarPassos(b.steps);
   if (typeof passos === 'string') return { erro: passos };
-  return { valor: { nome, prioridade, modo: b.match_mode, palavras, comentario: tipo === 'normal' && b.on_comment ? 1 : 0, acao: b.action || null, ativo: b.active === false ? 0 : 1, passos, tipo, evento: tipo === 'evento' || tipo === 'botao' ? evento : null, atraso: tipo === 'followup' ? atraso : 0, humano, tags, textoComentario, publico } };
+  return { valor: { nome, prioridade, modo: b.match_mode, palavras, comentario: tipo === 'normal' && b.on_comment ? 1 : 0, acao: b.action || null, ativo: b.active === false ? 0 : 1, passos, tipo, evento: tipo === 'evento' || tipo === 'botao' ? evento : null, atraso: tipo === 'followup' ? atraso : 0, humano, tags, textoComentario, publico,
+    funil: b.funil_id ? (db.prepare('SELECT id FROM funis WHERE id = ?').get(Number(b.funil_id)) || {}).id || null : null } };
 }
 
 router.get('/flows', (req, res) => {
@@ -158,18 +160,18 @@ router.post('/flows', (req, res) => {
   if (v.erro) return res.status(400).json({ error: v.erro });
   const x = v.valor;
   const id = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
-      kind, event, delay_hours, tags, human_priority, comment_text, audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      kind, event, delay_hours, tags, human_priority, comment_text, audience, funil_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(x.nome, x.ativo, x.prioridade, x.modo, JSON.stringify(x.palavras), x.comentario, x.acao, JSON.stringify(x.passos), Date.now(),
-      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico).lastInsertRowid;
+      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico, x.funil).lastInsertRowid;
   res.json(engine.fluxoPorId(Number(id)));
 });
 router.put('/flows/:id', (req, res) => {
   const v = validarFluxo(req.body);
   if (v.erro) return res.status(400).json({ error: v.erro });
   const x = v.valor;
-  const r = db.prepare('UPDATE flows SET name=?, active=?, priority=?, match_mode=?, keywords=?, on_comment=?, action=?, steps=?, kind=?, event=?, delay_hours=?, tags=?, human_priority=?, comment_text=?, audience=? WHERE id=?')
+  const r = db.prepare('UPDATE flows SET name=?, active=?, priority=?, match_mode=?, keywords=?, on_comment=?, action=?, steps=?, kind=?, event=?, delay_hours=?, tags=?, human_priority=?, comment_text=?, audience=?, funil_id=? WHERE id=?')
     .run(x.nome, x.ativo, x.prioridade, x.modo, JSON.stringify(x.palavras), x.comentario, x.acao, JSON.stringify(x.passos),
-      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico, req.params.id);
+      x.tipo, x.evento, x.atraso, JSON.stringify(x.tags), x.humano, x.textoComentario, x.publico, x.funil, req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Fluxo não encontrado.' });
   res.json(engine.fluxoPorId(Number(req.params.id)));
 });
@@ -188,7 +190,96 @@ router.post('/flows/instalar-v4', (req, res) => {
   if (!ok) return res.status(409).json({ error: 'O funil de vendas já está instalado.' });
   res.json({ ok: true });
 });
+router.post('/flows/instalar-v5', (req, res) => {
+  const ok = require('./seed.js').instalarV5({ desativarAntigos: (req.body || {}).desativar_antigos !== false });
+  if (!ok) return res.status(409).json({ error: 'O funil 3 toques já está instalado.' });
+  res.json({ ok: true });
+});
+
+// ---------- funis (fluxos agrupados, vistos como fluxograma) ----------
+const listarFunis = () => db.prepare(`SELECT f.*, (SELECT COUNT(*) FROM flows x WHERE x.funil_id = f.id) AS total,
+  (SELECT COUNT(*) FROM flows x WHERE x.funil_id = f.id AND x.active = 1) AS ativos FROM funis f ORDER BY f.criado_em DESC, f.id DESC`).all();
+router.get('/funis', (req, res) => res.json({ funis: listarFunis(),
+  avulsos: db.prepare('SELECT COUNT(*) AS total, COALESCE(SUM(active), 0) AS ativos FROM flows WHERE funil_id IS NULL').get() }));
+router.post('/funis', (req, res) => {
+  const nome = String((req.body || {}).nome || '').trim().slice(0, 60);
+  if (!nome) return res.status(400).json({ error: 'Dê um nome ao funil.' });
+  const id = db.prepare('INSERT INTO funis (nome, descricao, criado_em) VALUES (?, ?, ?)').run(nome, String((req.body || {}).descricao || '').trim().slice(0, 200), Date.now()).lastInsertRowid;
+  res.json(db.prepare('SELECT * FROM funis WHERE id = ?').get(id));
+});
+router.put('/funis/:id', (req, res) => {
+  const nome = String((req.body || {}).nome || '').trim().slice(0, 60);
+  if (!nome) return res.status(400).json({ error: 'Dê um nome ao funil.' });
+  const r = db.prepare('UPDATE funis SET nome = ?, descricao = ? WHERE id = ?').run(nome, String((req.body || {}).descricao || '').trim().slice(0, 200), req.params.id);
+  if (!r.changes) return res.status(404).json({ error: 'Funil não encontrado.' });
+  res.json({ ok: true });
+});
+// Liga este funil inteiro e desliga os fluxos dos outros funis (os avulsos não mudam)
+router.post('/funis/:id/ativar', (req, res) => {
+  const f = db.prepare('SELECT id FROM funis WHERE id = ?').get(req.params.id);
+  if (!f) return res.status(404).json({ error: 'Funil não encontrado.' });
+  db.transaction(() => {
+    db.prepare('UPDATE flows SET active = 0 WHERE funil_id IS NOT NULL AND funil_id <> ?').run(f.id);
+    db.prepare('UPDATE flows SET active = 1 WHERE funil_id = ?').run(f.id);
+  })();
+  res.json({ ok: true });
+});
+router.post('/funis/:id/desligar', (req, res) => { db.prepare('UPDATE flows SET active = 0 WHERE funil_id = ?').run(req.params.id); res.json({ ok: true }); });
+// Apaga só o agrupamento: os fluxos viram avulsos (nada é perdido)
+router.delete('/funis/:id', (req, res) => {
+  db.transaction(() => { db.prepare('UPDATE flows SET funil_id = NULL WHERE funil_id = ?').run(req.params.id); db.prepare('DELETE FROM funis WHERE id = ?').run(req.params.id); })();
+  res.json({ ok: true });
+});
+
+// ---------- teste A/B ----------
+// Cria a variante B de um fluxo (cópia ligada, no mesmo funil). Daí em diante metade das pessoas vê A e metade vê B.
+router.post('/flows/:id/variante', (req, res) => {
+  const a = db.prepare('SELECT * FROM flows WHERE id = ?').get(req.params.id);
+  if (!a) return res.status(404).json({ error: 'Fluxo não encontrado.' });
+  if (a.variante_de) return res.status(400).json({ error: 'Este fluxo já é uma variante B.' });
+  if (db.prepare('SELECT 1 FROM flows WHERE variante_de = ?').get(a.id)) return res.status(409).json({ error: 'Este fluxo já tem uma variante B.' });
+  const id = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at, kind, event, delay_hours, tags,
+    human_priority, comment_text, audience, funil_id, variante_de) VALUES (?, 1, ?, ?, '[]', 0, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?)`)
+    .run(a.name + ' · variante B', a.priority, a.match_mode, a.action, a.steps, Date.now(), a.kind, a.delay_hours, a.tags, a.human_priority, a.audience, a.funil_id, a.id).lastInsertRowid;
+  res.json(engine.fluxoPorId(Number(id)));
+});
+// Resultado por lado: quem recebeu (desde que a B existe), quantos abriram o pedido, criaram conta e compraram
+function resultadosAB() {
+  const lado = (flowId, desde) => db.prepare(`
+    SELECT COUNT(*) AS recebeu,
+      COALESCE(SUM(c.tags LIKE '%"ABRIU CHECKOUT"%'), 0) AS clicou,
+      COALESCE(SUM(c.tags LIKE '%"CADASTROU"%'), 0) AS cadastrou,
+      COALESCE(SUM(c.tags LIKE '%"VENDA"%'), 0) AS venda
+    FROM contacts c WHERE c.channel <> 'sim' AND c.id IN (SELECT contact_id FROM messages WHERE flow_id = ? AND direction = 'out' AND status = 'ok' AND created_at >= ?)`).get(flowId, desde);
+  // confiança de que a diferença de cliques não é sorte (teste de duas proporções)
+  const confianca = (A, B) => {
+    if (A.recebeu < 20 || B.recebeu < 20) return null;
+    const p = (A.clicou + B.clicou) / (A.recebeu + B.recebeu), se = Math.sqrt(p * (1 - p) * (1 / A.recebeu + 1 / B.recebeu));
+    if (!se) return null;
+    const z = Math.abs(A.clicou / A.recebeu - B.clicou / B.recebeu) / se;
+    const t = 1 / (1 + 0.2316419 * z), d = 0.3989423 * Math.exp(-z * z / 2);
+    const cdf = 1 - d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return Math.round((2 * cdf - 1) * 100);
+  };
+  return db.prepare('SELECT b.id AS b_id, b.name AS b_nome, b.active AS b_ativo, b.created_at AS desde, a.id AS a_id, a.name AS a_nome, a.funil_id FROM flows b JOIN flows a ON a.id = b.variante_de ORDER BY a.funil_id, a.id').all()
+    .map(t => { const A = lado(t.a_id, t.desde), B = lado(t.b_id, t.desde); return { ...t, A, B, confianca: confianca(A, B) }; });
+}
+router.get('/ab', (req, res) => res.json(resultadosAB()));
+// Encerra o teste: a vencedora fica no lugar da A (botões que apontam para a A continuam funcionando) e a B é desligada
+router.post('/ab/:bId/vencedora', (req, res) => {
+  const b = db.prepare('SELECT * FROM flows WHERE id = ? AND variante_de IS NOT NULL').get(req.params.bId);
+  if (!b) return res.status(404).json({ error: 'Teste não encontrado.' });
+  const lado = (req.body || {}).lado;
+  if (!['A', 'B'].includes(lado)) return res.status(400).json({ error: 'Escolha A ou B.' });
+  db.transaction(() => {
+    if (lado === 'B') db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(b.steps, b.variante_de);
+    db.prepare('UPDATE flows SET active = 0 WHERE id = ?').run(b.id);
+  })();
+  res.json({ ok: true });
+});
+
 router.delete('/flows/:id', (req, res) => {
+  db.prepare('UPDATE flows SET variante_de = NULL, active = 0 WHERE variante_de = ?').run(req.params.id);   // a B de um fluxo apagado vira um fluxo comum, desligado
   const r = db.prepare('DELETE FROM flows WHERE id = ?').run(req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Fluxo não encontrado.' });
   res.json({ ok: true });

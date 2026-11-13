@@ -187,6 +187,7 @@ function processarWebhook(corpo) {
     if (!registrar(c.id, 'in', 'cliente', texto, { waId: d.key.id, em })) continue;   // repetido
     db.prepare('UPDATE wa_contatos SET ultimo_in = ?, nao_lidas = nao_lidas + 1 WHERE id = ?').run(em, c.id);
     anotarProspect(c.prospect_id, 'Respondeu no WhatsApp: ' + texto);
+    require('./notificacoes.js').notificar({ tipo: 'wa_msg', titulo: '💬 ' + (c.nome || '+' + numeroDoJid(jid)), texto: texto.slice(0, 140), url: '/#wa=' + c.id, chave: 'wa' + c.id }).catch(() => {});
     salvas++;
   }
   return { salvas };

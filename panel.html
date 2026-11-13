@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Painel NexTap</title>
 <link rel="icon" href="/logo" id="fav">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/logo"><meta name="theme-color" content="#15803d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Central">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>try{var _t=localStorage.getItem("dm_tema");if(_t)document.documentElement.dataset.theme=_t}catch(e){}</script>
@@ -119,6 +120,26 @@ code,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size
 svg text{font-family:inherit}.gb{transition:opacity .15s}.gb:hover{opacity:1}
 #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--tx);color:var(--card);padding:10px 16px;border-radius:12px;font-weight:600;font-size:13.5px;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:var(--sh2)}
 
+.fus{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px}
+.fu{border:1px solid var(--br);background:var(--card);border-radius:12px;padding:10px 12px;cursor:pointer;box-shadow:var(--sh);transition:border-color .12s,background .12s}.fu:hover{border-color:color-mix(in srgb,var(--mut) 40%,var(--br))}
+.fu.on{border-color:var(--ac);background:var(--tint)}.fu b{display:flex;align-items:center;font-size:13.5px}.fu small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+.fgw{padding:0;overflow:hidden}.fg{position:relative;display:flex;gap:44px;overflow-x:auto;padding:16px 18px 20px;align-items:flex-start}
+.fg svg{position:absolute;left:0;top:0;pointer-events:none;z-index:0;overflow:visible}
+.fc{display:flex;flex-direction:column;gap:14px;width:244px;flex-shrink:0;position:relative;z-index:1}
+.fh{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.nd{background:var(--card);border:1px solid var(--br);border-radius:12px;padding:10px 12px;cursor:pointer;box-shadow:var(--sh);transition:border-color .12s,box-shadow .12s;position:relative;width:244px;flex-shrink:0}
+.nd:hover{border-color:var(--ac);box-shadow:0 0 0 3px var(--tint)}.nd.off{opacity:.55}
+.nh{display:flex;gap:7px;align-items:flex-start;font-size:13.5px;line-height:1.3}.nh b{font-weight:650}
+.nk{font-size:11.5px;color:var(--mut);margin:4px 0 2px}
+.nt{font-size:12.5px;color:color-mix(in srgb,var(--tx) 78%,var(--mut));margin:6px 0 4px;white-space:pre-wrap;line-height:1.4}
+.nm{font-size:12px;color:var(--mut);margin:4px 0}
+.nb2,.nr{display:inline-block;font-size:11.5px;font-weight:600;border-radius:7px;padding:2px 8px;margin:3px 4px 0 0}
+.nb2{border:1px solid var(--br);color:var(--mut)}.nr{background:var(--tint);color:var(--ac);border:1px solid var(--tint2)}.nr i{font-weight:500;font-style:normal}
+.nab{margin-top:8px;font-size:11.5px;border-radius:8px;padding:5px 8px;background:color-mix(in srgb,var(--c2) 12%,transparent);color:var(--c2)}.nab u{margin-left:4px}
+.nf{font-size:11px;color:var(--mut);margin-top:6px}
+.lane{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--br)}.lane:first-of-type{border-top:0}
+.lh{font-size:12px;font-weight:650;color:var(--mut);margin-bottom:6px}.lr{display:flex;gap:10px;align-items:flex-start;overflow-x:auto;padding-bottom:4px}.lr.wrap{flex-wrap:wrap}.la{align-self:center;color:var(--mut);font-weight:700}
+@media(max-width:760px){.lane{grid-template-columns:1fr}.fus{grid-template-columns:1fr 1fr}}
 /* entrada */
 #auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:var(--card)}
 #auth .hero{background:radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--pr) 85%,#fff) 0%,var(--pr) 38%,#07120c 115%);color:#fff;padding:52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
@@ -184,8 +205,8 @@ marca();
 async function entrar(){$('aerr').textContent='';try{var r=await api('/login',{method:'POST',body:JSON.stringify({senha:$('pw').value})});TOKEN=r.token;try{localStorage.setItem('dm_token',TOKEN)}catch(e){}await iniciar()}catch(e){$('aerr').textContent=e.message}}
 function sair(){TOKEN=null;try{localStorage.removeItem('dm_token')}catch(e){}$('app').style.display='none';$('auth').style.display='grid';$('pw').value=''}
 async function carregar(){var r=await Promise.all([api('/status'),api('/flows'),api('/settings')]);ST=r[0];FLOWS=r[1];SET=r[2];var b=$('nbc');if(b){b.style.display=ST.precisam_humano?'':'none';b.textContent=ST.precisam_humano}rodape()}
-async function iniciar(){await carregar();waStatus();await marca();$('auth').style.display='none';$('app').style.display='flex';nav(cur)}
-function nav(v){cur=v;if(v==='dash')DB=null;if(v==='pros'&&!PR)loadPros();document.querySelectorAll('aside a[data-v]').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});var el=$('v');el.style.animation='none';void el.offsetWidth;el.style.animation='';draw();window.scrollTo(0,0)}
+async function iniciar(){await carregar();waStatus();setTimeout(function(){if(location.hash)abrirLink(location.hash)},300);await marca();$('auth').style.display='none';$('app').style.display='flex';nav(cur)}
+function nav(v){cur=v;if(v==='dash')DB=null;if(v==='flows'&&!FN)carregarFunis();if(v==='pros'&&!PR)loadPros();document.querySelectorAll('aside a[data-v]').forEach(function(a){a.classList.toggle('on',a.dataset.v===v)});var el=$('v');el.style.animation='none';void el.offsetWidth;el.style.animation='';draw();window.scrollTo(0,0)}
 function rodape(){var c=$('cst');if(!c)return;var ig=ST.instagram||{},igOk=ig.token&&ig.appSecret&&ig.verifyToken,w=typeof WS!=='undefined'&&WS?WS:null,wOn=w&&w.estado==='open';
   c.innerHTML='<div><span>Instagram</span><b><span class="dot '+(igOk?(ST.erros_24h?'w':''):'off')+'"></span>'+(igOk?(ST.erros_24h?'Com erros':'Ligado'):'Pendente')+'</b></div><div><span>WhatsApp</span><b><span class="dot '+(wOn?'':'off')+'"></span>'+(wOn?'Conectado':w&&w.configurado?'Desconectado':'Não ligado')+'</b></div>'}
 function head(t,s){$('hd').innerHTML='<h1>'+t+'</h1><div class="mut sm">'+(s||'')+'</div>'}
@@ -219,7 +240,7 @@ function vDash(){head('Visão geral','Como está o atendimento automático hoje.
   if(!(ig.token&&ig.appSecret&&ig.verifyToken))P.push(['w','Instagram ainda não conectado','Faltam: '+[!ig.token?'IG_ACCESS_TOKEN':'',!ig.appSecret?'META_APP_SECRET':'',!ig.verifyToken?'META_VERIFY_TOKEN':''].filter(Boolean).join(', ')+'.',['Conectar','ig']]);
   if(ST.erros_24h)P.push(['e',ST.erros_24h+' mensagem(ns) com erro de envio nas últimas 24h','Confira as conversas com erro.',['Ver conversas','chats']]);
   if(ST.instagram_erro)P.push(['e','O Instagram parou de responder','O robô está fora do ar: '+ST.instagram_erro.slice(0,140)+' Gere um token novo e troque IG_ACCESS_TOKEN no Railway.',['Ver conexão','ig']]);
-  if(!FLOWS.some(function(f){return f.name==='Entrada: funil de vendas'}))P.push(['w','Funil de vendas disponível (recomendado)','Mostra o preço, a conta do lucro e o pedido já montado dentro da conversa, com as faixas do site. Os fluxos atuais são desligados (não apagados).',['Instalar funil de vendas','__v2']]);
+  if(!FLOWS.some(function(f){return f.name==='Entrada: 3 toques'}))P.push(['w','Funil 3 toques disponível (recomendado)','Uma mensagem por vez: entrada, quantidade e oferta com preço, lucro e pedido montado. No máximo 2 follow-ups. Já vem com teste A/B na oferta.',['Instalar funil 3 toques','__v2']]);
   if(!SET.video_demo_url)P.push(['w','Falta o vídeo de demonstração','Sem o link (.mp4, https) o robô pula essa etapa.',['Configurar','cfg']]);
   if(!SET.public_url)P.push(['w','Falta o endereço público do robô','Sem ele não há rastreio de cliques nem follow-ups.',['Configurar','cfg']]);
   var av=P.length?'<div class="card"><h3>Pendências ('+P.length+')</h3>'+P.map(function(p){return '<div class="pend"><div><span class="dot '+p[0]+'"></span><b>'+E(p[1])+'</b><div class="mut sm">'+E(p[2])+'</div></div>'+(p[3]?'<button class="btn s'+(p[3][1]==='__v2'?' p':'')+'" onclick="'+(p[3][1]==='__v2'?'instalarV2()':'nav(\''+p[3][1]+'\')')+'">'+p[3][0]+'</button>':'')+'</div>'}).join('')+'</div>':'';
@@ -248,36 +269,120 @@ function tabFollowups(){var l=ST.followups||[];if(!l.length)return '';
     +'</table><p class="mut sm" style="margin:8px 0 0">Respondeu = mandou mensagem antes do próximo follow-up (em até 24h). Comprou = tem a etiqueta VENDA.</p></div>'}
 function irChats(f){CF=f||'todas';nav('chats')}
 async function irChat(id){CF='todas';SEL=id;cur='chats';nav('chats');try{MSGS=await api('/contatos/'+id+'/mensagens');draw();var m=$('msgs');if(m)m.scrollTop=m.scrollHeight}catch(e){}}
-async function instalarV2(){if(!confirm('Instalar o funil de vendas? Os fluxos atuais serão desligados (não apagados) e podem ser religados depois.'))return;try{await api('/flows/instalar-v4',{method:'POST',body:'{}'});await carregar();draw();toast('Funil de vendas instalado ✓')}catch(e){alert(e.message)}}
+async function instalarV2(){if(!confirm('Instalar o funil 3 toques? Os fluxos atuais serão desligados (não apagados) e podem ser religados depois pela aba Fluxos.'))return;try{await api('/flows/instalar-v5',{method:'POST',body:'{}'});await carregar();FN=null;FSEL=null;draw();toast('Funil 3 toques instalado ✓')}catch(e){alert(e.message)}}
 
 /* ---------- fluxos ---------- */
 var AUD={revenda_qtd:'Revenda: não escolheu a quantidade',revenda_preco:'Revenda: viu o preço, não abriu a calculadora',checkout:'Revenda: abriu a calculadora',negocio:'Meu negócio'};
 var KIND={normal:'por palavra-chave',botao:'só por botão',evento:'automático (evento)',followup:'follow-up'},EVT={clique_link:'Pessoa clicou no link da calculadora',resposta_followup:'Pessoa respondeu a um follow-up',recebeu_whatsapp:'Pessoa mandou o número de WhatsApp'},HP={0:'Não',1:'Sim, normal',2:'Sim, PRIORIDADE ALTA'},ACT={'':'Só responder','handoff':'Chamar atendente (pausa o robô)','silenciar':'Parar de responder a esta pessoa'},MODO={contem:'Contém a palavra',exato:'Mensagem igual',comeca:'Começa com'};
-var FQ='',FK='todos',FUSO=null;
+var FQ='',FK='todos',FUSO=null,FN=null,FSEL=null,FMODO='graf',AB=[];
 function usoFluxos(){if(FUSO||usoFluxos.l)return;usoFluxos.l=1;api('/dashboard?dias=7').then(function(d){FUSO=d.uso||{};usoFluxos.l=0;if(cur==='flows')draw()}).catch(function(){FUSO={};usoFluxos.l=0})}
-function vFlows(){head('Fluxos','Cada fluxo responde por palavra-chave, por botão, após um evento ou como follow-up. Acentos e maiúsculas não importam.');usoFluxos();
-  var q=FQ.trim().toLowerCase();
+async function carregarFunis(){try{var r=await Promise.all([api('/funis'),api('/ab')]);FN=r[0];AB=r[1]}catch(e){FN={funis:[],avulsos:{total:FLOWS.length,ativos:0}};AB=[]}
+  if(FSEL==null||(FSEL!=='avulsos'&&!FN.funis.some(function(f){return f.id===FSEL}))){var at=FN.funis.filter(function(f){return f.ativos>0})[0]||FN.funis[0];FSEL=at?at.id:'avulsos'}
+  if(cur==='flows')draw()}
+function fluxosDoFunil(){return FLOWS.filter(function(f){return FSEL==='avulsos'?!f.funil_id:f.funil_id===FSEL})}
+function vFlows(){head('Fluxos','Organizados por funil. Toque num bloco para editar; as setas mostram para onde cada botão leva.');usoFluxos();
+  if(!FN){if(!vFlows.l){vFlows.l=1;carregarFunis().then(function(){vFlows.l=0})}return '<p class="mut">Carregando…</p>'}
+  var tabs=FN.funis.map(function(f){return '<div class="fu'+(FSEL===f.id?' on':'')+'" onclick="FSEL='+f.id+';draw()"><b><span class="dot '+(f.ativos?'':'off')+'"></span>'+E(f.nome)+'</b><small>'+(f.ativos?'ligado · '+f.ativos+' de '+f.total+' fluxos':'desligado · '+f.total+' fluxos')+'</small></div>'}).join('')
+    +(FN.avulsos.total?'<div class="fu'+(FSEL==='avulsos'?' on':'')+'" onclick="FSEL=\'avulsos\';draw()"><b><span class="dot '+(FN.avulsos.ativos?'w':'off')+'"></span>Fluxos avulsos</b><small>fora de um funil · '+FN.avulsos.total+'</small></div>':'');
+  var f=FN.funis.filter(function(x){return x.id===FSEL})[0],lst=fluxosDoFunil();
+  var cab='<div class="row" style="justify-content:space-between;margin:4px 0 12px"><div style="min-width:0"><h2 style="margin:0">'+(f?E(f.nome):'Fluxos avulsos')+'</h2><div class="mut sm">'+(f?E(f.descricao||''):'Fluxos que não pertencem a nenhum funil. Eles não são ligados nem desligados junto com os funis.')+'</div></div>'
+    +'<div class="row" style="flex-wrap:nowrap">'+(f?(f.ativos<f.total?'<button class="btn p s" onclick="ligarFunil('+f.id+')">'+(f.ativos?'Ligar todos os fluxos':'Usar este funil')+'</button>':'')+(f.ativos?'<button class="btn s" onclick="desligarFunil('+f.id+')">Desligar</button>':'')+'<button class="btn s" onclick="renomearFunil('+f.id+')">Renomear</button>':'')
+    +'<div class="seg"><button class="'+(FMODO==='graf'?'on':'')+'" onclick="FMODO=\'graf\';draw()">Fluxograma</button><button class="'+(FMODO==='lista'?'on':'')+'" onclick="FMODO=\'lista\';draw()">Lista</button></div></div></div>';
+  return '<div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="mut sm">Funis</span><span class="row"><button class="btn s" onclick="novoFunil()">+ Novo funil</button><button class="btn p s" onclick="editar()">+ Novo fluxo</button></span></div>'
+    +'<div class="fus">'+tabs+'</div>'+cab+abFunil(lst)+(FMODO==='graf'?fluxograma(lst):listaFluxos(lst))}
+
+/* ----- fluxograma ----- */
+var FG_ED=[],FG_COL=['Entrada','Pergunta','Oferta','Fechamento'];
+var ICO={normal:'🔑',botao:'👆',evento:'⚡',followup:'⏰'};
+function noFluxo(f,arestas){var u=FUSO&&FUSO[f.id],bs=FLOWS.filter(function(x){return x.variante_de===f.id}),t=AB.filter(function(x){return x.a_id===f.id})[0];
+  var corpo=f.steps.map(function(p){var h='';
+    if(p.type==='video'||p.type==='image')return '<div class="nm">'+(p.type==='video'?'🎬 vídeo':'🖼 imagem')+'</div>';
+    h+='<div class="nt">'+E(String(p.text||'').slice(0,150))+(String(p.text||'').length>150?'…':'')+'</div>';
+    (p.buttons||[]).forEach(function(b){h+='<span class="nb2">↗ '+E(b.title)+'</span>'});
+    (p.replies||[]).forEach(function(r){var to=Number(r.flow_id),id='ed'+f.id+'_'+FG_ED.length;if(arestas&&arestas[to]){FG_ED.push({de:id,para:to})}else id='';h+='<span class="nr"'+(id?' id="'+id+'"':'')+'>'+E(r.title)+(arestas&&!arestas[to]?' <i class="mut">→ '+E((FLOWS.filter(function(x){return x.id===to})[0]||{name:'?'}).name)+'</i>':'')+'</span>'});
+    return h}).join('');
+  var tags=(f.active?'':'<span class="tag">desligado</span>')+(f.action==='handoff'?'<span class="tag wa">atendente</span>':f.action==='silenciar'?'<span class="tag">para o robô</span>':'')+(f.human_priority>=2?'<span class="tag er">🔥 alta</span>':'')+(f.kind==='followup'?'<span class="tag">'+f.delay_hours+'h depois</span>':'');
+  var ab=bs.length?'<div class="nab" onclick="event.stopPropagation();editar('+bs[0].id+')"><b>A/B</b> '+(bs[0].active?'variante B no ar':'variante B desligada')+(t&&t.A.recebeu+t.B.recebeu?' · '+pc(t.A.clicou,t.A.recebeu)+' × '+pc(t.B.clicou,t.B.recebeu)+' abriram o pedido':'')+' <u>editar B</u></div>':'';
+  return '<div class="nd'+(f.active?'':' off')+'" id="nd'+f.id+'" onclick="editar('+f.id+')"><div class="nh"><span>'+(ICO[f.kind]||'•')+'</span><b>'+E(f.name)+'</b></div>'+(tags?'<div class="row" style="gap:4px;margin:4px 0">'+tags+'</div>':'')
+    +(f.kind==='normal'&&f.keywords.length?'<div class="nk">'+f.keywords.slice(0,5).map(function(k){return E(k)}).join(' · ')+(f.keywords.length>5?' …':'')+'</div>':'')+corpo+ab
+    +'<div class="nf">'+(FUSO?(u?'<b>'+u.sete+'</b> envios em 7 dias':'sem envios em 7 dias'):'')+'</div></div>'}
+function pc(a,b){return b?Math.round(100*a/b)+'%':'—'}
+function fluxograma(lst){FG_ED=[];
+  var main=lst.filter(function(f){return !f.variante_de}),dentro=function(f){return f.kind==='normal'||f.kind==='botao'};
+  var alvo={};main.filter(dentro).forEach(function(f){f.steps.forEach(function(p){(p.replies||[]).forEach(function(r){alvo[Number(r.flow_id)]=1})})});
+  var temR=function(f){return f.steps.some(function(p){return (p.replies||[]).length})};
+  var raiz=main.filter(function(f){return f.kind==='normal'&&!alvo[f.id]&&temR(f)});
+  var nivel={},fila=raiz.map(function(f){nivel[f.id]=0;return f}),byId={};main.forEach(function(f){byId[f.id]=f});
+  while(fila.length){var f=fila.shift();f.steps.forEach(function(p){(p.replies||[]).forEach(function(r){var t=byId[Number(r.flow_id)];if(t&&dentro(t)&&nivel[t.id]==null){nivel[t.id]=nivel[f.id]+1;fila.push(t)}})})}
+  var cols=[];main.forEach(function(f){if(nivel[f.id]!=null)(cols[nivel[f.id]]=cols[nivel[f.id]]||[]).push(f)});
+  var h='';
+  if(cols.length){h+='<div class="card fgw"><div class="fg" id="fg"><svg id="fgsvg"><defs><marker id="fga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ac)"/></marker></defs></svg>'
+    +cols.map(function(c,i){return '<div class="fc"><div class="fh">'+(i+1)+'. '+(FG_COL[i]||'Passo '+(i+1))+'</div>'+c.map(function(f){return noFluxo(f,nivel)}).join('')+'</div>'}).join('')+'</div></div>'}
+  var fu=main.filter(function(f){return f.kind==='followup'}),ev=main.filter(function(f){return f.kind==='evento'}),solto=main.filter(function(f){return dentro(f)&&nivel[f.id]==null});
+  if(fu.length){h+='<div class="card"><h3>⏰ Acompanhamento <span class="mut sm">(enviado para quem parou, contando da última mensagem da pessoa; no máximo um por vez)</span></h3>'
+    +['revenda_qtd','revenda_preco','checkout','negocio'].map(function(a){var l=fu.filter(function(f){return (f.audience||'checkout')===a}).sort(function(x,y){return x.delay_hours-y.delay_hours});if(!l.length)return '';
+      return '<div class="lane"><div class="lh">'+E(AUD[a])+'</div><div class="lr">'+l.map(function(f,i){return (i?'<span class="la">→</span>':'')+noFluxo(f)}).join('')+'</div></div>'}).join('')+'</div>'}
+  if(ev.length)h+='<div class="card"><h3>⚡ Automáticos <span class="mut sm">(disparados por um acontecimento)</span></h3><div class="lr">'+ev.map(function(f){return '<div><div class="lh">'+E(EVT[f.event]||f.event||'')+'</div>'+noFluxo(f)+'</div>'}).join('')+'</div></div>';
+  if(solto.length)h+='<div class="card"><h3>🔑 Respostas por palavra-chave e botões soltos <span class="mut sm">(dúvidas, atendente, parar)</span></h3><div class="lr wrap">'+solto.sort(function(a,b){return b.priority-a.priority}).map(function(f){return noFluxo(f)}).join('')+'</div></div>';
+  if(!h)h='<div class="card empty">Nenhum fluxo neste funil ainda.</div>';
+  setTimeout(ligarFG,0);return h}
+function ligarFG(){var g=$('fg'),svg=$('fgsvg');if(!g||!svg)return;var rb=g.getBoundingClientRect(),W=g.scrollWidth,H=g.scrollHeight,o='';
+  svg.setAttribute('width',W);svg.setAttribute('height',H);svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  FG_ED.forEach(function(e){var a=$(e.de),b=$('nd'+e.para);if(!a||!b)return;var ra=a.getBoundingClientRect(),rb2=b.getBoundingClientRect();
+    var x1=ra.right-rb.left+g.scrollLeft,y1=ra.top+ra.height/2-rb.top+g.scrollTop,x2=rb2.left-rb.left+g.scrollLeft-2,y2=rb2.top+22-rb.top+g.scrollTop;
+    var d=x2>x1+20?'M'+x1+','+y1+' C'+(x1+46)+','+y1+' '+(x2-46)+','+y2+' '+x2+','+y2:'M'+x1+','+y1+' C'+(x1+90)+','+(y1+70)+' '+(x2-90)+','+(y2+70)+' '+x2+','+y2;
+    o+='<path d="'+d+'" fill="none" stroke="var(--ac)" stroke-width="1.6" stroke-opacity=".75"'+(x2>x1+20?'':' stroke-dasharray="5 5"')+' marker-end="url(#fga)"/>'});
+  var defs=svg.querySelector('defs').outerHTML;svg.innerHTML=defs+o}
+window.addEventListener('resize',function(){if(cur==='flows'&&FMODO==='graf')ligarFG()});
+
+/* ----- teste A/B ----- */
+function abFunil(lst){var ids={};lst.forEach(function(f){ids[f.id]=1});var t=AB.filter(function(x){return ids[x.a_id]});if(!t.length)return '';
+  var lin=function(n,x){return '<td>'+n+'</td><td>'+x.recebeu+'</td><td>'+x.clicou+' <span class="mut">('+pc(x.clicou,x.recebeu)+')</span></td><td>'+x.cadastrou+'</td><td>'+x.venda+' <span class="mut">('+pc(x.venda,x.recebeu)+')</span></td>'};
+  return '<div class="card"><h3>🧪 Teste A/B <span class="mut sm">(cada pessoa é sorteada uma vez e sempre vê o mesmo lado)</span></h3>'+t.map(function(x){
+    var a=x.A.recebeu?x.A.clicou/x.A.recebeu:0,b=x.B.recebeu?x.B.clicou/x.B.recebeu:0,lider=a===b?'':(b>a?'B':'A');
+    var veredito=x.confianca==null?'Ainda poucos dados (mínimo de 20 pessoas em cada lado).':(lider?'<b>'+lider+'</b> está na frente em pedidos abertos, com <b>'+x.confianca+'%</b> de confiança'+(x.confianca>=95?'. Já dá para escolher a vencedora.':'. Espere passar de 95% antes de decidir.'):'Empate até agora.');
+    return '<div style="margin:10px 0 14px"><div class="row" style="justify-content:space-between"><b>'+E(x.a_nome)+'</b>'+(x.b_ativo?'<span class="tag ok">rodando</span>':'<span class="tag">encerrado</span>')+'</div>'
+      +'<div style="overflow-x:auto"><table class="tb" style="margin-top:6px"><tr><th></th><th>Receberam</th><th>Abriram o pedido</th><th>Criaram conta</th><th>Compraram</th></tr><tr>'+lin('<b>A</b> <a class="mut sm" style="cursor:pointer" onclick="editar('+x.a_id+')">ver</a>',x.A)+'</tr><tr>'+lin('<b>B</b> <a class="mut sm" style="cursor:pointer" onclick="editar('+x.b_id+')">ver</a>',x.B)+'</tr></table></div>'
+      +'<div class="row" style="justify-content:space-between;margin-top:8px"><span class="sm">'+veredito+'</span>'+(x.b_ativo?'<span class="row"><button class="btn s" onclick="vencedora('+x.b_id+',\'A\')">A venceu</button><button class="btn s" onclick="vencedora('+x.b_id+',\'B\')">B venceu</button></span>':'')+'</div></div>'}).join('')+'</div>'}
+async function vencedora(id,l){if(!confirm(l==='B'?'Usar a mensagem B para todo mundo? A B passa a ser a mensagem principal e o teste termina.':'Manter a mensagem A para todo mundo? A variante B é desligada e o teste termina.'))return;
+  try{await api('/ab/'+id+'/vencedora',{method:'POST',body:JSON.stringify({lado:l})});await carregar();await carregarFunis();toast('Teste encerrado ✓')}catch(e){alert(e.message)}}
+async function criarVariante(){if(!FL||!FL.id)return;try{var b=await api('/flows/'+FL.id+'/variante',{method:'POST'});await carregar();await carregarFunis();editar(b.id);toast('Variante B criada: mude o texto e salve')}catch(e){alert(e.message)}}
+
+/* ----- funis ----- */
+async function ligarFunil(id){if(!confirm('Usar este funil? Os fluxos dos outros funis serão desligados (não apagados). Os fluxos avulsos não mudam.'))return;try{await api('/funis/'+id+'/ativar',{method:'POST'});await carregar();await carregarFunis();toast('Funil ligado ✓')}catch(e){alert(e.message)}}
+async function desligarFunil(id){if(!confirm('Desligar todos os fluxos deste funil? O robô deixa de responder por ele.'))return;try{await api('/funis/'+id+'/desligar',{method:'POST'});await carregar();await carregarFunis();toast('Funil desligado')}catch(e){alert(e.message)}}
+async function renomearFunil(id){var f=FN.funis.filter(function(x){return x.id===id})[0];var n=prompt('Nome do funil:',f.nome);if(n==null)return;var d=prompt('Descrição (opcional):',f.descricao||'');try{await api('/funis/'+id,{method:'PUT',body:JSON.stringify({nome:n,descricao:d||''})});await carregarFunis()}catch(e){alert(e.message)}}
+async function novoFunil(){var n=prompt('Nome do novo funil:');if(!n)return;try{var f=await api('/funis',{method:'POST',body:JSON.stringify({nome:n})});FSEL=f.id;await carregarFunis();toast('Funil criado. Crie fluxos nele ou mova fluxos pelo editor.')}catch(e){alert(e.message)}}
+
+/* ----- lista ----- */
+function linhaFluxo(f){var u=FUSO&&FUSO[f.id];
+    return '<div class="flow"><div style="min-width:0"><b>'+E(f.name)+'</b> '+(f.active?'':'<span class="tag">desligado</span> ')+(f.variante_de?'<span class="tag ok">A/B · variante B</span> ':'')+(f.on_comment?'<span class="tag ok">comentários</span> ':'')+(f.action?'<span class="tag wa">'+(f.action==='handoff'?'atendente':'silenciar')+'</span> ':'')+(f.human_priority>=2?'<span class="tag er">🔥 prioridade alta</span> ':'')+(KIND[f.kind]&&f.kind!=='normal'?'<span class="tag">'+KIND[f.kind]+(f.kind==='followup'?' · '+f.delay_hours+'h · '+E(AUD[f.audience||'checkout']||''):'')+'</span> ':'<span class="tag">prioridade '+f.priority+'</span> ')+(f.tags||[]).map(function(t){return '<span class="tag ok">'+E(t)+'</span> '}).join('')+'<br>'+f.keywords.map(function(k){return '<span class="kw">'+E(k)+'</span>'}).join('')+'<div class="mut sm" style="margin-top:4px">'+E((f.steps[0]||{}).text||'').slice(0,110)+(((f.steps[0]||{}).text||'').length>110?'…':'')+'</div><div class="mut sm" style="margin-top:2px">'+f.steps.length+' mensagem(ns)'+(FUSO?' · '+(u?'<b style="color:var(--tx)">'+u.sete+'</b> envio(s) em 7 dias · '+u.total+' no total':'nunca usado'):'')+'</div></div><div class="row" style="flex-shrink:0"><button class="btn s" onclick="editar('+f.id+')">Editar</button><button class="btn s" onclick="testarFluxo('+f.id+')">Testar</button><button class="btn s" title="Duplicar" onclick="duplicar('+f.id+')">⧉</button></div></div>'}
+function listaFluxos(base){var q=FQ.trim().toLowerCase();
   var okK=function(f,k){return k==='todos'||(k==='desligados'?!f.active:f.kind===k)};
-  var lst=FLOWS.filter(function(f){return okK(f,FK)&&(!q||(f.name+' '+f.keywords.join(' ')).toLowerCase().indexOf(q)>=0)});
+  var lst=base.filter(function(f){return okK(f,FK)&&(!q||(f.name+' '+f.keywords.join(' ')).toLowerCase().indexOf(q)>=0)});
   var ord=lst.slice().sort(function(a,b){return (a.active===b.active?0:a.active?-1:1)||(b.priority-a.priority)});
-  var cnt=function(k){return FLOWS.filter(function(f){return okK(f,k)}).length};
+  var cnt=function(k){return base.filter(function(f){return okK(f,k)}).length};
   var chips=[['todos','Todos'],['normal','Palavra-chave'],['botao','Botão'],['evento','Evento'],['followup','Follow-up'],['desligados','Desligados']].map(function(c){return '<span class="chip'+(FK===c[0]?' on':'')+'" onclick="FK=\''+c[0]+'\';draw()">'+c[1]+'<b>'+cnt(c[0])+'</b></span>'}).join('');
-  return '<div class="row" style="margin-bottom:12px;justify-content:space-between"><input class="search" placeholder="Buscar por nome ou palavra-chave…" value="'+E(FQ)+'" oninput="FQ=this.value;drawKeep(this)"><button class="btn p" onclick="editar()">+ Novo fluxo</button></div><div class="chips">'+chips+'</div><div class="card">'+(ord.length?ord.map(function(f){var u=FUSO&&FUSO[f.id];
-    return '<div class="flow"><div style="min-width:0"><b>'+E(f.name)+'</b> '+(f.active?'':'<span class="tag">desligado</span> ')+(f.on_comment?'<span class="tag ok">comentários</span> ':'')+(f.action?'<span class="tag wa">'+(f.action==='handoff'?'atendente':'silenciar')+'</span> ':'')+(f.human_priority>=2?'<span class="tag er">🔥 prioridade alta</span> ':'')+(KIND[f.kind]&&f.kind!=='normal'?'<span class="tag">'+KIND[f.kind]+(f.kind==='followup'?' · '+f.delay_hours+'h · '+E(AUD[f.audience||'checkout']||''):'')+'</span> ':'<span class="tag">prioridade '+f.priority+'</span> ')+(f.tags||[]).map(function(t){return '<span class="tag ok">'+E(t)+'</span> '}).join('')+'<br>'+f.keywords.map(function(k){return '<span class="kw">'+E(k)+'</span>'}).join('')+'<div class="mut sm" style="margin-top:4px">'+E((f.steps[0]||{}).text||'').slice(0,110)+(((f.steps[0]||{}).text||'').length>110?'…':'')+'</div><div class="mut sm" style="margin-top:2px">'+f.steps.length+' mensagem(ns)'+(FUSO?' · '+(u?'<b style="color:var(--tx)">'+u.sete+'</b> envio(s) em 7 dias · '+u.total+' no total':'nunca usado'):'')+'</div></div><div class="row" style="flex-shrink:0"><button class="btn s" onclick="editar('+f.id+')">Editar</button><button class="btn s" onclick="testarFluxo('+f.id+')">Testar</button><button class="btn s" title="Duplicar" onclick="duplicar('+f.id+')">⧉</button></div></div>'}).join(''):'<div class="empty">'+(FLOWS.length?'Nenhum fluxo encontrado com esse filtro.':'Nenhum fluxo ainda.')+'</div>')+'</div>'}
+  return '<div class="row" style="margin-bottom:12px"><input class="search" placeholder="Buscar por nome ou palavra-chave…" value="'+E(FQ)+'" oninput="FQ=this.value;drawKeep(this)"></div><div class="chips">'+chips+'</div><div class="card">'+(ord.length?ord.map(linhaFluxo).join(''):'<div class="empty">Nenhum fluxo encontrado.</div>')+'</div>'}
 function drawKeep(el){var p=el.selectionStart;draw();var n=document.querySelector('.search');if(n){n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function duplicar(id){var f=FLOWS.filter(function(x){return x.id===id})[0];if(!f)return;FL=JSON.parse(JSON.stringify(f));FL.id=null;FL.name=f.name+' (cópia)';FL.active=false;FL.action=FL.action||'';FL.event=FL.event||'';FL.audience=FL.audience||'checkout';FL.comment_text=FL.comment_text||'';FL.tagText=(FL.tags||[]).join(', ');FL.kwText=FL.keywords.join('\n');formFluxo();toast('Cópia criada (desligada). Ajuste e salve.')}
-function novoFluxo(){return {id:null,name:'',active:true,priority:10,match_mode:'contem',keywords:[],on_comment:false,action:'',kind:'normal',event:'',delay_hours:3,audience:'checkout',tags:[],human_priority:0,comment_text:'',steps:[{type:'text',text:''}]}}
+function novoFluxo(){return {id:null,name:'',active:true,priority:10,match_mode:'contem',keywords:[],on_comment:false,action:'',kind:'normal',event:'',delay_hours:3,audience:'checkout',funil_id:(typeof FSEL==='number'?FSEL:null),tags:[],human_priority:0,comment_text:'',steps:[{type:'text',text:''}]}}
 function editar(id){FL=id?JSON.parse(JSON.stringify(FLOWS.filter(function(f){return f.id===id})[0])):novoFluxo();FL.action=FL.action||'';FL.event=FL.event||'';FL.audience=FL.audience||'checkout';FL.comment_text=FL.comment_text||'';FL.tagText=(FL.tags||[]).join(', ');FL.kwText=FL.keywords.join('\n');formFluxo()}
 function formFluxo(){
   var opts=function(o,sel){return Object.keys(o).map(function(k){return '<option value="'+E(k)+'"'+(String(sel)===k?' selected':'')+'>'+E(o[k])+'</option>'}).join('')};
   var fo=function(sel){return FLOWS.filter(function(f){return f.id!==FL.id}).map(function(f){return '<option value="'+f.id+'"'+(Number(sel)===f.id?' selected':'')+'>'+E(f.name)+'</option>'}).join('')};
   var steps=FL.steps.map(function(p,i){
     var s='<div class="step"><div class="row" style="justify-content:space-between"><b>Mensagem '+(i+1)+'</b><span class="row">'+(FL.steps.length>1?'<button class="btn s" title="Subir" '+(i===0?'disabled':'')+' onclick="movePasso('+i+',-1)">↑</button><button class="btn s" title="Descer" '+(i===FL.steps.length-1?'disabled':'')+' onclick="movePasso('+i+',1)">↓</button>':'')+'<select style="width:auto" onchange="mudaTipo('+i+',this.value)"><option value="text"'+(p.type==='text'?' selected':'')+'>Texto</option><option value="button"'+(p.type==='button'?' selected':'')+'>Texto + botão com link</option><option value="quick"'+(p.type==='quick'?' selected':'')+'>Texto + respostas rápidas</option><option value="video"'+(p.type==='video'?' selected':'')+'>Vídeo</option><option value="image"'+(p.type==='image'?' selected':'')+'>Imagem</option></select>'+(FL.steps.length>1?'<button class="btn s d" onclick="rmPasso('+i+')">Remover</button>':'')+'</span></div>'
-      +(p.type==='video'||p.type==='image'?'<input placeholder="https://…arquivo.mp4  ou  {{video_demo}}" value="'+E(p.url||'')+'" oninput="FL.steps['+i+'].url=this.value"><p class="mut sm">Link público e direto para o arquivo. Se ficar vazio, esta etapa é pulada.</p>':'<textarea oninput="FL.steps['+i+'].text=this.value;contaPasso('+i+')" placeholder="Texto da mensagem. Use {{nome}}, {{site}}, {{link}} (link rastreado), {{telefone}}, {{quantidade}} (faixa escolhida). Venda: {{qtd}}, {{preco}}, {{total}}, {{lucro}}, {{link_pedido}}. O Instagram não mostra negrito: não use asteriscos.">'+E(p.text)+'</textarea><div class="cc" id="cc'+i+'"></div>');
+      +(p.type==='video'||p.type==='image'?'<input placeholder="https://…arquivo.mp4  ou  {{video_demo}}" value="'+E(p.url||'')+'" oninput="FL.steps['+i+'].url=this.value"><p class="mut sm">Link público e direto para o arquivo. Se ficar vazio, esta etapa é pulada.</p>':'<textarea oninput="FL.steps['+i+'].text=this.value;contaPasso('+i+')" placeholder="Texto da mensagem. Use {{nome}}, {{site}}, {{link}} (link rastreado), {{telefone}}, {{quantidade}} (faixa escolhida). Venda: {{qtd}}, {{preco}}, {{total}}, {{lucro}}, {{payback}}, {{link_pedido}}. O Instagram não mostra negrito: não use asteriscos.">'+E(p.text)+'</textarea><div class="cc" id="cc'+i+'"></div>');
     if(p.type==='button')s+=(p.buttons||[]).map(function(b,j){return '<div class="sub"><input placeholder="Texto (até 20)" maxlength="20" value="'+E(b.title)+'" oninput="FL.steps['+i+'].buttons['+j+'].title=this.value"><input placeholder="https://… ou {{link}} / {{site}}" value="'+E(b.url)+'" oninput="FL.steps['+i+'].buttons['+j+'].url=this.value"><button class="btn s" onclick="rmSub('+i+',\'buttons\','+j+')">✕</button></div>'}).join('')+((p.buttons||[]).length<3?'<button class="btn s" style="margin-top:6px" onclick="addSub('+i+',\'buttons\')">+ botão</button>':'');
     if(p.type==='quick')s+=(p.replies||[]).map(function(r,j){return '<div class="sub2"><input placeholder="Texto (até 20)" maxlength="20" value="'+E(r.title)+'" oninput="FL.steps['+i+'].replies['+j+'].title=this.value"><select onchange="FL.steps['+i+'].replies['+j+'].flow_id=Number(this.value)"><option value="">Abre o fluxo…</option>'+fo(r.flow_id)+'</select><button class="btn s" onclick="rmSub('+i+',\'replies\','+j+')">✕</button></div>'}).join('')+((p.replies||[]).length<5?'<button class="btn s" style="margin-top:6px" onclick="addSub('+i+',\'replies\')">+ resposta rápida</button>':'');
     return s+'</div>'}).join('');
+  var fA=FL.variante_de?FLOWS.filter(function(x){return x.id===FL.variante_de})[0]:null,fB=FL.id&&!FL.variante_de?FLOWS.filter(function(x){return x.variante_de===FL.id})[0]:null;
   mo('<h2>'+(FL.id?'Editar fluxo':'Novo fluxo')+'</h2>'
+    +(fA?'<div class="nab" style="margin:6px 0 4px">🧪 Esta é a <b>variante B</b> de "'+E(fA.name)+'". Metade das pessoas vê esta versão. <u style="cursor:pointer" onclick="editar('+fA.id+')">ver a A</u></div>':'')
+    +(fB?'<div class="nab" style="margin:6px 0 4px">🧪 Este fluxo está em <b>teste A/B</b>: metade das pessoas vê a variante B. <u style="cursor:pointer" onclick="editar('+fB.id+')">editar a B</u></div>':'')
+    +(FL.id&&!fA&&!fB&&(FL.kind==='botao'||FL.kind==='normal'||FL.kind==='followup')?'<div class="row" style="margin:6px 0 2px"><button class="btn s" onclick="criarVariante()">🧪 Criar variante B (teste A/B)</button><span class="mut sm">Testa outra versão desta mensagem com metade das pessoas.</span></div>':'')
+    +'<label>Funil<select onchange="FL.funil_id=this.value?Number(this.value):null"><option value="">Avulso (fora de um funil)</option>'+((FN&&FN.funis)||[]).map(function(x){return '<option value="'+x.id+'"'+(FL.funil_id===x.id?' selected':'')+'>'+E(x.nome)+'</option>'}).join('')+'</select></label>'
     +'<label>Nome<input value="'+E(FL.name)+'" oninput="FL.name=this.value" placeholder="Ex.: Preço e como revender"></label>'
     +'<label>Quando este fluxo é enviado<select onchange="FL.kind=this.value;formFluxo()">'+opts(KIND,FL.kind)+'</select></label>'
     +(FL.kind==='evento'?'<label>Evento<select onchange="FL.event=this.value"><option value="">Escolha…</option>'+opts(EVT,FL.event)+'</select></label>':'')
@@ -301,11 +406,11 @@ function mudaTipo(i,t){var p=FL.steps[i];p.type=t;if(t==='button'&&!p.buttons)p.
 function addSub(i,k){FL.steps[i][k].push(k==='buttons'?{title:'',url:''}:{title:'',flow_id:''});formFluxo()}
 function rmSub(i,k,j){FL.steps[i][k].splice(j,1);formFluxo()}
 function nomeC(x){return x.name||(x.username?'@'+x.username:'Contato '+x.id)}
-function corpoFluxo(){var f=FL;return {name:f.name,active:f.active,priority:f.priority,match_mode:f.match_mode,on_comment:f.on_comment,action:f.action||null,kind:f.kind,event:f.event||null,delay_hours:f.delay_hours,audience:f.audience,human_priority:f.human_priority,comment_text:f.comment_text,tags:String(f.tagText||'').split(',').map(function(t){return t.trim()}).filter(Boolean),
+function corpoFluxo(){var f=FL;return {funil_id:f.funil_id||null,name:f.name,active:f.active,priority:f.priority,match_mode:f.match_mode,on_comment:f.on_comment,action:f.action||null,kind:f.kind,event:f.event||null,delay_hours:f.delay_hours,audience:f.audience,human_priority:f.human_priority,comment_text:f.comment_text,tags:String(f.tagText||'').split(',').map(function(t){return t.trim()}).filter(Boolean),
   keywords:String(f.kwText||'').split(/\n|,/).map(function(k){return k.trim()}).filter(Boolean),
   steps:f.steps.map(function(p){if(p.type==='video'||p.type==='image')return {type:p.type,url:p.url};var o={type:p.type,text:p.text};if(p.type==='button')o.buttons=p.buttons;if(p.type==='quick')o.replies=p.replies;return o})}}
-async function salvarFluxo(){try{await api(FL.id?'/flows/'+FL.id:'/flows',{method:FL.id?'PUT':'POST',body:JSON.stringify(corpoFluxo())});await carregar();cl();draw();toast('Fluxo salvo ✓')}catch(e){alert(e.message)}}
-async function apagarFluxo(){if(!confirm('Apagar o fluxo "'+FL.name+'"? Respostas rápidas que levam a ele deixam de funcionar.'))return;try{await api('/flows/'+FL.id,{method:'DELETE'});await carregar();cl();draw();toast('Fluxo apagado')}catch(e){alert(e.message)}}
+async function salvarFluxo(){try{await api(FL.id?'/flows/'+FL.id:'/flows',{method:FL.id?'PUT':'POST',body:JSON.stringify(corpoFluxo())});await carregar();await carregarFunis();cl();draw();toast('Fluxo salvo ✓')}catch(e){alert(e.message)}}
+async function apagarFluxo(){if(!confirm('Apagar o fluxo "'+FL.name+'"? Respostas rápidas que levam a ele deixam de funcionar.'))return;try{await api('/flows/'+FL.id,{method:'DELETE'});await carregar();await carregarFunis();cl();draw();toast('Fluxo apagado')}catch(e){alert(e.message)}}
 function testarFluxo(id){var f=FLOWS.filter(function(x){return x.id===id})[0];SIM=[];nav('sim');if(!f)return;if(f.kind==='normal'&&f.keywords[0])simular(f.keywords[0]);else simular('','FLOW:'+f.id,f.name)}
 
 /* ---------- conversas ---------- */
@@ -518,7 +623,7 @@ async function simular(txt,payload,rotulo){
 function vCfg(){head('Configurações','Textos padrão, limites e conexão com o Instagram.');
   var ig=ST.instagram||{},ok=function(b){return b?'<span class="tag ok">ok</span>':'<span class="tag er">falta</span>'};
   var B=BRAND||{nome:'NexTap',frase:'',cor:'#15803d',logo:'/logo'};
-  return '<div class="card"><h3>Identidade visual</h3><div class="row" style="align-items:flex-end"><img id="lp" src="'+E(B.logo)+'" style="width:64px;height:64px;border-radius:14px;border:1px solid var(--br);object-fit:cover"><div><input type="file" id="b_logo" accept="image/png,image/jpeg,image/webp" onchange="lerLogo(this)"><div class="mut sm">PNG, JPG ou WEBP quadrada, até ~500 KB.</div></div><button class="btn s d" onclick="semLogo()">Voltar à logo padrão</button></div>'
+  return vPush()+'<div class="card"><h3>Identidade visual</h3><div class="row" style="align-items:flex-end"><img id="lp" src="'+E(B.logo)+'" style="width:64px;height:64px;border-radius:14px;border:1px solid var(--br);object-fit:cover"><div><input type="file" id="b_logo" accept="image/png,image/jpeg,image/webp" onchange="lerLogo(this)"><div class="mut sm">PNG, JPG ou WEBP quadrada, até ~500 KB.</div></div><button class="btn s d" onclick="semLogo()">Voltar à logo padrão</button></div>'
     +'<div class="row"><div style="flex:2;min-width:180px"><label>Nome do negócio<input id="b_nome" maxlength="40" value="'+E(B.nome)+'"></label></div><div style="flex:1;min-width:120px"><label>Cor principal<input type="color" id="b_cor" value="'+E(B.cor)+'" style="height:40px;padding:3px"></label></div></div>'
     +'<label>Frase da tela de entrada<input id="b_frase" maxlength="90" value="'+E(B.frase)+'"></label><div class="row" style="margin-top:12px"><button class="btn p" onclick="salvarMarca()">Salvar identidade</button></div></div>'
     +'<div class="card"><h3>Mensagens</h3>'
@@ -663,6 +768,41 @@ async function waDesconectar(){if(!confirm('Desconectar este WhatsApp do painel?
 async function waSalvarLim(){try{SET=await api('/settings',{method:'PUT',body:JSON.stringify({wa_max_novos_dia:$('w_lim').value})});await waStatus();toast('Salvo ✓')}catch(e){alert(e.message)}}
 setInterval(function(){if(typeof TOKEN!=='undefined'&&TOKEN&&cur==='wa'&&WT==='conversas'&&!document.hidden){var t=$('wtx'),foco=t&&document.activeElement===t;if(!foco)waLoad()}},10000);
 setInterval(function(){if(typeof TOKEN!=='undefined'&&TOKEN&&!document.hidden)waStatus()},60000);
+
+/* ---------- app no celular e notificações push ---------- */
+var PUSH=null,PUSH_SUB=null,PUSH_ID=null;
+var ehIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),instalado=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});
+  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.abrir)abrirLink(e.data.abrir)})}
+// Links das notificações: /#c=ID (conversa do Instagram) e /#wa=ID (conversa do WhatsApp)
+function abrirLink(u){var h=String(u||'').split('#')[1]||'',m;if(!TOKEN)return;
+  if((m=/^c=(\d+)$/.exec(h)))irChat(Number(m[1]));else if((m=/^wa=(\d+)$/.exec(h))){WT='conversas';nav('wa');waAbrir(Number(m[1]))}
+  try{history.replaceState(null,'',location.pathname)}catch(e){}}
+window.addEventListener('hashchange',function(){abrirLink(location.hash)});
+function b64u(s){var p='='.repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+async function pushCarregar(){try{PUSH=await api('/push')}catch(e){PUSH={erro:e.message,tipos:{},aparelhos:[]}}
+  try{var reg=await navigator.serviceWorker.ready;PUSH_SUB=await reg.pushManager.getSubscription()}catch(e){PUSH_SUB=null}
+  PUSH_ID=null;if(PUSH_SUB&&PUSH.aparelhos){try{var r=await api('/push/assinar',{method:'POST',body:JSON.stringify({assinatura:PUSH_SUB.toJSON(),aparelho:nomeAparelho()})});PUSH_ID=r.id;PUSH.aparelhos=(await api('/push')).aparelhos}catch(e){}}
+  if(cur==='cfg')draw()}
+function nomeAparelho(){var u=navigator.userAgent;return (/iphone/i.test(u)?'iPhone':/ipad/i.test(u)?'iPad':/android/i.test(u)?'Android':/mac/i.test(u)?'Mac':/windows/i.test(u)?'Windows':'Navegador')+(instalado?' (app)':' (navegador)')}
+function vPush(){if(!PUSH&&!vPush.l){vPush.l=1;pushCarregar().then(function(){vPush.l=0})}
+  var suporta='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window,este=PUSH&&PUSH_ID?PUSH.aparelhos.filter(function(a){return a.id===PUSH_ID})[0]:null;
+  var h='<div class="card"><h3>🔔 Notificações no celular</h3>';
+  if(ehIOS&&!instalado)h+='<p class="sm" style="line-height:1.6"><b>No iPhone, primeiro instale o atalho:</b> abra este painel no <b>Safari</b> → botão <b>Compartilhar</b> (quadrado com seta) → <b>Adicionar à Tela de Início</b>. Depois abra pelo ícone novo e volte aqui para ligar as notificações.</p>';
+  else if(!suporta)h+='<p class="sm">Este navegador não aceita notificações. No Android use o Chrome; no iPhone, o Safari com o atalho na tela de início.</p>';
+  else if(!PUSH)h+='<p class="mut sm">Carregando…</p>';
+  else if(!este)h+='<p class="sm" style="line-height:1.6">Receba um aviso na hora quando um lead esquentar, pedir atendente ou comprar. '+(instalado?'':'Dica: instale o atalho do painel na tela inicial (no Chrome do Android: ⋮ → <b>Adicionar à tela inicial</b>).')+'</p><button class="btn p" onclick="pushLigar()">Ligar notificações neste aparelho</button>'+(Notification.permission==='denied'?'<p class="sm" style="color:var(--er)">As notificações estão bloqueadas para este site. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço) e tente de novo.</p>':'');
+  else{h+='<p class="sm"><span class="dot"></span><b>Ligadas neste aparelho</b> ('+E(este.aparelho)+'). Escolha o que quer receber:</p><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:2px 14px">'
+    +Object.keys(PUSH.tipos).map(function(t){return '<label class="ck"><input type="checkbox"'+(este.prefs.indexOf(t)>=0?' checked':'')+' onchange="pushPref(\''+t+'\',this.checked)"> '+E(PUSH.tipos[t])+'</label>'}).join('')+'</div>'
+    +'<div class="row" style="margin-top:10px"><button class="btn s" onclick="pushTeste()">Mandar notificação de teste</button><button class="btn s d" onclick="pushDesligar()">Desligar neste aparelho</button></div>'}
+  if(PUSH&&PUSH.aparelhos&&PUSH.aparelhos.length)h+='<p class="mut sm" style="margin:12px 0 0">Aparelhos que recebem: '+PUSH.aparelhos.map(function(a){return E(a.aparelho||'aparelho')+(a.id===PUSH_ID?' (este)':'')}).join(' · ')+'</p>';
+  return h+'</div>'}
+async function pushLigar(){try{var perm=await Notification.requestPermission();if(perm!=='granted'){alert('Sem permissão, o aparelho não recebe os avisos. Toque em "Permitir" quando o navegador perguntar.');draw();return}
+  var reg=await navigator.serviceWorker.ready;var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(PUSH.chave)});
+  var r=await api('/push/assinar',{method:'POST',body:JSON.stringify({assinatura:sub.toJSON(),aparelho:nomeAparelho()})});PUSH_SUB=sub;PUSH_ID=r.id;PUSH=await api('/push');await api('/push/teste',{method:'POST'});draw();toast('Notificações ligadas ✓')}catch(e){alert('Não consegui ligar as notificações: '+e.message)}}
+async function pushPref(t,on){var a=PUSH.aparelhos.filter(function(x){return x.id===PUSH_ID})[0];if(!a)return;var p=a.prefs.filter(function(x){return x!==t});if(on)p.push(t);a.prefs=p;try{await api('/push/aparelhos/'+PUSH_ID,{method:'PUT',body:JSON.stringify({prefs:p})})}catch(e){alert(e.message)}}
+async function pushTeste(){try{var r=await api('/push/teste',{method:'POST'});toast(r.enviados?'Enviada ✓':'Nenhum aparelho recebeu')}catch(e){alert(e.message)}}
+async function pushDesligar(){try{if(PUSH_SUB)await PUSH_SUB.unsubscribe();if(PUSH_ID)await api('/push/aparelhos/'+PUSH_ID,{method:'DELETE'})}catch(e){}PUSH_SUB=null;PUSH_ID=null;PUSH=await api('/push');draw();toast('Notificações desligadas neste aparelho')}
 </script>
 </body>
 </html>
