@@ -39,3 +39,14 @@ A busca usa por padrão o mapa livre (Nominatim + Overpass): sem chave, sem cart
 
 ### Varredura da cidade
 Em Prospecção → **Varrer a cidade** você marca vários nichos (barbearia, tatuagem, ótica, padaria, roupas masculinas/femininas, calçados, restaurantes, academias, clínicas e mais ~30) e o sistema procura em **toda a cidade**, mostrando quantas empresas existem em cada nicho (com telefone, sem site) e a dica do que oferecer. Depois é só marcar as de oportunidade alta e salvar. Usa o OpenStreetMap (grátis); nichos pequenos podem aparecer incompletos.
+
+
+## Funil de vendas (preço na conversa)
+Instale em Visão geral → **Instalar funil de vendas** (os fluxos atuais são desligados, não apagados).
+- Faixas iguais às do site (mínimo lido do NexTap). A pessoa pode tocar na faixa ou digitar o número ("20").
+- O robô mostra preço por placa, total, quanto ela recebe revendendo (Configurações → preço de revenda) e o lucro.
+  Variáveis: `{{qtd}} {{preco}} {{total}} {{preco_venda}} {{receita}} {{lucro}} {{minimo}} {{link_pedido}}`.
+- `{{link_pedido}}` abre o site já com o pedido montado e leva o código do lead. Com `NEXTAP_WEBHOOK_SECRET` nos dois
+  serviços, o site avisa cadastro, pedido e pagamento: etiquetas CADASTROU, INICIOU PEDIDO e VENDA (com valor) sozinhas.
+- Follow-ups por etapa; o último convida a pessoa a mandar o WhatsApp. Quem manda o número vai para a aba WhatsApp.
+- Se o token do Instagram cair, o painel mostra o alerta e o Telegram avisa (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID).

@@ -164,6 +164,14 @@ const MIGRACOES = [
     );
     CREATE INDEX IF NOT EXISTS idx_wa_disparos ON wa_disparos(ativo, proximo_em);
   `),
+  // v6: funil de vendas com preço na conversa — quantidade pedida, WhatsApp do lead e venda confirmada pelo site
+  db => {
+    const tem = col => db.prepare('PRAGMA table_info(contacts)').all().some(c => c.name === col);
+    if (!tem('qty')) db.exec('ALTER TABLE contacts ADD COLUMN qty INTEGER');                 // quantas placas a pessoa disse que quer
+    if (!tem('phone')) db.exec('ALTER TABLE contacts ADD COLUMN phone TEXT');                // WhatsApp informado na conversa
+    if (!tem('venda_total')) db.exec('ALTER TABLE contacts ADD COLUMN venda_total REAL');    // valor pago (avisado pelo NexTap)
+    if (!tem('venda_em')) db.exec('ALTER TABLE contacts ADD COLUMN venda_em INTEGER');
+  },
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
@@ -205,6 +213,7 @@ const SETTINGS_PADRAO = {
   fallback_cooldown_hours: '24',
   handoff_hours: '12',
   max_replies_hour: '30',
+  preco_revenda: '80,00',      // por quanto o revendedor costuma vender cada placa (conta do lucro na conversa; mesmo padrão do site)
   wa_max_novos_dia: '30',      // WhatsApp: primeiras mensagens para números que nunca responderam, por dia (protege o número de bloqueio)
 };
 const insSet = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');

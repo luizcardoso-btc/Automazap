@@ -103,6 +103,15 @@ function anotarProspect(prospectId, texto, { abordou = false } = {}) {
   db.prepare("UPDATE prospects SET status = ?, atualizado_em = datetime('now') WHERE id = ?").run(abordou && p.status === 'novo' ? 'abordado' : p.status, prospectId);
 }
 
+// Lead do Instagram que informou o WhatsApp: a conversa já fica pronta na aba WhatsApp (nada é enviado sozinho)
+function registrarLead(numero, nome) {
+  const n = normalizarNumero(numero);
+  if (!n) return null;
+  const c = contatoPorJid(jidDe(n), { nome });
+  if (!db.prepare('SELECT 1 FROM wa_mensagens WHERE contato_id = ?').get(c.id)) registrar(c.id, 'in', 'cliente', '[Lead do Instagram passou este WhatsApp pelo robô]');
+  return c;
+}
+
 // ---------- limite de primeiras mensagens (protege o número de bloqueio) ----------
 const inicioDoDia = (t = agora()) => Math.floor((t - FUSO) / DIA) * DIA + FUSO;   // meia-noite em Brasília
 const ehNovo = c => !c.grupo && !c.ultimo_in && !db.prepare("SELECT 1 FROM wa_mensagens WHERE contato_id = ? AND direcao = 'out' AND status = 'ok'").get(c.id);
@@ -386,4 +395,4 @@ router.post('/disparos/:id/enviar-agora', async (req, res) => {
   }
 });
 
-module.exports = { router, tick, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

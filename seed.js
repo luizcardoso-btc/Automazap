@@ -5,6 +5,7 @@ const { db, getSetting, setSetting } = require('./db.js');
 
 const NOME_ENTRADA = 'Entrada: REVENDER ou MEU NEGÓCIO';
 const NOME_ENTRADA_V3 = 'Entrada: direto ao ponto';
+const NOME_ENTRADA_V4 = 'Entrada: funil de vendas';
 
 const ins = () => db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at,
   kind, event, delay_hours, tags, human_priority, comment_text, audience) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -26,8 +27,10 @@ function criarFollowupsEtapas() {
 
   fu('Follow-up (quantidade) 1: quantas placas?', [
     rapidas('Oi, {{nome}} 👋\nFicou alguma dúvida? Me diz com quantas placas você pensa em começar que eu te mostro o valor da sua faixa:',
-      [['1–10', ['Qtd 1–10', 'Quantidade: 1–10']], ['11–49', ['Qtd 11–49', 'Quantidade: 11–49']],
-       ['50–299', ['Qtd 50–299 (lead quente)', 'Quantidade: 50–299 (lead quente)']], ['300+', ['Qtd 300+ (lead quente)', 'Quantidade: 300+ (lead quente)']]]),
+      idPorNome('Venda: 5 a 10 placas')
+        ? [['5–10', 'Venda: 5 a 10 placas'], ['11–49', 'Venda: 11 a 49 placas'], ['50–99', 'Venda: 50 a 99 placas (lead quente)'], ['100+', 'Venda: 100+ placas (lead quente)']]
+        : [['1–10', ['Qtd 1–10', 'Quantidade: 1–10']], ['11–49', ['Qtd 11–49', 'Quantidade: 11–49']],
+           ['50–299', ['Qtd 50–299 (lead quente)', 'Quantidade: 50–299 (lead quente)']], ['300+', ['Qtd 300+ (lead quente)', 'Quantidade: 300+ (lead quente)']]]),
   ], 'revenda_qtd', 2);
   fu('Follow-up (quantidade) final', [
     { type: 'text', text: 'Vou parar por aqui para não te incomodar 😄\nQuando quiser ver os valores de revenda, é só mandar "QUERO REVENDER" aqui. 💚' },
@@ -55,6 +58,7 @@ function criarFollowupsEtapas() {
 // Bancos que já tinham o funil: acrescenta as sequências novas uma única vez (apagadas pelo painel, não voltam)
 // (uma vez por funil: v2 ou funil direto)
 function instalarFollowupsEtapas() {
+  if (db.prepare('SELECT 1 FROM flows WHERE name = ? AND active = 1').get(NOME_ENTRADA_V4)) return false;   // o funil de vendas traz os próprios
   const v3 = db.prepare('SELECT 1 FROM flows WHERE name = ? AND active = 1').get(NOME_ENTRADA_V3);
   if (!v3 && !db.prepare('SELECT 1 FROM flows WHERE name = ?').get(NOME_ENTRADA)) return false;
   const flag = v3 ? 'followups_etapas_v3' : 'followups_etapas';
@@ -315,9 +319,153 @@ function instalarV3({ desativarAntigos = true } = {}) {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Funil DE VENDAS (v4): o preço, a conta do lucro e o pedido aparecem na própria conversa.
+// Entrada → REVENDER/MEU NEGÓCIO → quantidade (faixas do site, mínimo {{minimo}}) → vídeo + preço + lucro + botão que abre
+// o pedido no site já com a quantidade. Quem não compra em 24h recebe o convite para continuar pelo WhatsApp.
+// Variáveis de venda: {{qtd}} {{preco}} {{total}} {{preco_venda}} {{receita}} {{lucro}} {{minimo}} {{link_pedido}}
+// ---------------------------------------------------------------------------
+function instalarV4({ desativarAntigos = true } = {}) {
+  if (db.prepare('SELECT 1 FROM flows WHERE name = ?').get(NOME_ENTRADA_V4)) return false;
+
+  db.transaction(() => {
+    if (desativarAntigos) db.prepare('UPDATE flows SET active = 0').run();
+    const PEDIR = [{ title: 'FAZER MEU PEDIDO', url: '{{link_pedido}}' }];
+    const CONTA = 'Para {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}} (frete calculado pelo seu CEP).\nRevendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.';
+    const OFERTA = 'No primeiro pedido você leva o nosso roteiro de abordagem (o passo a passo para vender para barbearias, clínicas e lojas) e o painel do revendedor para configurar cada placa. Se alguma placa chegar com defeito, a gente troca.';
+
+    // ---------- fechamento ----------
+    const jaVouComprar = criar('Botão: JÁ VOU COMPRAR', [
+      { type: 'button', text: 'Perfeito! 🔥 Seu pedido de {{qtd}} placas já abre montado aqui. Qualquer dúvida de pagamento ou envio, me chama.', buttons: PEDIR },
+    ], { tipo: 'botao', tags: ['INTENÇÃO DE COMPRA', 'QUENTE'] });
+    const queroAjuda = criar('Botão: QUERO AJUDA', [
+      { type: 'text', text: 'Já avisei o time: em instantes alguém fecha com você por aqui. Se preferir, WhatsApp: {{telefone}} 💚' },
+    ], { tipo: 'botao', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
+    criar('Depois do clique no pedido', [
+      { type: 'quick', text: 'Vi que você abriu o pedido 👀 Ficou alguma dúvida de quantidade, pagamento ou frete? Eu te ajudo a finalizar agora.', replies: [
+        { title: 'QUERO AJUDA', flow_id: queroAjuda }, { title: 'JÁ VOU COMPRAR', flow_id: jaVouComprar },
+      ] },
+    ], { tipo: 'evento', evento: 'clique_link' });
+    const comercial = criar('Botão: FALAR COM COMERCIAL', [
+      { type: 'text', text: 'Combinado! 🔥 Já chamei o comercial: você será atendido com prioridade aqui mesmo. WhatsApp: {{telefone}}' },
+    ], { tipo: 'botao', acao: 'handoff', humano: 2, tags: ['QUENTE'] });
+    const verPedido = criar('Botão: VER MEU PEDIDO', [
+      { type: 'button', text: CONTA + '\n\nÉ só abrir e finalizar 👇', buttons: PEDIR },
+    ], { tipo: 'botao', tags: ['VIU PREÇO'] });
+
+    // ---------- quantidade (o número no evento é a quantidade de exemplo da faixa) ----------
+    const video = { type: 'video', url: '{{video_demo}}' };
+    const pequeno = (nome, evento, faixa) => criar(nome, [
+      video,
+      { type: 'text', text: 'Sem aplicativo: o cliente aproxima o celular da placa e cai direto na avaliação da empresa no Google. É isso que você vai vender. 👆' },
+      { type: 'text', text: CONTA },
+      { type: 'button', text: OFERTA + '\n\nSeu pedido já abre montado 👇', buttons: PEDIR },
+    ], { tipo: 'botao', evento, tags: ['QUANTIDADE', 'QTD ' + faixa, 'VIU DEMO', 'VIU PREÇO'] });
+    const grande = (nome, evento, faixa) => criar(nome, [
+      { type: 'text', text: CONTA },
+      { type: 'quick', text: 'Nesse volume você tem atendimento direto do comercial e as melhores condições de atacado. 💚\nQuer falar com o comercial ou já ver o seu pedido?', replies: [
+        { title: 'FALAR COM COMERCIAL', flow_id: comercial }, { title: 'VER MEU PEDIDO', flow_id: verPedido },
+      ] },
+    ], { tipo: 'botao', evento, humano: 2, tags: ['QUANTIDADE', 'QTD ' + faixa, 'LEAD GRANDE', 'QUENTE', 'VIU PREÇO'] });
+    const q1 = pequeno('Venda: 5 a 10 placas', 'qtd4_10', '5-10');
+    const q2 = pequeno('Venda: 11 a 49 placas', 'qtd4_20', '11-49');
+    const q3 = grande('Venda: 50 a 99 placas (lead quente)', 'qtd4_50', '50-99');
+    const q4 = grande('Venda: 100+ placas (lead quente)', 'qtd4_100', '100+');
+    const QTD = [{ title: '5–10', flow_id: q1 }, { title: '11–49', flow_id: q2 }, { title: '50–99', flow_id: q3 }, { title: '100+', flow_id: q4 }];
+    criar('Venda: abaixo do pedido mínimo', [
+      { type: 'quick', text: 'O pedido mínimo é de {{minimo}} placas, que é o que faz a revenda valer a pena: com {{minimo}} você já cobre o investimento nas primeiras vendas. Com quantas quer começar?', replies: QTD },
+    ], { tipo: 'botao', evento: 'qtd4_min' });
+
+    const revender = criar('REVENDER: quantas placas?', [
+      { type: 'quick', text: 'Boa! 🚀 Você compra direto da fábrica e define o seu preço de venda. Com quantas placas quer começar? (mínimo {{minimo}}; pode digitar o número)', replies: QTD },
+    ], { prioridade: 15, palavras: ['revender', 'revenda', 'revendedor', 'revendedora', 'quero revender', 'ser revendedor'], comentario: true, tags: ['REVENDEDOR'],
+      textoComentario: 'Oi! 👋💚 Perfeito, vamos de revenda! Com quantas placas você pensa em começar? Responda com um número, ex.: 20' });
+
+    // ---------- MEU NEGÓCIO ----------
+    const negocio = criar('MEU NEGÓCIO: ver modelos', [
+      { type: 'button', text: 'Seu cliente aproxima o celular e cai direto na sua avaliação do Google, sem app. ⭐ Escolha o modelo e peça a sua 👇', buttons: [{ title: 'VER MODELOS', url: '{{site}}' }] },
+    ], { prioridade: 15, palavras: ['meu negocio', 'minha empresa', 'minha loja', 'para meu negocio'], tags: ['MEU NEGÓCIO', 'VIU PREÇO'] });
+
+    // ---------- entrada ----------
+    criar(NOME_ENTRADA_V4, [
+      { type: 'quick', text: 'Oi! 👋💚 Aqui é a NexTap: placas NFC + QR Code que levam o cliente direto para a avaliação no Google.\nVocê quer para:', replies: [
+        { title: '💰 REVENDER', flow_id: revender }, { title: '🏪 MEU NEGÓCIO', flow_id: negocio },
+      ] },
+    ], { prioridade: 10, comentario: true,
+      palavras: ['preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
+      textoComentario: 'Oi! 👋💚 Para te mostrar a melhor opção, responda por aqui: REVENDER ou MEU NEGÓCIO.' });
+
+    // ---------- objeções (curtas, sempre com o pedido) ----------
+    const obj = (nome, palavras, texto) => criar(nome, [{ type: 'button', text: texto, buttons: PEDIR }], { prioridade: 20, palavras });
+    obj('Objeção: Como funciona?', ['como funciona', 'funciona', 'como e', 'como usa', 'aproximar'], 'A placa tem NFC + QR Code: o cliente aproxima o celular (ou lê o QR) e abre a avaliação no Google, sem app. Você configura cada placa pelo painel do revendedor. Seu pedido 👇');
+    obj('Objeção: Já tenho QR Code', ['ja tenho qr code', 'ja tenho qrcode', 'ja tenho qr', 'tenho qr code', 'tenho qr', 'qr code', 'qrcode'], 'Ótimo, e ele continua útil. A NexTap soma o NFC: o cliente só aproxima o celular. Menos passos, mais avaliações. Veja o seu pedido 👇');
+    obj('Objeção: Está caro', ['caro', 'esta caro', 'ta caro', 'muito caro', 'achei caro', 'desconto', 'mais barato', 'barato'], 'Entendo! Faz a conta comigo: ' + CONTA + '\nQuanto maior a quantidade, menor o valor por placa 👇');
+    criar('Prazo e entrega', [
+      { type: 'button', text: 'Produção em ~5 dias úteis após a confirmação, com envio rastreado 📦 O frete é calculado pelo seu CEP na hora de fechar.', buttons: PEDIR },
+    ], { prioridade: 20, palavras: ['prazo', 'entrega', 'frete', 'envio', 'correios', 'rastreio', 'quanto tempo', 'demora'] });
+    criar('Nota fiscal', [
+      { type: 'text', text: 'Sobre nota fiscal, vou chamar alguém da equipe para te explicar direitinho. Já já respondemos! 🙂' },
+    ], { prioridade: 20, palavras: ['nota fiscal', 'nf', 'nfe', 'cnpj', 'cpf', 'nota'], acao: 'handoff', humano: 1 });
+
+    // ---------- atendente e parada ----------
+    criar('Falar com atendente', [
+      { type: 'text', text: 'Certo! Já avisei a equipe e uma pessoa vai te responder em breve. WhatsApp: {{telefone}} 💚' },
+    ], { prioridade: 100, palavras: ['atendente', 'humano', 'falar com alguem', 'falar com pessoa', 'falar com atendente', 'suporte', 'ajuda'], acao: 'handoff', humano: 1 });
+    criar('Parar mensagens', [
+      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+    ], { prioridade: 200, palavras: ['parar', 'sair', 'stop', 'cancelar', 'descadastrar'], acao: 'silenciar', modo: 'exato' });
+    criar('Parar mensagens (frases)', [
+      { type: 'text', text: 'Combinado, não envio mais mensagens automáticas. Se precisar, é só chamar! 👋' },
+    ], { prioridade: 200, palavras: ['nao quero receber', 'nao quero mais receber', 'nao enviar', 'nao envie', 'pare de enviar'], acao: 'silenciar' });
+
+    // ---------- follow-ups por etapa (dentro das 24h) e convite para o WhatsApp no final ----------
+    const WPP = '\nSe preferir continuar pelo WhatsApp, me manda o seu número com DDD aqui que eu te chamo por lá. 📱';
+    const fu = (nome, passos, publico, atraso) => criar(nome, passos, { tipo: 'followup', publico, atraso, tags: ['FOLLOW-UP'] });
+    fu('Follow-up (quantidade) 1: quantas placas?', [
+      { type: 'quick', text: 'Oi, {{nome}} 👋 Ficou alguma dúvida? Me diz com quantas placas você pensa em começar que eu já te mostro o valor e o lucro:', replies: QTD },
+    ], 'revenda_qtd', 2);
+    fu('Follow-up (quantidade) final', [
+      { type: 'text', text: 'Vou parar por aqui para não te incomodar 😄 Quando quiser ver os valores, é só mandar "QUERO REVENDER".' + WPP },
+    ], 'revenda_qtd', 20);
+    fu('Follow-up (preço) 1: seu pedido', [
+      { type: 'button', text: 'Oi, {{nome}} 👋 Deixei o seu pedido de {{qtd}} placas montado: R$ {{total}}, com R$ {{lucro}} de lucro revendendo a R$ {{preco_venda}}.', buttons: PEDIR },
+    ], 'revenda_preco', 2);
+    fu('Follow-up (preço) 2: como vender', [
+      { type: 'quick', text: 'Uma dúvida comum de quem está começando: "para quem eu vendo?" Barbearias, salões, clínicas, restaurantes e lojas do seu bairro. O roteiro de abordagem vai junto no primeiro pedido. Quer ajuda para fechar?', replies: [
+        { title: 'QUERO AJUDA', flow_id: queroAjuda }, { title: 'VER MEU PEDIDO', flow_id: verPedido },
+      ] },
+    ], 'revenda_preco', 8);
+    fu('Follow-up (preço) final', [
+      { type: 'text', text: 'Vou encerrar por aqui para não ficar te incomodando 😄 O seu pedido continua guardado.' + WPP },
+    ], 'revenda_preco', 20);
+    fu('Follow-up (pedido aberto) 1: conseguiu finalizar?', [
+      { type: 'quick', text: 'Oi, {{nome}} 👋 Vi que você abriu o pedido de {{qtd}} placas. Conseguiu finalizar ou travou em alguma parte (cadastro, frete, pagamento)?', replies: [
+        { title: 'QUERO AJUDA', flow_id: queroAjuda }, { title: 'JÁ VOU COMPRAR', flow_id: jaVouComprar },
+      ] },
+    ], 'checkout', 3);
+    fu('Follow-up (pedido aberto) final', [
+      { type: 'button', text: 'Última mensagem por aqui 😄 Seu pedido de {{qtd}} placas continua montado, é só finalizar.' + WPP, buttons: PEDIR },
+    ], 'checkout', 20);
+    fu('Follow-up (meu negócio) 1: ver modelos', [
+      { type: 'button', text: 'Oi, {{nome}} 👋 Conseguiu ver os modelos? Seu cliente aproxima o celular e já cai na avaliação da sua empresa no Google, sem app. ⭐', buttons: [{ title: 'VER MODELOS', url: '{{site}}' }] },
+    ], 'negocio', 2);
+    fu('Follow-up (meu negócio) final', [
+      { type: 'text', text: 'Vou parar por aqui para não incomodar 😄 Quando quiser a sua placa no balcão, é só mandar "MEU NEGÓCIO".' + WPP },
+    ], 'negocio', 20);
+    criar('Resposta a um follow-up', [
+      { type: 'text', text: 'Boa! 💚 Vou chamar alguém do time para fechar com você por aqui.' },
+    ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
+    criar('Recebeu o WhatsApp do lead', [
+      { type: 'text', text: 'Anotado! 📱 Alguém do time vai te chamar no WhatsApp para continuar por lá. Se quiser adiantar, o seu pedido está aqui em cima.' },
+    ], { tipo: 'evento', evento: 'recebeu_whatsapp', humano: 1, tags: ['QUENTE'] });
+    setSetting('followups_etapas_v4', '1');
+  })();
+  return true;
+}
+
 function semear() {
   if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { semear, instalarV2, instalarV3, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3 };
+module.exports = { semear, instalarV2, instalarV3, instalarV4, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4 };
