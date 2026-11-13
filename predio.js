@@ -3,6 +3,9 @@
 //   Atendente    → (no engine.js) entende erros de digitação, mostra um menu quando não entende e anota as frases novas
 //   Prospectora  → lista diária de empresas para abordar e retornos do dia 1, 3 e 7, com a mensagem pronta
 //   Conteúdo     → calendário da semana (segunda a sexta) com roteiro e legenda, a partir de modelos e dados reais
+//   Controller   → lê o financeiro do NexTap (somente leitura, a cada 10 min): lucro, margem, estoque, a receber e pedidos parados;
+//                  avisa no celular quando surge um alerta crítico e entrega os números para o resumo da Gerente
+// Cada agente tem um nome (Configurações → Prédio): padrão Helena, Sofia, Bianca, Theo, Otávio e Clara.
 // Montado em routes-api.js (com login): /api/predio/...   ·   Relógio: tick() a cada minuto (server.js)
 const express = require('express');
 const { db, getSetting, setSetting } = require('./db.js');
@@ -23,6 +26,36 @@ function registrar(agente, titulo, texto, dados = {}, t0 = Date.now()) {
   return id;
 }
 const ultimo = agente => { const r = db.prepare('SELECT * FROM agentes_log WHERE agente = ? ORDER BY id DESC LIMIT 1').get(agente); return r && { ...r, dados: JSON.parse(r.dados || '{}') }; };
+
+const PAPEIS = { gerente: 'Gerente', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Conteúdo', financeiro: 'Controller', recepcao: 'Recepcionista' };
+const NOMES0 = { gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', financeiro: 'Otávio', recepcao: 'Clara' };
+function nomes() { let o = {}; try { o = JSON.parse(getSetting('predio_nomes') || '{}') || {}; } catch (e) { /* padrão */ } const r = {}; for (const k in NOMES0) r[k] = String(o[k] || '').trim() || NOMES0[k]; return r; }
+const quem = k => `${nomes()[k]} (${PAPEIS[k]})`;
+
+// ======================= CONTROLLER (financeiro do NexTap) =======================
+const fin = () => { try { return JSON.parse(getSetting('nextap_fin') || 'null'); } catch (e) { return null; } };
+const reais = v => 'R$ ' + brl(v || 0);
+// Chamado a cada leitura do NexTap: registra e avisa só o que é NOVO (alerta crítico ou pedido pago parado)
+function controller(j, t0 = Date.now()) {
+  if (!j || !j.mes) return [];
+  let vistos = []; try { vistos = JSON.parse(getSetting('controller_vistos') || '[]'); } catch (e) { /* vazio */ }
+  const atuais = [], novos = [];
+  for (const a of (j.mes.alertas || []).filter(x => x.nivel === 'critico')) { const k = 'a:' + a.titulo; atuais.push(k); if (!vistos.includes(k)) novos.push({ titulo: '🚨 ' + a.titulo, texto: a.texto }); }
+  for (const p of (j.pedidos && j.pedidos.parados) || []) { const k = 'p:' + p.id; atuais.push(k); if (!vistos.includes(k)) novos.push({ titulo: `📦 Pedido #${String(p.id).padStart(5, '0')} parado há ${p.dias} dias`, texto: `${p.ship_name || 'Cliente'} · ${reais(p.total)} · status: ${String(p.status).replace('_', ' ')}. Produza e envie no admin do NexTap.` }); }
+  setSetting('controller_vistos', JSON.stringify(atuais));
+  if (!getSetting('controller_ok')) { setSetting('controller_ok', '1'); registrar('financeiro', 'Primeira leitura do financeiro do NexTap ✓', `Mês: receita ${reais(j.periodos.month.receita_bruta)}, lucro ${reais(j.periodos.month.lucro_final)}.`, {}, t0); return []; }   // não dispara avisos antigos na instalação
+  for (const x of novos) registrar('financeiro', x.titulo, x.texto, {}, t0);
+  if (novos.length) require('./notificacoes.js').notificar({ tipo: 'financeiro', titulo: `${nomes().financeiro}: ${novos[0].titulo}`, texto: novos.length > 1 ? `${novos[0].texto} (+${novos.length - 1} aviso(s))` : novos[0].texto, url: '/#predio', chave: 'fin-' + atuais.join('|').slice(0, 60) }).catch(() => {});
+  return novos;
+}
+function resumoFin(j) {
+  if (!j || !j.periodos) return null;
+  const m = j.periodos.month, s = j.periodos['7'], e = j.mes.estoque || {};
+  return { em: j.recebido_em || j.gerado_em, receita_mes: m.receita_bruta, lucro_mes: m.lucro_final, margem_mes: m.margem_pct, pedidos_mes: m.pedidos, placas_mes: m.placas,
+    receita_7: s.receita_bruta, lucro_7: s.lucro_final, hoje: j.periodos.today.receita_bruta,
+    criticos: (j.mes.alertas || []).filter(a => a.nivel === 'critico').length, atencao: (j.mes.alertas || []).filter(a => a.nivel === 'atencao').length,
+    parados: ((j.pedidos && j.pedidos.parados) || []).length, a_receber: (j.mes.a_receber || {}).valor || 0, estoque: e.disponivel, cobertura: e.dias_cobertura };
+}
 
 // ======================= PROSPECTORA =======================
 const cidade = () => getSetting('cidade') || 'Feira de Santana';
@@ -183,18 +216,27 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
   const nx = require('./nextap.js'), black = nx.textoPromo('black_final', 10, t0).split('\n')[0];
   const lista = listaDeHoje(t0), hojeConteudo = db.prepare('SELECT * FROM conteudo WHERE dia = ? ORDER BY id DESC LIMIT 1').get(dataStr(t0));
   const naoEnt = n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova' AND ultimo_em >= ?", ontem0);
-  if (lista && lista.itens.length) prioridades.push(`📋 Prospectora: ${lista.itens.filter(i => i.tipo === 'retorno').length} retorno(s) e ${lista.itens.filter(i => i.tipo === 'abordagem').length} empresa(s) nova(s) para hoje.`);
-  if (hojeConteudo && hojeConteudo.status !== 'postado') prioridades.push(`🎬 Conteúdo de hoje: ${hojeConteudo.formato} "${hojeConteudo.titulo}".`);
-  if (naoEnt) prioridades.push(`🧠 Atendente: ${naoEnt} frase(s) nova(s) que o robô não entendeu. Ensine em Prédio → Atendente.`);
+  if (lista && lista.itens.length) prioridades.push(`📋 ${quem('prospectora')}: ${lista.itens.filter(i => i.tipo === 'retorno').length} retorno(s) e ${lista.itens.filter(i => i.tipo === 'abordagem').length} empresa(s) nova(s) para hoje.`);
+  if (hojeConteudo && hojeConteudo.status !== 'postado') prioridades.push(`🎬 ${quem('conteudo')}, conteúdo de hoje: ${hojeConteudo.formato} "${hojeConteudo.titulo}".`);
+  if (naoEnt) prioridades.push(`🧠 ${quem('atendente')}: ${naoEnt} frase(s) nova(s) que o robô não entendeu. Ensine em Prédio → Atendente.`);
+  const F = fin(), rf = resumoFin(F), finLinhas = [];
+  if (rf) {
+    finLinhas.push(`💰 ${quem('financeiro')}: no mês, ${rf.pedidos_mes} pedido(s) pago(s), receita ${reais(rf.receita_mes)} e lucro final ${reais(rf.lucro_mes)} (margem ${String(rf.margem_mes).replace('.', ',')}%). Últimos 7 dias: ${reais(rf.receita_7)} de receita.`);
+    if (rf.a_receber) finLinhas.push(`🧾 A receber: ${reais(rf.a_receber)} em pedidos aguardando pagamento.`);
+    for (const a of (F.mes.alertas || []).filter(x => x.nivel === 'critico').slice(0, 3)) prioridades.push(`🚨 Financeiro: ${a.titulo}.`);
+    if (rf.parados) prioridades.push(`📦 ${rf.parados} pedido(s) pago(s) parado(s) há 3 dias ou mais. Produza e envie no admin do NexTap.`);
+    const est = (F.mes.alertas || []).find(x => x.titulo === 'Estoque baixo'); if (est) prioridades.push(`📦 Estoque baixo: ${rf.estoque} placa(s) disponível(is)${rf.cobertura != null ? `, dura cerca de ${rf.cobertura} dia(s)` : ''}.`);
+    if (t0 - rf.em > 2 * DIA) prioridades.push(`🔌 ${quem('financeiro')}: o financeiro do NexTap não atualiza há mais de 2 dias.`);
+  } else if (getSetting('nextap_fin_erro')) prioridades.push(`🔌 ${quem('financeiro')} não consegue ler o NexTap: ${getSetting('nextap_fin_erro')}`);
   const linhas = [
     `📊 Ontem: ${novos} lead(s) novo(s), ${recebidas} mensagem(ns) recebida(s), ${cliques} clique(s) no pedido, ${v.n} venda(s)${v.total ? ` (R$ ${brl(v.total)})` : ''}.`,
     `🔁 Funil da semana: ${pct(s1.c, s1.q)}% de quem escolheu a quantidade abriu o pedido (${s1.c} de ${s1.q}).`,
-    ...(black ? [black] : []), ...alertas,
+    ...finLinhas, ...(black ? [black] : []), ...alertas,
     '', prioridades.length ? '✅ Prioridades de hoje:' : '✅ Nada urgente hoje. Bom trabalho!', ...prioridades.map(p => '• ' + p),
   ];
   const titulo = 'Resumo de ' + diaBR(t0), texto = linhas.join('\n');
-  registrar('gerente', titulo, texto, { novos, recebidas, cliques, vendas: v.n, total: v.total, esperando, semResposta, prioridades: prioridades.length }, t0);
-  if (avisar) require('./notificacoes.js').notificar({ tipo: 'resumo', titulo: '☀️ ' + titulo, texto: `${novos} lead(s), ${v.n} venda(s) ontem · ${prioridades.length} prioridade(s) hoje`, url: '/#predio' }).catch(() => {});
+  registrar('gerente', titulo, texto, { novos, recebidas, cliques, vendas: v.n, total: v.total, esperando, semResposta, prioridades: prioridades.length, lucro_mes: rf ? rf.lucro_mes : null }, t0);
+  if (avisar) require('./notificacoes.js').notificar({ tipo: 'resumo', titulo: '☀️ ' + nomes().gerente + ': ' + titulo, texto: `${novos} lead(s), ${v.n} venda(s) ontem${rf ? ` · lucro do mês ${reais(rf.lucro_mes)}` : ''} · ${prioridades.length} prioridade(s) hoje`, url: '/#predio' }).catch(() => {});
   return { titulo, texto };
 }
 
@@ -233,6 +275,8 @@ router.get('/', (req, res) => {
       esperando: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND needs_human = 1"),
       robo_parado: !!getSetting('ig_conexao_erro'),
     },
+    nomes: nomes(),
+    financeiro: resumoFin(fin()), financeiro_erro: getSetting('nextap_fin_erro') || '',
     feed: db.prepare('SELECT agente, titulo, criado_em FROM agentes_log ORDER BY id DESC LIMIT 12').all(),
     gerente: g ? { titulo: g.titulo, texto: g.texto, em: g.criado_em, prioridades: g.dados.prioridades || 0, novos: g.dados.novos || 0, vendas: g.dados.vendas || 0 } : null,
     atendente: { novas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova'"), ensinadas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'ensinada'"),
@@ -263,6 +307,15 @@ router.post('/atendente/:id/ensinar', (req, res) => {
   res.json({ ok: true });
 });
 router.post('/atendente/:id/ignorar', (req, res) => { db.prepare("UPDATE nao_entendidas SET status = 'ignorada' WHERE id = ?").run(req.params.id); res.json({ ok: true }); });
+router.get('/financeiro', (req, res) => {
+  const nx = require('./nextap.js');
+  res.json({ dados: fin(), erro: getSetting('nextap_fin_erro') || '', admin: nx.adminNextap(), configurado: (process.env.NEXTAP_WEBHOOK_SECRET || '').length >= 16,
+    avisos: db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'financeiro' ORDER BY id DESC LIMIT 20").all() });
+});
+router.post('/financeiro/atualizar', async (req, res) => {
+  try { const j = await require('./nextap.js').atualizarFinanceiro(); if (!j) return res.status(400).json({ error: 'Configure NEXTAP_WEBHOOK_SECRET (o mesmo valor no NexTap e no Automazap) e o endereço do site.' }); res.json({ ok: true }); }
+  catch (e) { res.status(502).json({ error: getSetting('nextap_fin_erro') || e.message }); }
+});
 router.get('/prospectora', (req, res) => res.json(listaDeHoje() || montarLista()));
 router.post('/prospectora/montar', (req, res) => res.json(montarLista()));
 router.post('/prospectora/feito', (req, res) => {
@@ -285,4 +338,4 @@ router.put('/conteudo/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, tick, resumo, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };
+module.exports = { router, tick, resumo, controller, resumoFin, nomes, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };

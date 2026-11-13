@@ -148,7 +148,7 @@ svg text{font-family:inherit}.gb{transition:opacity .15s}.gb:hover{opacity:1}
 .card.feito{opacity:.6}
 /* ---------- prédio virtual ---------- */
 .pvw{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}@media(max-width:1000px){.pvw{grid-template-columns:1fr}}
-.pv{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--br);box-shadow:var(--sh2);background:linear-gradient(180deg,#7cc4f5 0%,#bfe3fb 55%,#e9f6ff 100%);padding:34px 18px 0;--chao:#3b3f46}
+.pv{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--br);box-shadow:var(--sh2);background:linear-gradient(180deg,#7cc4f5 0%,#bfe3fb 55%,#e9f6ff 100%);padding:58px 18px 0;--chao:#0b0f17}
 .pv.noite{background:linear-gradient(180deg,#0b1430 0%,#1b2a55 60%,#2a3b6e 100%)}
 .pv-astro{position:absolute;top:18px;right:28px;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#fff7c2,#ffd54a 60%,#f5b400);box-shadow:0 0 40px 10px rgba(255,213,74,.45)}
 .pv.noite .pv-astro{background:radial-gradient(circle at 35% 35%,#fff,#dfe6f5 60%,#b9c4dd);box-shadow:0 0 30px 6px rgba(220,230,255,.35)}
@@ -162,68 +162,101 @@ svg text{font-family:inherit}.gb{transition:opacity .15s}.gb:hover{opacity:1}
  linear-gradient(#5b7da8,#5b7da8) 2% 100%/7% 60% no-repeat,linear-gradient(#6b8cb5,#6b8cb5) 10% 100%/5% 85% no-repeat,linear-gradient(#5b7da8,#5b7da8) 16% 100%/8% 45% no-repeat,
  linear-gradient(#6b8cb5,#6b8cb5) 84% 100%/6% 75% no-repeat,linear-gradient(#5b7da8,#5b7da8) 91% 100%/8% 55% no-repeat}
 .pv.noite .pv-cidade{opacity:.6;filter:brightness(.45)}
-.pv-predio{position:relative;max-width:760px;margin:0 auto;z-index:1}
-.pv-teto{position:relative;height:46px;margin:0 -10px;background:linear-gradient(180deg,#2b2f36,#1e2127);border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:center;box-shadow:0 -2px 0 #3a3f48 inset}
-.pv-letreiro{font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff;font-size:15px;padding:4px 14px;border-radius:8px;background:var(--pr);box-shadow:0 0 18px color-mix(in srgb,var(--pr) 70%,transparent)}
-.pv-antena{position:absolute;right:70px;top:-26px;width:3px;height:26px;background:#2b2f36}.pv-antena:after{content:"";position:absolute;top:-5px;left:-3px;width:9px;height:9px;border-radius:50%;background:#ff4d4f;animation:pv-pisca 1.4s infinite}
+.pv-predio{position:relative;max-width:780px;margin:0 auto;z-index:1}
+/* topo: heliponto, painéis solares, antena e drone */
+.pv-topo{position:relative;height:40px;margin:0 22px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.pv-solar{width:28%;height:18px;background:repeating-linear-gradient(90deg,#1e3a8a 0 13px,#93c5fd 13px 14px),#1e3a8a;transform:perspective(90px) rotateX(38deg);border:2px solid #cbd5e1;border-radius:3px;box-shadow:0 0 14px rgba(96,165,250,.55)}
+.pv-heli{width:92px;height:22px;border-radius:50%;background:#1f2937;border:2px solid #facc15;display:grid;place-items:center;color:#facc15;font-weight:900;font-size:12px;box-shadow:0 0 12px rgba(250,204,21,.6);animation:pv-heli 2s ease-in-out infinite}@keyframes pv-heli{50%{box-shadow:0 0 4px rgba(250,204,21,.2)}}
+.pv-antena{position:absolute;left:50%;top:-30px;width:3px;height:34px;background:#94a3b8}.pv-antena:after{content:"";position:absolute;top:-5px;left:-3px;width:9px;height:9px;border-radius:50%;background:#ff4d4f;box-shadow:0 0 10px #ff4d4f;animation:pv-pisca 1.4s infinite}
 @keyframes pv-pisca{50%{opacity:.15}}
-.pv-corpo-predio{position:relative;background:#e9e3d8;border-left:10px solid #cfc6b6;border-right:10px solid #cfc6b6;padding-right:46px}
-.pv.noite .pv-corpo-predio{background:#2a2622;border-color:#1f1c19}
-.pv-sala{position:relative;height:152px;border-bottom:8px solid #b9ae9c;cursor:pointer;overflow:visible;background:var(--parede,#f6f1e7);transition:filter .15s}
-.pv-sala:hover{filter:brightness(1.04)}.pv-sala:hover .pv-placa{background:var(--pr);color:#fff}
-.pv.noite .pv-sala{background:color-mix(in srgb,var(--parede,#f6f1e7) 55%,#3a2f1f);border-bottom-color:#4a4134}
-.pv-sala.s-gerente{--parede:#efe9ff}.pv-sala.s-atendente{--parede:#e6f6ff}.pv-sala.s-prospectora{--parede:#fff1e6}.pv-sala.s-conteudo{--parede:#ffeaf4}.pv-sala.s-recepcao{--parede:#f3f4f6;height:140px}
-.pv-piso{position:absolute;left:0;right:0;bottom:0;height:16px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 28px,rgba(0,0,0,0) 28px 56px)}
-.pv-placa{position:absolute;top:8px;left:10px;font-size:10.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.85);color:#3b3f46;padding:3px 8px;border-radius:6px;z-index:3;transition:background .15s,color .15s}
-.pv.noite .pv-placa{background:rgba(20,22,28,.8);color:#e8eaf0}
+.pv-drone{position:absolute;top:22px;z-index:5;animation:pv-voo 26s ease-in-out infinite}
+.pv-drone i{display:block;position:relative;width:26px;height:6px;background:#e5e7eb;border-radius:3px;box-shadow:0 0 8px rgba(255,255,255,.7)}
+.pv-drone i:before,.pv-drone i:after{content:"";position:absolute;top:-4px;width:13px;height:2px;background:#cbd5e1;animation:pv-helice .1s linear infinite}.pv-drone i:before{left:-6px}.pv-drone i:after{right:-6px}
+.pv-drone b{position:absolute;left:11px;top:7px;width:4px;height:4px;border-radius:50%;background:#22d3ee;box-shadow:0 0 6px #22d3ee;animation:pv-pisca .8s infinite}
+.pv-drone u{position:absolute;left:8px;top:10px;width:10px;height:8px;background:#f59e0b;border-radius:2px;text-decoration:none}
+@keyframes pv-voo{0%{left:-50px;top:26px}22%{left:28%;top:6px}48%{left:62%;top:30px}72%{left:86%;top:8px}100%{left:112%;top:22px}}
+@keyframes pv-helice{50%{transform:scaleX(.15)}}
+/* coroa com letreiro neon */
+.pv-teto{position:relative;height:42px;margin:0 6px;background:linear-gradient(180deg,#1e293b,#0b1220);border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:center;border-top:2px solid #22d3ee;box-shadow:0 -4px 18px rgba(34,211,238,.45)}
+.pv-letreiro{font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#fff;font-size:15px;text-shadow:0 0 4px #fff,0 0 12px var(--pr),0 0 26px var(--pr);animation:pv-neon 5s ease-in-out infinite}@keyframes pv-neon{48%,52%{opacity:1}50%{opacity:.55}}
+/* corpo de vidro escuro com fitas de LED nas laterais */
+.pv-corpo-predio{position:relative;background:linear-gradient(90deg,#060a14,#0f172a 50%,#060a14);padding:6px 52px 0 14px}
+.pv-corpo-predio:before,.pv-corpo-predio:after{content:"";position:absolute;top:0;bottom:0;width:4px;z-index:3;background:linear-gradient(180deg,#22d3ee,#a78bfa,#f472b6,#34d399,#22d3ee);background-size:100% 300%;animation:pv-led 6s linear infinite;box-shadow:0 0 14px rgba(34,211,238,.8)}
+.pv-corpo-predio:before{left:0}.pv-corpo-predio:after{right:0}
+@keyframes pv-led{to{background-position:0 300%}}
+.pv-sala{position:relative;height:156px;margin-bottom:6px;cursor:pointer;overflow:visible;border-radius:4px;background:linear-gradient(180deg,color-mix(in srgb,var(--cs) 16%,#0f172a),#0a101d);border-bottom:3px solid var(--cs);box-shadow:0 2px 14px color-mix(in srgb,var(--cs) 45%,transparent);transition:filter .15s}
+.pv-sala:before{content:"";position:absolute;top:0;left:8%;right:8%;height:3px;border-radius:3px;background:var(--cs);box-shadow:0 0 12px 2px var(--cs);opacity:.9}
+.pv-sala:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.07) 0 16%,transparent 16% 40%,rgba(255,255,255,.04) 40% 45%,transparent 45%)}
+.pv-sala:hover{filter:brightness(1.2)}.pv-sala:hover .pv-placa{background:var(--cs);color:#0b1220}
+.pv-sala.s-gerente{--cs:#a78bfa}.pv-sala.s-financeiro{--cs:#34d399}.pv-sala.s-atendente{--cs:#38bdf8}.pv-sala.s-prospectora{--cs:#fb923c}.pv-sala.s-conteudo{--cs:#f472b6}.pv-sala.s-recepcao{--cs:#e2e8f0;height:146px;margin-bottom:0}
+.pv-piso{position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0));border-top:1px solid rgba(255,255,255,.08)}
+.pv-placa{position:absolute;top:10px;left:12px;font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;background:rgba(15,23,42,.8);color:#e2e8f0;padding:3px 9px;border-radius:99px;z-index:3;border:1px solid color-mix(in srgb,var(--cs) 70%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--cs) 40%,transparent);transition:background .15s,color .15s}
 .pv-pend{display:inline-block;margin-left:6px;background:#e5484d;color:#fff;border-radius:99px;padding:0 6px;font-size:10px}
-.pv-janela{position:absolute;top:26px;width:15%;height:52px;border:4px solid #fff;border-radius:6px;background:linear-gradient(180deg,#9fd4f8,#d8efff);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
-.pv-janela:after{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;background:#fff}
-.pv.noite .pv-janela{background:linear-gradient(180deg,#1a2a55,#2d3f73);border-color:#5a4a33}
-.pv-mesa{position:absolute;bottom:16px;height:30px;width:16%;background:#8b5e3c;border-radius:4px 4px 0 0;box-shadow:inset 0 4px 0 #a5744e}
-.pv-tela{position:absolute;bottom:46px;width:9%;height:26px;background:#1f2937;border-radius:4px;box-shadow:0 0 12px rgba(56,189,248,.45);overflow:hidden}
-.pv-tela:before{content:"";position:absolute;inset:4px;border-radius:2px;background:linear-gradient(90deg,#38bdf8 0 40%,transparent 40%) 0 2px/100% 4px no-repeat,linear-gradient(90deg,#a7f3d0 0 70%,transparent 70%) 0 10px/100% 4px no-repeat,linear-gradient(90deg,#fde68a 0 55%,transparent 55%) 0 18px/100% 4px no-repeat;animation:pv-digita 2.4s steps(4) infinite}
+.pv-vidro{position:absolute;top:32px;height:58px;border-radius:6px;border:1px solid rgba(148,163,184,.35);background:repeating-linear-gradient(90deg,transparent 0 24px,rgba(148,163,184,.25) 24px 25px),linear-gradient(180deg,rgba(56,189,248,.28),rgba(167,139,250,.14))}
+.pv.noite .pv-vidro{background:repeating-linear-gradient(90deg,transparent 0 24px,rgba(148,163,184,.2) 24px 25px),radial-gradient(1.5px 1.5px at 20% 30%,#fde68a,transparent),radial-gradient(1.5px 1.5px at 60% 55%,#fde68a,transparent),radial-gradient(1.5px 1.5px at 80% 25%,#fff,transparent),linear-gradient(180deg,#0b1430,#1e1b4b)}
+/* mesa flutuante branca e computadores no estilo iMac */
+.pv-mesa{position:absolute;bottom:40px;height:6px;width:18%;background:linear-gradient(90deg,#e2e8f0,#f8fafc);border-radius:3px;box-shadow:0 0 12px rgba(255,255,255,.3)}
+.pv-mesa:before,.pv-mesa:after{content:"";position:absolute;top:6px;width:3px;height:24px;background:#94a3b8}.pv-mesa:before{left:10%}.pv-mesa:after{right:10%}
+.pv-mac{position:absolute;bottom:54px;width:46px;height:34px;border-radius:4px;background:linear-gradient(180deg,#f1f5f9,#cbd5e1);padding:2px 2px 7px;box-shadow:0 0 16px rgba(56,189,248,.35);z-index:1}
+.pv-mac i{display:block;position:relative;width:100%;height:100%;border-radius:2px;overflow:hidden;background:linear-gradient(135deg,#0ea5e9,#6366f1 50%,#ec4899);background-size:220% 220%;animation:pv-tela 7s ease-in-out infinite}
+.pv-mac i:before{content:"";position:absolute;inset:4px;background:linear-gradient(90deg,rgba(255,255,255,.9) 0 45%,transparent 45%) 0 1px/100% 3px no-repeat,linear-gradient(90deg,rgba(255,255,255,.7) 0 70%,transparent 70%) 0 8px/100% 3px no-repeat,linear-gradient(90deg,rgba(255,255,255,.6) 0 55%,transparent 55%) 0 15px/100% 3px no-repeat;animation:pv-digita 2.4s steps(4) infinite}
+.pv-mac:after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-6px;width:12px;height:8px;background:#cbd5e1;clip-path:polygon(25% 0,75% 0,100% 100%,0 100%)}
+@keyframes pv-tela{50%{background-position:100% 100%}}
 @keyframes pv-digita{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0 0 0)}}
-.pv-obj{position:absolute;bottom:16px;font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15));user-select:none}
-.pv-quadro{position:absolute;top:24px;width:30%;min-width:150px;height:62px;background:#fff;border:4px solid #c9ced6;border-radius:6px;display:flex;justify-content:space-around;align-items:center;font-size:11px;color:#3b3f46;text-align:center}
-.pv-quadro b{display:block;font-size:19px;line-height:1.1;color:#111}.pv.noite .pv-quadro{background:#f1f2f5}
-.pv-mapa{position:absolute;top:24px;width:26%;height:62px;border:4px solid #c9ced6;border-radius:6px;background:linear-gradient(135deg,#d8f0d0,#bfe3b4);overflow:hidden}
-.pv-mapa i{position:absolute;font-style:normal;font-size:14px;animation:pv-pino 1.6s ease-in-out infinite}.pv-mapa i:nth-child(2){animation-delay:.5s}.pv-mapa i:nth-child(3){animation-delay:1s}
+.pv-obj{position:absolute;bottom:16px;font-size:28px;line-height:1;filter:drop-shadow(0 0 6px rgba(255,255,255,.25));user-select:none}
+/* hologramas */
+.pv-holo{position:absolute;top:30px;width:32%;min-width:150px;height:66px;border-radius:8px;--h:34,211,238;background:linear-gradient(180deg,rgba(var(--h),.2),rgba(var(--h),.05));border:1px solid rgba(var(--h),.6);box-shadow:0 0 18px rgba(var(--h),.35),inset 0 0 18px rgba(var(--h),.18);color:rgb(var(--h));display:flex;justify-content:space-around;align-items:center;gap:6px;text-align:center;font-size:10.5px;overflow:hidden;animation:pv-holo 3.6s ease-in-out infinite}
+.pv-holo b{display:block;font-size:18px;line-height:1.15;color:#f0fdff;text-shadow:0 0 8px rgb(var(--h))}
+.pv-holo:before{content:"";position:absolute;left:0;right:0;height:30%;background:linear-gradient(180deg,transparent,rgba(255,255,255,.16),transparent);animation:pv-scan 2.8s linear infinite}
+.pv-holo.verde{--h:52,211,153}.pv-holo.rosa{--h:244,114,182}.pv-holo.azul{--h:56,189,248}
+@keyframes pv-scan{from{top:-30%}to{top:100%}}@keyframes pv-holo{50%{opacity:.82;transform:translateY(-2px)}}
+.pv-barras{display:flex;align-items:flex-end;gap:3px;height:36px}.pv-barras i{width:6px;border-radius:2px 2px 0 0;background:#34d399;box-shadow:0 0 6px #34d399;transform-origin:bottom;animation:pv-barra 2.4s ease-in-out infinite}
+.pv-barras i:nth-child(2){animation-delay:-.4s}.pv-barras i:nth-child(3){animation-delay:-.8s}.pv-barras i:nth-child(4){animation-delay:-1.2s}.pv-barras i:nth-child(5){animation-delay:-1.6s}
+@keyframes pv-barra{50%{transform:scaleY(.55)}}
+.pv-globo{position:absolute;top:28px;width:72px;height:72px;border-radius:50%;border:1px solid rgba(251,146,60,.75);background:radial-gradient(circle at 35% 35%,rgba(251,146,60,.4),rgba(251,146,60,.05) 70%);box-shadow:0 0 20px rgba(251,146,60,.5);overflow:hidden}
+.pv-globo:before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(90deg,transparent 0 10px,rgba(253,186,116,.5) 10px 11px),repeating-linear-gradient(0deg,transparent 0 14px,rgba(253,186,116,.3) 14px 15px);animation:pv-gira 5s linear infinite}
+@keyframes pv-gira{to{background-position:22px 0,0 0}}
+.pv-globo i{position:absolute;font-style:normal;font-size:12px;animation:pv-pino 1.6s ease-in-out infinite}.pv-globo i:nth-child(2){animation-delay:.5s}.pv-globo i:nth-child(3){animation-delay:1s}
 @keyframes pv-pino{50%{transform:translateY(-4px)}}
-.pv-luz{position:absolute;bottom:40px;width:44px;height:44px;border-radius:50%;border:5px solid #fff;box-shadow:0 0 20px 6px rgba(255,255,255,.8),inset 0 0 10px rgba(255,255,255,.8)}
-.pv-cone{position:absolute;bottom:16px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:24px solid #f97316}
-.pv-fita{position:absolute;bottom:34px;height:7px;background:repeating-linear-gradient(45deg,#facc15 0 10px,#111 10px 20px);border-radius:2px}
-.pv-porta{position:absolute;bottom:16px;width:44px;height:78px;background:linear-gradient(90deg,#9cc9e8,#cfe8f8);border:4px solid #6b7280;border-bottom:0;border-radius:4px 4px 0 0}
-/* agentes */
-.pv-ag{position:absolute;bottom:16px;left:var(--a);z-index:2;animation:pv-andar var(--d,16s) ease-in-out infinite;animation-delay:var(--atraso,0s)}
+.pv-rack{position:absolute;bottom:16px;width:34px;height:100px;border-radius:4px;border:1px solid #334155;background:repeating-linear-gradient(180deg,#0f172a 0 10px,#1e293b 10px 12px)}
+.pv-rack:before{content:"";position:absolute;left:5px;top:5px;width:4px;height:4px;border-radius:50%;background:#22c55e;box-shadow:0 12px 0 #22c55e,0 24px 0 #38bdf8,0 36px 0 #22c55e,0 48px 0 #f59e0b,0 60px 0 #22c55e,0 72px 0 #38bdf8,0 84px 0 #22c55e;animation:pv-pisca 1.1s steps(2) infinite}
+.pv-ledwall{position:absolute;top:30px;width:28%;height:62px;border-radius:6px;background:linear-gradient(90deg,#f472b6,#a78bfa,#38bdf8,#f472b6);background-size:300% 100%;animation:pv-ledh 6s linear infinite;box-shadow:0 0 22px rgba(244,114,182,.55);color:#fff;font-weight:800;font-size:11px;letter-spacing:.12em;display:grid;place-items:center;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+@keyframes pv-ledh{to{background-position:300% 0}}
+.pv-luz{position:absolute;bottom:42px;width:42px;height:42px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 20px 6px rgba(244,114,182,.7),inset 0 0 10px rgba(255,255,255,.8)}
+/* agentes: andam, têm nome e falam */
+.pv-ag{position:absolute;bottom:3px;left:var(--a);z-index:2;display:flex;flex-direction:column;align-items:center;animation:pv-andar var(--d,16s) ease-in-out infinite;animation-delay:var(--atraso,0s)}
 .pv-ag .pv-c{display:flex;flex-direction:column;align-items:center;animation:pv-virar var(--d,16s) linear infinite;animation-delay:var(--atraso,0s)}
 .pv-cab{font-size:26px;line-height:1;position:relative;z-index:1;margin-bottom:-3px;animation:pv-balanco .55s ease-in-out infinite}
-.pv-tronco{width:22px;height:20px;background:var(--cor,#2563eb);border-radius:9px 9px 4px 4px}
-.pv-pernas{display:flex;gap:4px;height:13px}.pv-pernas i{display:block;width:6px;height:13px;background:#374151;border-radius:0 0 3px 3px;transform-origin:top center;animation:pv-passo .55s ease-in-out infinite}
+.pv-tronco{width:22px;height:20px;background:var(--cor,#2563eb);border-radius:9px 9px 4px 4px;box-shadow:0 0 10px var(--cor,#2563eb)}
+.pv-pernas{display:flex;gap:4px;height:13px}.pv-pernas i{display:block;width:6px;height:13px;background:#cbd5e1;border-radius:0 0 3px 3px;transform-origin:top center;animation:pv-passo .55s ease-in-out infinite}
 .pv-pernas i:last-child{animation-direction:reverse}
+.pv-nome{margin-top:1px;font-size:9.5px;font-weight:800;letter-spacing:.04em;color:#0b1220;background:var(--cor,#e2e8f0);padding:0 6px;border-radius:99px;box-shadow:0 0 8px var(--cor,#e2e8f0);white-space:nowrap;line-height:13px}
 @keyframes pv-andar{0%,6%{left:var(--a)}42%,58%{left:var(--b)}94%,100%{left:var(--a)}}
 @keyframes pv-virar{0%,42%{transform:scaleX(1)}42.01%,100%{transform:scaleX(-1)}}
 @keyframes pv-passo{0%,100%{transform:rotate(16deg)}50%{transform:rotate(-16deg)}}
 @keyframes pv-balanco{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .pv-sentado{position:absolute;bottom:22px;z-index:2;display:flex;flex-direction:column;align-items:center}.pv-sentado .pv-cab{animation:pv-balanco 1.2s ease-in-out infinite}
-.pv-bal{position:absolute;bottom:68px;left:50%;transform:translateX(-50%);background:#fff;color:#1f2937;font-size:11.5px;font-weight:600;line-height:1.3;padding:6px 9px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.15);width:max-content;max-width:210px;white-space:normal;text-align:center;transition:opacity .3s;z-index:4}
-.pv-bal:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+.pv-bal{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(248,250,252,.96);color:#0f172a;font-size:11.5px;font-weight:600;line-height:1.3;padding:6px 9px;border-radius:10px;box-shadow:0 0 0 1px rgba(34,211,238,.4),0 4px 16px rgba(0,0,0,.35);width:max-content;max-width:210px;white-space:normal;text-align:center;transition:opacity .3s;z-index:4}
+.pv-bal:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:rgba(248,250,252,.96);border-bottom:0}
 .pv-bal.troca{opacity:0}
-/* elevador */
-.pv-elev{position:absolute;top:0;bottom:0;right:0;width:40px;background:#cfc6b6;border-left:3px solid #b9ae9c}.pv.noite .pv-elev{background:#1f1c19;border-color:#4a4134}
-.pv-elev:before{content:"";position:absolute;left:18px;top:0;bottom:0;width:2px;background:rgba(0,0,0,.2)}
-.pv-cabine{position:absolute;left:4px;right:4px;height:54px;background:linear-gradient(90deg,#9ca3af,#d1d5db 50%,#9ca3af);border-radius:4px;animation:pv-elevador 22s ease-in-out infinite;box-shadow:0 2px 6px rgba(0,0,0,.25)}
-.pv-cabine:after{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:#6b7280}
-@keyframes pv-elevador{0%,10%{top:calc(100% - 64px)}22%,32%{top:62%}44%,54%{top:12px}66%,76%{top:38%}90%,100%{top:calc(100% - 64px)}}
-.pv-rua{position:relative;height:46px;margin:0 -18px;background:linear-gradient(180deg,#9ca3af 0 10px,var(--chao) 10px);z-index:1}
-.pv-rua:after{content:"";position:absolute;left:0;right:0;top:27px;height:3px;background:repeating-linear-gradient(90deg,#facc15 0 30px,transparent 30px 60px)}
-.pv-carro{position:absolute;top:12px;font-size:24px;animation:pv-carro 18s linear infinite;z-index:2}@keyframes pv-carro{from{left:-60px}to{left:110%}}
+/* elevador panorâmico de vidro */
+.pv-elev{position:absolute;top:0;bottom:0;right:6px;width:40px;background:rgba(148,163,184,.07);border-left:1px solid rgba(103,232,249,.35);border-right:1px solid rgba(103,232,249,.35);box-shadow:inset 0 0 14px rgba(34,211,238,.18)}
+.pv-elev:before{content:"";position:absolute;left:19px;top:0;bottom:0;width:1px;background:rgba(103,232,249,.35)}
+.pv-cabine{position:absolute;left:3px;right:3px;height:54px;border-radius:6px;background:linear-gradient(180deg,rgba(186,230,253,.38),rgba(186,230,253,.12));border:1px solid #67e8f9;box-shadow:0 0 14px rgba(103,232,249,.6);animation:pv-elevador 24s ease-in-out infinite;display:flex;align-items:flex-end;justify-content:center;font-size:17px;overflow:hidden}
+@keyframes pv-elevador{0%,8%{top:calc(100% - 60px)}18%,26%{top:66%}36%,44%{top:8px}54%,62%{top:34%}72%,80%{top:50%}92%,100%{top:calc(100% - 60px)}}
+/* rua e térreo */
+.pv-rua{position:relative;height:46px;margin:0 -18px;background:linear-gradient(180deg,#334155 0 8px,#0b0f17 8px);z-index:1}
+.pv-rua:after{content:"";position:absolute;left:0;right:0;top:26px;height:2px;background:repeating-linear-gradient(90deg,#22d3ee 0 30px,transparent 30px 60px);box-shadow:0 0 8px #22d3ee}
+.pv-carro{position:absolute;top:10px;font-size:24px;animation:pv-carro 18s linear infinite;z-index:2;filter:drop-shadow(0 0 6px rgba(34,211,238,.6))}@keyframes pv-carro{from{left:-60px}to{left:110%}}
+.pv-porta{position:absolute;bottom:16px;width:56px;height:92px;border:2px solid #94a3b8;border-bottom:0;border-radius:6px 6px 0 0;background:linear-gradient(90deg,rgba(186,230,253,.35) 0 49%,#94a3b8 49% 51%,rgba(186,230,253,.18) 51%);box-shadow:0 -3px 12px rgba(34,211,238,.5)}
+.pv-balcao{position:absolute;bottom:16px;height:30px;border-radius:10px 10px 0 0;background:linear-gradient(180deg,#f8fafc,#cbd5e1);box-shadow:inset 0 -4px 0 var(--pr),0 0 16px color-mix(in srgb,var(--pr) 55%,transparent);z-index:3}
+.pv-neon{position:absolute;top:34px;font-weight:800;font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:#fff;text-shadow:0 0 4px #fff,0 0 12px var(--pr),0 0 24px var(--pr)}
 .pv-visita{position:absolute;bottom:16px;left:-30px;z-index:2;animation:pv-entra 6s ease-out forwards}@keyframes pv-entra{0%{left:2%;opacity:0}10%{opacity:1}80%{left:46%;opacity:1}100%{left:50%;opacity:0}}
-.pv-dica{position:absolute;top:10px;left:16px;background:rgba(255,255,255,.85);color:#1f2937;font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;z-index:2}.pv.noite .pv-dica{background:rgba(20,22,28,.75);color:#e8eaf0}
+.pv-dica{position:absolute;top:10px;left:16px;background:rgba(15,23,42,.75);color:#e2e8f0;font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;z-index:2;border:1px solid rgba(34,211,238,.4)}
 .pvf h3{display:flex;align-items:center;gap:8px}.pvf .vivo{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pv-vivo 1.6s infinite}@keyframes pv-vivo{70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
 .pvf-it{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--br);font-size:13px}.pvf-it:first-of-type{border-top:0}.pvf-it span{font-size:18px}
 .pvf-k{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.pvf-k div{background:var(--in);border-radius:10px;padding:8px 10px}.pvf-k b{display:block;font-size:20px}.pvf-k small{color:var(--mut);font-size:11.5px}
-@media(max-width:760px){.pv{padding:30px 8px 0}.pv-sala{height:178px}.pv-sala.s-recepcao{height:150px}.pv-corpo-predio{padding-right:30px}.pv-elev{width:26px}.pv-janela{top:34px}.pv-quadro{top:34px;font-size:9px;min-width:0;width:40%}.pv-quadro b{font-size:14px}.pv-mapa{top:34px}.pv-bal{max-width:118px;font-size:10px;padding:5px 7px}.pv-obj{font-size:22px}.pv-ag{--a:24%!important;--b:56%!important}.pv-dica{display:none}}
+@media(max-width:760px){.pv{padding:52px 8px 0}.pv-sala{height:182px}.pv-sala.s-recepcao{height:156px}.pv-corpo-predio{padding-right:34px}.pv-elev{width:24px;right:4px}.pv-cabine{font-size:12px}.pv-vidro,.pv-holo,.pv-ledwall,.pv-globo{top:38px}.pv-holo{font-size:9px;min-width:0;width:46%}.pv-holo b{font-size:14px}.pv-mac{width:36px;height:28px}.pv-bal{max-width:118px;font-size:10px;padding:5px 7px}.pv-obj{font-size:22px}.pv-ag{--a:24%!important;--b:56%!important}.pv-dica{display:none}.pv-solar{width:26%}.pv-neon{font-size:13px}.pv-holo.verde{width:64%!important}.pv-barras{display:none}}
 @media(prefers-reduced-motion:reduce){.pv *{animation:none!important}}
 /* ---------- mapa de agentes (constelação) ---------- */
 .mp-tabs{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
@@ -745,6 +778,7 @@ function vCfg(){head('Configurações','Textos padrão, limites e conexão com o
   return vPush()+'<div class="card"><h3>🏢 Prédio (agentes)</h3><div class="row"><div style="flex:1;min-width:150px"><label>Hora do resumo e da lista (Brasília)<input type="time" id="p_predio_hora" value="'+E(SET.predio_hora||'08:00')+'"></label></div><div style="flex:1;min-width:150px"><label>Empresas novas por dia (Prospectora)<input type="number" min="1" max="50" id="p_prospeccao_dia" value="'+E(SET.prospeccao_dia||'10')+'"></label></div></div>'
     +'<div class="row"><div style="flex:1;min-width:150px"><label>Seu nome nas mensagens<input id="p_vendedor_nome" value="'+E(SET.vendedor_nome||'Luiz')+'"></label></div><div style="flex:1;min-width:150px"><label>Cidade<input id="p_cidade" value="'+E(SET.cidade||'')+'"></label></div></div>'
     +'<label>Clientes citados nos conteúdos de prova social (separe por vírgula)<input id="p_clientes_prova" value="'+E(SET.clientes_prova||'')+'"></label>'
+    +'<label>Nome de cada agente</label><div class="row">'+[['gerente','Gerente'],['financeiro','Controller (Finanças)'],['atendente','Atendente'],['prospectora','Prospectora'],['conteudo','Conteúdo'],['recepcao','Recepção']].map(function(x){var o={};try{o=JSON.parse(SET.predio_nomes||'{}')}catch(e){}return '<div style="flex:1;min-width:120px"><label class="sm">'+x[1]+'<input id="pn_'+x[0]+'" maxlength="20" value="'+E(o[x[0]]||PV_NOMES0[x[0]])+'"></label></div>'}).join('')+'</div>'
     +'<label class="ck"><input type="checkbox" id="p_atendente_menu"'+(SET.atendente_menu!=='0'?' checked':'')+'> Quando o robô não entender, mostrar um menu com botões (em vez da resposta padrão)</label>'
     +'<button class="btn s p" onclick="pdSalvarCfg()">Salvar</button></div>'
     +'<div class="card"><h3>Identidade visual</h3><div class="row" style="align-items:flex-end"><img id="lp" src="'+E(B.logo)+'" style="width:64px;height:64px;border-radius:14px;border:1px solid var(--br);object-fit:cover"><div><input type="file" id="b_logo" accept="image/png,image/jpeg,image/webp" onchange="lerLogo(this)"><div class="mut sm">PNG, JPG ou WEBP quadrada, até ~500 KB.</div></div><button class="btn s d" onclick="semLogo()">Voltar à logo padrão</button></div>'
@@ -932,11 +966,11 @@ async function pushDesligar(){try{if(PUSH_SUB)await PUSH_SUB.unsubscribe();if(PU
 
 /* ---------- Prédio (agentes) ---------- */
 var PD=null,PSALA=null,PDG=null,PDA=null,PDP=null,PDC=null,PDT=[];
-var ANDARES=[['gerente','4º andar · Diretoria','👩‍💼','Gerente','Resumo do dia às 8h, gargalos e prioridades'],['atendente','3º andar · Atendimento','🤖','Atendente','Entende erros de digitação, mostra um menu quando não entende e aprende com você'],['prospectora','2º andar · Vendas','🎯','Prospectora','Lista diária de empresas e retornos, com a mensagem pronta'],['conteudo','1º andar · Marketing','🎬','Conteúdo','Calendário da semana com roteiros e legendas']];
+var ANDARES=[['gerente','5º andar · Diretoria','👩🏽‍💼','Gerente','Resumo do dia às 8h, gargalos, prioridades e os números do financeiro'],['financeiro','4º andar · Finanças','🧑🏻‍💼','Controller','Financeiro e contabilidade do NexTap: lucro, margem, estoque, a receber e pedidos parados'],['atendente','3º andar · Atendimento','🤖','Atendente','Entende erros de digitação, mostra um menu quando não entende e aprende com você'],['prospectora','2º andar · Vendas','🎯','Prospectora','Lista diária de empresas e retornos, com a mensagem pronta'],['conteudo','1º andar · Marketing','🎬','Conteúdo','Calendário da semana com roteiros e legendas']];
 async function pdCarregar(){try{PD=await api('/predio')}catch(e){PD={erro:e.message}}if(cur==='predio')draw()}
-async function pdSala(s){PSALA=s;draw();try{if(s==='gerente')PDG=await api('/predio/gerente');if(s==='atendente')PDA=await api('/predio/atendente');if(s==='prospectora')PDP=await api('/predio/prospectora');if(s==='conteudo')PDC=await api('/predio/conteudo')}catch(e){alert(e.message)}draw();window.scrollTo(0,0)}
+async function pdSala(s){PSALA=s;draw();try{if(s==='gerente')PDG=await api('/predio/gerente');if(s==='atendente')PDA=await api('/predio/atendente');if(s==='prospectora')PDP=await api('/predio/prospectora');if(s==='conteudo')PDC=await api('/predio/conteudo');if(s==='financeiro')PDF=await api('/predio/financeiro')}catch(e){alert(e.message)}draw();window.scrollTo(0,0)}
 function vPredio(){if(!PD&&!vPredio.l){vPredio.l=1;pdCarregar().then(function(){vPredio.l=0})}
-  if(PSALA){var a=ANDARES.filter(function(x){return x[0]===PSALA})[0];head(a[2]+' '+a[3],a[4]);return '<button class="btn s" style="margin-bottom:12px" onclick="PSALA=null;pdCarregar()">← Voltar para o prédio</button>'+({gerente:salaGerente,atendente:salaAtendente,prospectora:salaProspectora,conteudo:salaConteudo})[PSALA]()}
+  if(PSALA){var a=ANDARES.filter(function(x){return x[0]===PSALA})[0];head(a[2]+' '+NM(a[0])+' · '+a[3],a[1]+' — '+a[4]);return '<button class="btn s" style="margin-bottom:12px" onclick="PSALA=null;pdCarregar()">← Voltar para o prédio</button>'+({gerente:salaGerente,financeiro:salaFinanceiro,atendente:salaAtendente,prospectora:salaProspectora,conteudo:salaConteudo})[PSALA]()}
   head('Prédio','Seus agentes trabalhando agora. Toque num departamento ou numa sala para ver o trabalho.');
   if(!PD)return '<p class="mut">Carregando…</p>';
   var tabs='<div class="mp-tabs"><div class="seg"><button class="'+(PVIEW==='mapa'?'on':'')+'" onclick="PVIEW=\'mapa\';draw()">Mapa</button><button class="'+(PVIEW==='predio'?'on':'')+'" onclick="PVIEW=\'predio\';draw()">Prédio</button><button class="'+(PVIEW==='lista'?'on':'')+'" onclick="PVIEW=\'lista\';draw()">Lista</button></div></div>';
@@ -945,6 +979,32 @@ function vPredio(){if(!PD&&!vPredio.l){vPredio.l=1;pdCarregar().then(function(){
 function salaGerente(){var l=PDG;if(!l)return '<p class="mut">Carregando…</p>';
   return '<div class="row" style="margin-bottom:12px"><button class="btn p s" onclick="pdResumo()">Gerar resumo agora</button><span class="mut sm">Sai sozinho todo dia às '+E(SET.predio_hora||'08:00')+' e chega no celular (Configurações → Notificações).</span></div>'
     +(l.length?l.map(function(r,i){return '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">'+E(r.titulo)+'</h3><span class="mut sm">'+fdh(r.criado_em)+'</span></div>'+(i===0?'<div style="white-space:pre-wrap;margin-top:8px;line-height:1.6">'+E(r.texto)+'</div>':'<details style="margin-top:6px"><summary class="mut sm" style="cursor:pointer">ver</summary><div style="white-space:pre-wrap;margin-top:6px;line-height:1.6">'+E(r.texto)+'</div></details>')+'</div>'}).join(''):'<div class="card empty">Nenhum resumo ainda. Toque em "Gerar resumo agora".</div>')}
+var PDF=null;
+function salaFinanceiro(){var r=PDF;if(!r)return '<p class="mut">Carregando…</p>';var d=r.dados,nm=E(NM('financeiro'));
+  var topo='<div class="row" style="margin-bottom:12px;justify-content:space-between"><span class="mut sm">'+nm+' lê o financeiro do NexTap sozinho a cada 10 minutos'+(d?' · última leitura '+pvTempo(d.recebido_em||d.gerado_em):'')+'. Só leitura: nada é alterado no site.</span><span class="row" style="gap:6px"><button class="btn s" onclick="pdFinAtualizar()">↻ Atualizar agora</button>'+(r.admin?'<a class="btn s p" href="'+E(r.admin)+'" target="_blank" rel="noopener">Abrir o admin do NexTap ↗</a>':'')+'</span></div>';
+  if(!d)return topo+'<div class="card"><h3>🔌 Ligar o financeiro do NexTap</h3>'+(r.erro?'<p><span class="tag er">erro</span> '+E(r.erro)+'</p>':'')
+    +'<ol style="line-height:1.8;margin:6px 0 0 18px"><li>No Railway, crie a variável <b>NEXTAP_WEBHOOK_SECRET</b> com o <b>mesmo valor</b> (16+ caracteres) no serviço do NexTap e no do Automazap.</li><li>Confira em Configurações o endereço do site NexTap (o mesmo usado para os preços).</li><li>Toque em "Atualizar agora".</li></ol>'
+    +(r.configurado?'':'<p class="mut sm">Hoje o Automazap ainda não tem o NEXTAP_WEBHOOK_SECRET.</p>')+'</div>';
+  var P=d.periodos||{},m=P.month||{},M=d.mes||{},e=M.estoque||{},ar=M.a_receber||{},pc=function(v){return String(v||0).replace('.',',')+'%'};
+  var nv={critico:['er','crítico'],atencao:['wa','atenção'],info:['','info'],ok:['ok','ok']};
+  var k=function(t,v,sub){return '<div class="k"><small>'+t+'</small><b>'+v+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div>'};
+  var linha=function(t,v,forte,neg){return '<tr'+(forte?' style="font-weight:700;border-top:2px solid var(--br)"':'')+'><td>'+t+'</td><td style="text-align:right'+(neg?';color:var(--er,#e5484d)':'')+'">'+(neg?'− ':'')+pvR(v)+'</td></tr>'};
+  var st={aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_producao:'Em produção',enviado:'Enviado',entregue:'Entregue',cancelado:'Cancelado'};
+  var ped=d.pedidos||{},rv=d.revendedores||{};
+  return topo
+    +'<div class="grid" style="margin-bottom:14px">'+k('Receita do mês',pvR(m.receita_bruta),(m.pedidos||0)+' pedido(s) · '+(m.placas||0)+' placa(s)')+k('Lucro final do mês',pvR(m.lucro_final),'margem '+pc(m.margem_pct))+k('Lucro por placa',pvR(m.lucro_por_placa),'ticket médio '+pvR(m.ticket_medio))+k('A receber',pvR(ar.valor),(ar.pedidos||0)+' pedido(s)')+k('Estoque disponível',(e.disponivel!=null?e.disponivel:'—')+' placas',e.dias_cobertura!=null?'dura ~'+e.dias_cobertura+' dias':'em mãos: '+(e.em_maos||0))+k('Revendedores',rv.total||0,(rv.novos_7d||0)+' novo(s) em 7 dias · '+(rv.compraram_30d||0)+' compraram em 30')+'</div>'
+    +'<div class="card"><h3>🚦 Alertas do financeiro</h3>'+((M.alertas||[]).length?M.alertas.map(function(x){var t=nv[x.nivel]||['',''];return '<div class="pend" style="flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:200px"><span class="tag '+t[0]+'">'+t[1]+'</span> <b>'+E(x.titulo)+'</b><div class="mut sm" style="margin-top:3px">'+E(x.texto)+'</div></div></div>'}).join(''):'<div class="empty">Nenhum alerta.</div>')+'</div>'
+    +'<div class="row" style="align-items:stretch;gap:14px"><div class="card" style="flex:1;min-width:280px"><h3>📒 DRE do mês (contabilidade)</h3><table class="ls-t" style="width:100%">'+linha('Receita bruta (placas + frete)',m.receita_bruta)+linha('Custo das placas',m.custo_placas,0,1)+linha('ICMS',m.icms,0,1)+linha('Taxas do Mercado Pago',m.taxas_mp,0,1)+linha('Envio (Correios)',m.custo_envio,0,1)+linha('= Lucro bruto',m.lucro_bruto,1)+linha('Despesas do período',m.despesas,0,1)+linha('= Lucro final',m.lucro_final,1)+'</table>'
+      +(M.ponto_equilibrio_placas?'<p class="mut sm">Ponto de equilíbrio: cerca de '+M.ponto_equilibrio_placas+' placas no mês cobrem as despesas.</p>':'')+'</div>'
+    +'<div class="card" style="flex:1;min-width:280px"><h3>📅 Por período</h3><div style="overflow-x:auto"><table class="ls-t" style="width:100%"><tr><th>Período</th><th>Pedidos</th><th>Receita</th><th>Lucro</th><th>Margem</th></tr>'+[['today','Hoje'],['7','7 dias'],['30','30 dias'],['month','Este mês'],['all','Tudo']].map(function(x){var q=P[x[0]]||{};return '<tr><td>'+x[1]+'</td><td>'+(q.pedidos||0)+'</td><td>'+pvR(q.receita_bruta)+'</td><td><b>'+pvR(q.lucro_final)+'</b></td><td>'+pc(q.margem_pct)+'</td></tr>'}).join('')+'</table></div></div></div>'
+    +'<div class="row" style="align-items:stretch;gap:14px"><div class="card" style="flex:1;min-width:280px"><h3>📦 Pedidos</h3><div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">'+(ped.por_status||[]).map(function(x){return '<span class="tag">'+E(st[x.status]||x.status)+': <b>'+x.n+'</b> · '+pvR0(x.valor)+'</span>'}).join('')+'</div>'
+      +((ped.parados||[]).length?'<div class="sm" style="font-weight:650;margin:6px 0">Pagos e parados há 3+ dias</div>'+ped.parados.map(function(o){return '<div class="pend"><span class="sm"><b>#'+String(o.id).padStart(5,'0')+'</b> · '+E(o.ship_name||'cliente')+' · '+E(st[o.status]||o.status)+'</span><span class="tag wa">'+o.dias+' dias · '+pvR(o.total)+'</span></div>'}).join(''):'<div class="mut sm">Nenhum pedido pago parado. 👍</div>')
+      +(ped.aguardando_pagamento_14d?'<p class="mut sm">'+ped.aguardando_pagamento_14d+' pedido(s) aguardando pagamento nos últimos 14 dias.</p>':'')+'</div>'
+    +'<div class="card" style="flex:1;min-width:280px"><h3>💸 Margem por faixa de preço</h3>'+(M.faixas||[]).map(function(x){return '<div class="pend"><span class="sm">'+(x.ate==null?x.de+'+ placas':x.de+' a '+x.ate+' placas')+' · '+pvR(x.preco)+'/placa</span><span class="tag '+(x.lucro_pedido<0?'er':x.margem_pct<10?'wa':'ok')+'">'+pc(x.margem_pct)+' · '+pvR(x.lucro_por_placa)+'/placa</span></div>'}).join('')
+      +((M.despesas_itens||[]).length?'<div class="sm" style="font-weight:650;margin:12px 0 4px">Despesas do mês</div>'+M.despesas_itens.map(function(x){return '<div class="pend"><span class="sm">'+E(x.descricao)+(x.mensal?' <span class="mut">(mensal, rateada)</span>':'')+'</span><span class="sm">'+pvR(x.valor_periodo)+'</span></div>'}).join(''):'')+'</div></div>'
+    +'<div class="card"><h3>📝 Avisos de '+nm+'</h3>'+(r.avisos.length?r.avisos.map(function(x){return '<div class="pend" style="flex-wrap:wrap"><div style="flex:1;min-width:200px"><b class="sm">'+E(x.titulo)+'</b><div class="mut sm">'+E(x.texto)+'</div></div><span class="mut sm">'+fdh(x.criado_em)+'</span></div>'}).join(''):'<div class="empty">Nenhum aviso. Quando surgir um alerta crítico ou um pedido pago parado, '+nm+' avisa aqui e no celular.</div>')
+    +'<p class="mut sm" style="margin-top:10px">Para mudar status de pedido, lançar despesas ou compras de estoque, use o admin do NexTap: o Prédio mostra e acompanha, o site continua sendo o caixa.</p></div>'}
+async function pdFinAtualizar(){try{await api('/predio/financeiro/atualizar',{method:'POST'});PDF=await api('/predio/financeiro');PD=null;pdCarregar();draw();toast('Financeiro atualizado ✓')}catch(e){alert(e.message);try{PDF=await api('/predio/financeiro');draw()}catch(e2){}}}
 async function pdResumo(){try{await api('/predio/gerente/agora',{method:'POST'});PDG=await api('/predio/gerente');draw();toast('Resumo gerado ✓')}catch(e){alert(e.message)}}
 function salaAtendente(){var d=PDA;if(!d)return '<p class="mut">Carregando…</p>';
   var fl=FLOWS.filter(function(f){return f.kind==='normal'&&f.active&&!f.variante_de}).sort(function(a,b){return a.name.localeCompare(b.name)});
@@ -976,47 +1036,60 @@ function salaConteudo(){var d=PDC;if(!d)return '<p class="mut">Carregando…</p>
       +'<div class="row" style="margin-top:8px"><button class="btn s" onclick="pdCopiar('+c.id+')">Copiar legenda</button>'+(c.status==='rascunho'?'<button class="btn s p" onclick="pdStatus('+c.id+',\'aprovado\')">Aprovar</button>':'')+(c.status!=='postado'?'<button class="btn s" onclick="pdStatus('+c.id+',\'postado\')">✓ Postei</button>':'')+'</div></div>'}).join(''):'<div class="card empty">Nenhum conteúdo nesta semana.</div>')}
 async function pdGerar(){if(!confirm('Gerar outra versão dos conteúdos ainda não aprovados desta semana?'))return;try{await api('/predio/conteudo/gerar',{method:'POST'});PDC=await api('/predio/conteudo');draw();toast('Semana gerada ✓')}catch(e){alert(e.message)}}
 async function pdStatus(id,s){try{await api('/predio/conteudo/'+id,{method:'PUT',body:JSON.stringify({status:s,legenda:$('leg'+id).value})});PDC=await api('/predio/conteudo');PD=null;draw();toast(s==='postado'?'Marcado como postado ✓':'Aprovado ✓')}catch(e){alert(e.message)}}
-async function pdSalvarCfg(){var b={};['predio_hora','prospeccao_dia','vendedor_nome','cidade','clientes_prova'].forEach(function(k){b[k]=$('p_'+k).value});b.atendente_menu=$('p_atendente_menu').checked?'1':'0';
+async function pdSalvarCfg(){var b={};['predio_hora','prospeccao_dia','vendedor_nome','cidade','clientes_prova'].forEach(function(k){b[k]=$('p_'+k).value});b.atendente_menu=$('p_atendente_menu').checked?'1':'0';var nm={};['gerente','financeiro','atendente','prospectora','conteudo','recepcao'].forEach(function(k){nm[k]=($('pn_'+k).value||'').trim()||PV_NOMES0[k]});b.predio_nomes=JSON.stringify(nm);PD=null;
   try{SET=await api('/settings',{method:'PUT',body:JSON.stringify(b)});toast('Salvo ✓')}catch(e){alert(e.message)}}
 function pdCopiar(id){var t=$('leg'+id);t.select();try{document.execCommand('copy');toast('Legenda copiada ✓')}catch(e){}}
 
 /* ----- prédio virtual: salas, agentes andando e balões com o trabalho ao vivo ----- */
 var PV_I=0,PV_LEADS=null;
 function pvTempo(ms){var m=Math.round((Date.now()-ms)/60000);return m<1?'agora':m<60?'há '+m+' min':m<1440?'há '+Math.round(m/60)+' h':fdh(ms)}
-function pvFalas(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.prospectora,c=d.conteudo||{};
+var PV_NOMES0={gerente:'Helena',atendente:'Sofia',prospectora:'Bianca',conteudo:'Theo',financeiro:'Otávio',recepcao:'Clara'};
+function NM(id){var n=(PD&&PD.nomes)||{};return n[id]||PV_NOMES0[id]||''}
+function pvR(v){return 'R$ '+Number(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.')}
+function pvR0(v){return 'R$ '+Math.round(Number(v||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')}
+function pvFalas(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.prospectora,c=d.conteudo||{},f=d.financeiro;
   return {
-    gerente:g?['Resumo de hoje pronto ✓',(g.novos||0)+' lead(s) novo(s) ontem',g.prioridades?g.prioridades+' prioridade(s) para você hoje':'Nada urgente hoje 👍']:['Preparando o primeiro resumo…'],
+    gerente:g?['Resumo de hoje pronto ✓',(g.novos||0)+' lead(s) novo(s) ontem',g.prioridades?g.prioridades+' prioridade(s) para você hoje':'Nada urgente hoje 👍',f?'Lucro do mês: '+pvR0(f.lucro_mes):'Esperando os números do '+NM('financeiro')]:['Preparando o primeiro resumo…'],
+    financeiro:f?['Lucro do mês: '+pvR(f.lucro_mes),'Margem de '+String(f.margem_mes).replace('.',',')+'% · '+f.pedidos_mes+' pedido(s)',f.parados?'📦 '+f.parados+' pedido(s) pago(s) parado(s)':'Pedidos em dia 👍',f.criticos?'🚨 '+f.criticos+' alerta(s) crítico(s)':'Nenhum alerta crítico 👍',f.estoque!=null?'Estoque: '+f.estoque+' placa(s)'+(f.cobertura!=null?' (~'+f.cobertura+' dias)':''):'Conferindo o estoque']
+      :d.financeiro_erro?['⚠️ Não consigo ler o NexTap','Confira o NEXTAP_WEBHOOK_SECRET']:['Esperando a ligação com o NexTap','Configure NEXTAP_WEBHOOK_SECRET'],
     atendente:a.robo_parado?['⚠️ Estou sem acesso ao Instagram','Troque o token no Railway']:[(a.respostas_hoje||0)+' resposta(s) hoje',a.ultima_resposta?'Última resposta '+pvTempo(a.ultima_resposta.em)+(a.ultima_resposta.nome?' para '+a.ultima_resposta.nome:''):'Esperando a primeira mensagem do dia',at.novas?at.novas+' frase(s) para você me ensinar':'Entendendo tudo por aqui 👍'],
     prospectora:p?[p.total+' empresa(s) na lista de hoje',p.feitos+' contato(s) feitos',p.proxima?'Próxima: '+p.proxima:'Lista de hoje concluída 🎉']:['Montando a lista de hoje…'],
     conteudo:[(c.total||0)+' conteúdo(s) nesta semana',c.hoje?'Hoje: '+c.hoje.formato+' "'+c.hoje.titulo+'"':'Sem post para hoje',(c.postados||0)+' postado(s), '+(c.aprovados||0)+' aprovado(s)'],
-    recepcao:[(a.leads_hoje||0)+' lead(s) chegaram hoje',a.esperando?a.esperando+' pessoa(s) esperando atendente':'Ninguém esperando 👍']}}
+    recepcao:[(a.leads_hoje||0)+' lead(s) chegaram hoje',a.esperando?a.esperando+' pessoa(s) esperando atendente':'Ninguém esperando 👍','Bem-vindo à '+((BRAND&&BRAND.nome)||'NexTap')+' ✨']}}
 function pvBalao(id,i){var f=pvFalas()[id]||[''];return E(f[i%f.length])}
-function pvAgente(id,cab,cor,a,b,d,atraso){return '<div class="pv-ag" style="--a:'+a+';--b:'+b+';--d:'+d+'s;--atraso:-'+atraso+'s;--cor:'+cor+'"><div class="pv-bal" id="pvb-'+id+'">'+pvBalao(id,PV_I)+'</div><div class="pv-c"><span class="pv-cab">'+cab+'</span><span class="pv-tronco"></span><span class="pv-pernas"><i></i><i></i></span></div></div>'}
+function pvAgente(id,cab,cor,a,b,d,atraso){return '<div class="pv-ag" style="--a:'+a+';--b:'+b+';--d:'+d+'s;--atraso:-'+atraso+'s;--cor:'+cor+'"><div class="pv-bal" id="pvb-'+id+'">'+pvBalao(id,PV_I)+'</div><div class="pv-c"><span class="pv-cab">'+cab+'</span><span class="pv-tronco"></span><span class="pv-pernas"><i></i><i></i></span></div><span class="pv-nome">'+E(NM(id))+'</span></div>'}
 function pvPend(n){return n?'<span class="pv-pend">'+n+'</span>':''}
-function predioVisual(){var d=PD,h=Number(new Date(Date.now()-3*3600e3).toISOString().slice(11,13)),noite=h<6||h>=18,g=d.gerente||{},p=d.prospectora,c=d.conteudo||{},at=d.atendente||{},a=d.agora||{};
-  var pend={gerente:g.prioridades||0,atendente:at.novas||0,prospectora:p?p.total-p.feitos:0,conteudo:Math.max(0,(c.total||0)-(c.postados||0))};
+function pvMac(l){return '<div class="pv-mac" style="left:'+l+'"><i></i></div>'}
+var PV_ICON={gerente:'👩🏽‍💼',financeiro:'🧑🏻‍💼',atendente:'🤖',prospectora:'👩🏻',conteudo:'🧑🏾',recepcao:'💁🏻‍♀️'};
+function predioVisual(){var d=PD,h=Number(new Date(Date.now()-3*3600e3).toISOString().slice(11,13)),noite=h<6||h>=18,g=d.gerente||{},p=d.prospectora,c=d.conteudo||{},at=d.atendente||{},a=d.agora||{},f=d.financeiro;
+  var pend={gerente:g.prioridades||0,financeiro:f?(f.criticos||0)+(f.parados||0):0,atendente:at.novas||0,prospectora:p?p.total-p.feitos:0,conteudo:Math.max(0,(c.total||0)-(c.postados||0))};
   var nome=E((BRAND&&BRAND.nome)||'NexTap');
-  var sala=function(id,placa,extra,agente){return '<div class="pv-sala s-'+id+'" onclick="pdSala(\''+id+'\')" title="Entrar na sala"><div class="pv-placa">'+placa+pvPend(pend[id])+'</div>'+extra+agente+'<div class="pv-piso"></div></div>'};
+  var placa=function(n,dep,id,papel){return n+' · '+dep+' · '+E(NM(id))+' <span style="opacity:.7;font-weight:600">('+papel+')</span>'};
+  var sala=function(id,pl,extra,agente){return '<div class="pv-sala s-'+id+'" onclick="pdSala(\''+id+'\')" title="Entrar na sala"><div class="pv-placa">'+pl+pvPend(pend[id])+'</div>'+extra+agente+'<div class="pv-piso"></div></div>'};
+  var holoFin=f?'<div class="pv-barras"><i style="height:40%"></i><i style="height:65%"></i><i style="height:50%"></i><i style="height:85%"></i><i style="height:100%"></i></div><div><b id="pvq-lucro">'+pvR0(f.lucro_mes)+'</b>lucro do mês</div><div><b id="pvq-margem">'+String(f.margem_mes).replace('.',',')+'%</b>margem</div>'
+    :'<div style="padding:0 10px">🔌 '+(d.financeiro_erro?'Não consegui ler o NexTap':'Ligue o financeiro do NexTap')+'<br><b style="font-size:12px">toque para ver como</b></div>';
   var predio='<div class="pv'+(noite?' noite':'')+'" id="pv"><div class="pv-estrelas"></div><div class="pv-astro"></div><div class="pv-nuvem"></div><div class="pv-nuvem n2"></div><div class="pv-cidade"></div><div class="pv-dica">Toque numa sala para entrar</div>'
-    +'<div class="pv-predio"><div class="pv-teto"><span class="pv-antena"></span><span class="pv-letreiro">'+nome+'</span></div><div class="pv-corpo-predio">'
-    +sala('gerente','4 · Diretoria · Gerente','<div class="pv-janela" style="left:4%"></div><div class="pv-quadro" style="left:22%"><div><b id="pvq-novos">'+(g.novos||0)+'</b>leads ontem</div><div><b id="pvq-vendas">'+(g.vendas||0)+'</b>vendas</div><div><b id="pvq-prio">'+(g.prioridades||0)+'</b>prioridades</div></div><div class="pv-mesa" style="left:66%"></div><div class="pv-tela" style="left:69%"></div><div class="pv-obj" style="left:88%">🪴</div>',pvAgente('gerente','👩🏽‍💼','#7c3aed','10%','58%',17,3))
-    +sala('atendente','3 · Atendimento · Atendente','<div class="pv-janela" style="left:70%"></div><div class="pv-mesa" style="left:8%;width:24%"></div><div class="pv-tela" style="left:10%"></div><div class="pv-tela" style="left:21%"></div><div class="pv-sentado" style="left:15%"><span class="pv-cab">🧑🏻‍💻</span></div><div class="pv-obj" style="left:88%">☕</div>',pvAgente('atendente','🤖','#0ea5e9','38%','74%',14,6))
-    +sala('prospectora','2 · Vendas · Prospectora','<div class="pv-mapa" style="left:6%"><i style="left:20%;top:20%">📍</i><i style="left:55%;top:40%">📍</i><i style="left:78%;top:14%">📍</i></div><div class="pv-mesa" style="left:62%"></div><div class="pv-obj" style="left:64%;bottom:46px;font-size:22px">☎️</div><div class="pv-janela" style="left:82%"></div>',pvAgente('prospectora','👩🏻','#f97316','36%','74%',15,9))
-    +sala('conteudo','1 · Marketing · Conteúdo','<div class="pv-janela" style="left:5%"></div><div class="pv-luz" style="left:30%"></div><div class="pv-obj" style="left:29%">🎥</div><div class="pv-obj" style="left:58%">🎬</div><div class="pv-mesa" style="left:72%"></div><div class="pv-tela" style="left:75%"></div><div class="pv-obj" style="left:91%">🪴</div>',pvAgente('conteudo','🧑🏾','#ec4899','10%','48%',16,1))
-    +'<div class="pv-sala s-recepcao" onclick="nav(\'chats\')" title="Ver conversas"><div class="pv-placa">Térreo · Recepção</div><div class="pv-porta" style="left:3%"></div><div class="pv-mesa" style="left:30%;width:22%"></div><div class="pv-sentado" style="left:37%;bottom:44px"><span class="pv-cab">💁🏻‍♀️</span><div class="pv-bal" id="pvb-recepcao" style="bottom:34px">'+pvBalao('recepcao',PV_I)+'</div></div>'
-      +'<div class="pv-fita" style="left:66%;width:26%"></div><div class="pv-cone" style="left:67%"></div><div class="pv-cone" style="left:88%"></div><div class="pv-obj" style="left:76%;font-size:22px" title="Fase 2: tráfego, financeiro e vídeo">🏗️</div><div class="pv-piso"></div><div id="pv-visitas"></div></div>'
-    +'<div class="pv-elev"><div class="pv-cabine"></div></div></div></div><div class="pv-rua"><span class="pv-carro">🚗</span><span class="pv-carro" style="animation-duration:26s;animation-delay:-11s">🚚</span></div></div>';
-  var ICON={gerente:'👩🏽‍💼',atendente:'🤖',prospectora:'👩🏻',conteudo:'🧑🏾'};
-  var feed='<div class="card pvf"><h3><span class="vivo"></span>Agora no prédio</h3><div class="pvf-k"><div><b id="pvk-resp">'+(a.respostas_hoje||0)+'</b><small>respostas do robô hoje</small></div><div><b id="pvk-leads">'+(a.leads_hoje||0)+'</b><small>leads hoje</small></div><div><b>'+(p?p.feitos+'/'+p.total:'—')+'</b><small>contatos da Prospectora</small></div><div><b>'+(c.postados||0)+'/'+(c.total||0)+'</b><small>conteúdos postados</small></div></div>'
-    +((d.feed||[]).length?d.feed.map(function(f){return '<div class="pvf-it"><span>'+(ICON[f.agente]||'•')+'</span><div style="min-width:0"><div>'+E(f.titulo)+'</div><div class="mut sm">'+pvTempo(f.criado_em)+'</div></div></div>'}).join(''):'<div class="empty">Os agentes estão começando o primeiro turno…</div>')+'</div>';
+    +'<div class="pv-drone"><i></i><b></b><u></u></div>'
+    +'<div class="pv-predio"><div class="pv-topo"><span class="pv-solar"></span><span class="pv-heli">H</span><span class="pv-solar"></span><span class="pv-antena"></span></div><div class="pv-teto"><span class="pv-letreiro">'+nome+'</span></div><div class="pv-corpo-predio">'
+    +sala('gerente',placa(5,'Diretoria','gerente','Gerente'),'<div class="pv-vidro" style="left:3%;width:16%"></div><div class="pv-holo" style="left:22%"><div><b id="pvq-novos">'+(g.novos||0)+'</b>leads ontem</div><div><b id="pvq-vendas">'+(g.vendas||0)+'</b>vendas</div><div><b id="pvq-prio">'+(g.prioridades||0)+'</b>prioridades</div></div><div class="pv-mesa" style="left:64%;width:20%"></div>'+pvMac('67%')+pvMac('75%')+'<div class="pv-obj" style="left:90%">🪴</div>',pvAgente('gerente',PV_ICON.gerente,'#a78bfa','10%','56%',17,3))
+    +sala('financeiro',placa(4,'Finanças','financeiro','Controller'),'<div class="pv-holo verde" style="left:4%;width:38%">'+holoFin+'</div><div class="pv-mesa" style="left:50%;width:26%"></div>'+pvMac('52%')+pvMac('61%')+pvMac('69.5%')+'<div class="pv-vidro" style="left:82%;width:13%"></div>',pvAgente('financeiro',PV_ICON.financeiro,'#34d399','44%','76%',15,7))
+    +sala('atendente',placa(3,'Atendimento','atendente','Atendente'),'<div class="pv-rack" style="left:3%"></div><div class="pv-rack" style="left:10%"></div><div class="pv-holo azul" style="left:20%;width:26%;min-width:120px"><div><b id="pvq-resp">'+(a.respostas_hoje||0)+'</b>respostas hoje</div><div><b>'+(at.novas||0)+'</b>para ensinar</div></div><div class="pv-mesa" style="left:58%;width:20%"></div>'+pvMac('61%')+pvMac('69%')+'<div class="pv-obj" style="left:90%">☕</div>',pvAgente('atendente',PV_ICON.atendente,'#38bdf8','30%','80%',14,6))
+    +sala('prospectora',placa(2,'Vendas','prospectora','Prospectora'),'<div class="pv-globo" style="left:5%"><i style="left:20%;top:22%">📍</i><i style="left:55%;top:44%">📍</i><i style="left:70%;top:16%">📍</i></div><div class="pv-holo" style="left:20%;width:24%;min-width:110px;--h:251,146,60"><div><b>'+(p?p.feitos+'/'+p.total:'—')+'</b>contatos hoje</div></div><div class="pv-mesa" style="left:60%;width:18%"></div>'+pvMac('64%')+'<div class="pv-vidro" style="left:83%;width:12%"></div>',pvAgente('prospectora',PV_ICON.prospectora,'#fb923c','40%','76%',15,9))
+    +sala('conteudo',placa(1,'Marketing','conteudo','Conteúdo'),'<div class="pv-ledwall" style="left:3%">● AO VIVO</div><div class="pv-luz" style="left:36%"></div><div class="pv-obj" style="left:35.5%">🎥</div><div class="pv-mesa" style="left:68%;width:18%"></div>'+pvMac('71%')+'<div class="pv-obj" style="left:91%">🪴</div>',pvAgente('conteudo',PV_ICON.conteudo,'#f472b6','10%','52%',16,1))
+    +'<div class="pv-sala s-recepcao" onclick="nav(\'chats\')" title="Ver conversas"><div class="pv-placa">Térreo · Recepção · '+E(NM('recepcao'))+'</div><div class="pv-porta" style="left:3%"></div><div class="pv-balcao" style="left:30%;width:24%"></div><div class="pv-sentado" style="left:38%;bottom:44px;z-index:4"><div class="pv-bal" id="pvb-recepcao" style="bottom:50px">'+pvBalao('recepcao',PV_I)+'</div><span class="pv-cab">'+PV_ICON.recepcao+'</span><span class="pv-nome" style="--cor:#e2e8f0">'+E(NM('recepcao'))+'</span></div>'
+      +'<div class="pv-neon" style="left:64%">'+nome+'</div><div class="pv-obj" style="left:88%">🪴</div><div class="pv-piso"></div><div id="pv-visitas"></div></div>'
+    +'<div class="pv-elev"><div class="pv-cabine">🧑🏽‍💼</div></div></div></div><div class="pv-rua"><span class="pv-carro">🚘</span><span class="pv-carro" style="animation-duration:26s;animation-delay:-11s">🚐</span></div></div>';
+  var feed='<div class="card pvf"><h3><span class="vivo"></span>Agora no prédio</h3><div class="pvf-k"><div><b id="pvk-resp">'+(a.respostas_hoje||0)+'</b><small>respostas do robô hoje</small></div><div><b id="pvk-leads">'+(a.leads_hoje||0)+'</b><small>leads hoje</small></div><div><b id="pvk-lucro">'+(f?pvR0(f.lucro_mes):'—')+'</b><small>lucro do mês (NexTap)</small></div><div><b>'+(p?p.feitos+'/'+p.total:'—')+'</b><small>contatos de '+E(NM('prospectora'))+'</small></div></div>'
+    +((d.feed||[]).length?d.feed.map(function(x){return '<div class="pvf-it"><span>'+(PV_ICON[x.agente]||'•')+'</span><div style="min-width:0"><div><b>'+E(NM(x.agente)||x.agente)+'</b> · '+E(x.titulo)+'</div><div class="mut sm">'+pvTempo(x.criado_em)+'</div></div></div>'}).join(''):'<div class="empty">Os agentes estão começando o primeiro turno…</div>')+'</div>';
   return '<div class="pvw">'+predio+feed+'</div>'}
 // Atualiza só os balões e números (sem redesenhar: os agentes continuam andando)
-function pvTrocarFalas(){if(cur!=='predio'||PSALA||!$('pv'))return;PV_I++;['gerente','atendente','prospectora','conteudo','recepcao'].forEach(function(id){var b=$('pvb-'+id);if(!b)return;b.classList.add('troca');setTimeout(function(){b.innerHTML=pvBalao(id,PV_I);b.classList.remove('troca')},300)})}
+function pvTrocarFalas(){if(cur!=='predio'||PSALA||!$('pv'))return;PV_I++;['gerente','financeiro','atendente','prospectora','conteudo','recepcao'].forEach(function(id){var b=$('pvb-'+id);if(!b)return;b.classList.add('troca');setTimeout(function(){b.innerHTML=pvBalao(id,PV_I);b.classList.remove('troca')},300)})}
 function pvVisitante(){var v=$('pv-visitas');if(!v)return;var e=document.createElement('div');e.className='pv-visita';e.innerHTML='<div class="pv-c" style="display:flex;flex-direction:column;align-items:center"><span class="pv-cab">'+['🧑🏽','👩🏼','👨🏿','🧔🏻','👩🏾'][Math.floor(Math.random()*5)]+'</span><span class="pv-tronco" style="--cor:#16a34a;background:#16a34a"></span><span class="pv-pernas"><i></i><i></i></span></div>';v.appendChild(e);setTimeout(function(){e.remove()},6500)}
 async function pvAtualizar(){if(cur!=='predio'||PSALA||document.hidden)return;var antes=PD&&PD.agora?PD.agora.leads_hoje:null;try{PD=await api('/predio')}catch(e){return}
   if(PVIEW!=='predio'){var a0=document.activeElement;if(!(a0&&a0.classList&&a0.classList.contains('mp-busca')))draw();return}
   if(!$('pv')){draw();return}
-  var a=PD.agora||{},g=PD.gerente||{};[['pvk-resp',a.respostas_hoje],['pvk-leads',a.leads_hoje],['pvq-novos',g.novos],['pvq-vendas',g.vendas],['pvq-prio',g.prioridades]].forEach(function(x){var e=$(x[0]);if(e)e.textContent=x[1]||0});
+  var a=PD.agora||{},g=PD.gerente||{},f=PD.financeiro;[['pvk-resp',a.respostas_hoje],['pvq-resp',a.respostas_hoje],['pvk-leads',a.leads_hoje],['pvq-novos',g.novos],['pvq-vendas',g.vendas],['pvq-prio',g.prioridades]].forEach(function(x){var e=$(x[0]);if(e)e.textContent=x[1]||0});
+  if(f){[['pvq-lucro',pvR0(f.lucro_mes)],['pvk-lucro',pvR0(f.lucro_mes)],['pvq-margem',String(f.margem_mes).replace('.',',')+'%']].forEach(function(x){var e=$(x[0]);if(e)e.textContent=x[1]})}
   if(antes!=null&&a.leads_hoje>antes)for(var i=0;i<Math.min(3,a.leads_hoje-antes);i++)setTimeout(pvVisitante,i*1500)}
 setInterval(pvTrocarFalas,4500);setInterval(pvAtualizar,20000);
 
@@ -1026,22 +1099,23 @@ function mpNos(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.p
   var igOk=ig.token&&ig.appSecret&&ig.verifyToken&&!st.instagram_erro,funil=FLOWS.some(function(f){return f.name==='Entrada: 3 toques'&&f.active}),ab=FLOWS.filter(function(f){return f.variante_de&&f.active}).length;
   var wa=typeof WS!=='undefined'&&WS?WS:null,vs=st.vendas_site||{n:0,total:0};
   var L=function(id,nome,ico,s,info,acao){return {id:id,nome:nome,ico:ico,s:s,info:info,acao:acao}};
-  return {hub:{nome:'Gerente',ico:'👩🏽‍💼',s:'on',info:g?(g.prioridades?g.prioridades+' prioridade(s) hoje':'Nada urgente hoje'):'Preparando o primeiro resumo',acao:"pdSala('gerente')"},
+  var f=d.financeiro;
+  return {hub:{nome:NM('gerente')+' · Gerente',ico:'👩🏽‍💼',s:'on',info:g?(g.prioridades?g.prioridades+' prioridade(s) hoje':'Nada urgente hoje'):'Preparando o primeiro resumo',acao:"pdSala('gerente')"},
     deps:[
       {id:'atend',nome:'ATENDIMENTO',sub:'instagram · whatsapp · robô',ico:'💬',filhos:[
         L('robo','Robô do Instagram','🤖',igOk?'on':'err',igOk?(a.respostas_hoje||0)+' resposta(s) hoje':'Parado: troque o token',"nav('chats')"),
-        L('atendente','Atendente','🧠',at.novas?'warn':'on',at.novas?at.novas+' frase(s) para ensinar':'Entendendo tudo',"pdSala('atendente')"),
+        L('atendente',NM('atendente')+' · Atendente','🧠',at.novas?'warn':'on',at.novas?at.novas+' frase(s) para ensinar':'Entendendo tudo',"pdSala('atendente')"),
         L('pausa','Pausa inteligente','⏸',a.esperando?'warn':'on',a.esperando?a.esperando+' esperando atendente':'Ninguém esperando',"irChats('humano')"),
         L('followup','Follow-ups','⏰',SET.followups_enabled==='1'?'on':'off',SET.followups_enabled==='1'?'Até 2 por pessoa':'Desligados',"nav('flows')"),
         L('whatsapp','WhatsApp','📱',wa&&wa.estado==='open'?'on':'off',wa&&wa.estado==='open'?'Conectado':'Não conectado',"nav('wa')")]},
       {id:'vendas',nome:'VENDAS',sub:'funil · prospecção · pedidos',ico:'🎯',filhos:[
-        L('prospectora','Prospectora','📋',p?(p.total-p.feitos?'warn':'on'):'on',p?p.feitos+' de '+p.total+' contatos hoje':'Lista sai às '+(SET.predio_hora||'08:00'),"pdSala('prospectora')"),
+        L('prospectora',NM('prospectora')+' · Prospectora','📋',p?(p.total-p.feitos?'warn':'on'):'on',p?p.feitos+' de '+p.total+' contatos hoje':'Lista sai às '+(SET.predio_hora||'08:00'),"pdSala('prospectora')"),
         L('funil','Funil 3 toques','🔻',funil?'on':'off',funil?'Ligado':'Desligado',"nav('flows')"),
         L('ab','Teste A/B','🧪',ab?'on':'off',ab?ab+' teste(s) rodando':'Nenhum teste',"nav('flows')"),
         L('pedido','Pedido montado','🛒','on','Link com a quantidade no site',"nav('flows')"),
         L('black','Promoção do site','🖤',st.promo?'on':'off',st.promo?st.promo.nome+' ativa':'Nenhuma ativa',"nav('cfg')")]},
       {id:'mkt',nome:'MARKETING',sub:'conteúdo · comentários',ico:'🎬',filhos:[
-        L('conteudo','Conteúdo','🗓',c.total&&c.postados<c.total?'warn':'on',(c.postados||0)+' de '+(c.total||0)+' postados',"pdSala('conteudo')"),
+        L('conteudo',NM('conteudo')+' · Conteúdo','🗓',c.total&&c.postados<c.total?'warn':'on',(c.postados||0)+' de '+(c.total||0)+' postados',"pdSala('conteudo')"),
         L('coment','Comentários → direct','💭','on','"Comente BLACK / COMO FUNCIONA"',"nav('flows')"),
         L('trafego','Tráfego (anúncios)','📈','lock','Fase 2',null)]},
       {id:'ops',nome:'OPERAÇÕES',sub:'alertas · integrações',ico:'⚙️',filhos:[
@@ -1049,9 +1123,12 @@ function mpNos(){var d=PD||{},a=d.agora||{},g=d.gerente,at=d.atendente||{},p=d.p
         L('push','Notificações','🔔','on','Configure por aparelho',"nav('cfg')"),
         L('nextap','Integração NexTap','🔗',st.precos&&st.precos.em?'on':'warn',st.precos&&st.precos.em?'Preços lidos '+fdh(st.precos.em):'Site ainda não respondeu',"nav('cfg')"),
         L('backup','Backup diário','💾','on','Uma cópia por dia',"nav('cfg')")]},
-      {id:'fin',nome:'FINANÇAS',sub:'vendas · relatórios',ico:'💰',filhos:[
-        L('vendas_site','Vendas pelo site',"🧾",vs.n?'on':'off',vs.n+' venda(s) · R$ '+Number(vs.total||0).toFixed(2).replace('.',','),"irChats('vendas')"),
-        L('controller','Controller','📊','lock','Fase 2',null)]},
+      {id:'fin',nome:'FINANÇAS',sub:'contabilidade · estoque · pedidos (NexTap)',ico:'💰',filhos:[
+        L('controller',NM('financeiro')+' · Controller','📊',f?(f.criticos?'err':'on'):(d.financeiro_erro?'err':'off'),f?'Lucro do mês '+pvR0(f.lucro_mes)+' · margem '+String(f.margem_mes).replace('.',',')+'%':(d.financeiro_erro?'Não consegue ler o NexTap':'Esperando a ligação com o NexTap'),"pdSala('financeiro')"),
+        L('estoque','Estoque','📦',f&&f.estoque!=null?(f.cobertura!=null&&f.cobertura<10?'warn':'on'):'off',f&&f.estoque!=null?f.estoque+' placa(s)'+(f.cobertura!=null?' · ~'+f.cobertura+' dias':''):'—',"pdSala('financeiro')"),
+        L('areceber','A receber','🧾',f?(f.a_receber?'warn':'on'):'off',f?pvR(f.a_receber):'—',"pdSala('financeiro')"),
+        L('parados','Pedidos parados','🚚',f?(f.parados?'warn':'on'):'off',f?(f.parados?f.parados+' pago(s) há 3+ dias':'Tudo em dia'):'—',"pdSala('financeiro')"),
+        L('vendas_site','Vendas pelo robô',"🛒",vs.n?'on':'off',vs.n+' venda(s) · '+pvR(vs.total),"irChats('vendas')")]},
       {id:'estudio',nome:'ESTÚDIO',sub:'vídeo · edição',ico:'🎥',filhos:[L('editor','Editor de vídeo','✂️','lock','Fase 2',null)]}]}}
 function mpStatusDep(dp){var s=dp.filhos.map(function(f){return f.s});return s.indexOf('err')>=0?'err':s.every(function(x){return x==='lock'})?'lock':s.indexOf('warn')>=0?'warn':'on'}
 function mpGeo(){var n=mpNos(),cx=600,cy=410,R=215,out=[];
@@ -1071,7 +1148,7 @@ function vMapa(){var G=mpGeo(),n=G.n,cx=G.cx,cy=G.cy,lin='',nos='',rot='';
     nos+='<g class="mp-n mp-d '+cls(sd)+dim+'" onclick="mpDep(\''+dp.id+'\')"><title>'+E(dp.nome)+'</title><circle class="g" cx="'+dp.x.toFixed(1)+'" cy="'+dp.y.toFixed(1)+'" r="30"/><circle class="b" cx="'+dp.x.toFixed(1)+'" cy="'+dp.y.toFixed(1)+'" r="24"/><text class="ic" style="font-size:20px" x="'+dp.x.toFixed(1)+'" y="'+dp.y.toFixed(1)+'">'+dp.ico+'</text></g>';
     rot+='<g class="mp-d'+dim+'" style="cursor:pointer" onclick="mpDep(\''+dp.id+'\')"><text class="rotd" x="'+dp.lx.toFixed(0)+'" y="'+dp.ly.toFixed(0)+'">'+dp.nome+'</text></g>'});
   var h=n.hub,hub='<g class="mp-n mp-h on" onclick="'+h.acao+'"><title>'+E(h.nome+' · '+h.info)+'</title><circle class="anel" cx="'+cx+'" cy="'+cy+'" r="62"/><circle class="g" cx="'+cx+'" cy="'+cy+'" r="48"/><circle class="b" cx="'+cx+'" cy="'+cy+'" r="38" style="stroke-width:2.2"/><text class="ic" style="font-size:32px" x="'+cx+'" y="'+cy+'">'+h.ico+'</text>'
-    +'<text class="rot" style="font-size:12px;fill:#fff;letter-spacing:.08em" x="'+cx+'" y="'+(cy+56)+'">GERENTE</text><text class="sub" x="'+cx+'" y="'+(cy+69)+'">'+E(h.info)+'</text></g>';
+    +'<text class="rot" style="font-size:12px;fill:#fff;letter-spacing:.08em" x="'+cx+'" y="'+(cy+56)+'">'+E(NM('gerente').toUpperCase())+' · GERENTE</text><text class="sub" x="'+cx+'" y="'+(cy+69)+'">'+E(h.info)+'</text></g>';
   var tr='';if(MPD){var dz=n.deps.filter(function(x){return x.id===MPD})[0];if(dz){var s=1.7,alvo=window.innerWidth>760?440:600;tr='transform:translate('+(alvo-dz.x*s).toFixed(0)+'px,'+(410-dz.y*s).toFixed(0)+'px) scale('+s+')'}}
   var painel='';if(MPD){var dp2=n.deps.filter(function(x){return x.id===MPD})[0];painel='<div class="mp-painel"><div class="row" style="justify-content:space-between"><h3>'+dp2.ico+' '+dp2.nome+'</h3><button class="mp-voltar" onclick="MPD=null;draw()">× fechar</button></div><div class="mut sm">'+E(dp2.sub)+'</div>'
     +dp2.filhos.map(function(f){return '<div class="mp-it" '+(f.acao?'onclick="'+f.acao+'"':'')+'><span class="st '+cls(f.s)+'"></span><div><b>'+f.ico+' '+E(f.nome)+'</b><small>'+E(f.info)+(f.acao?' · abrir →':'')+'</small></div></div>'}).join('')+'</div>'}
@@ -1084,7 +1161,7 @@ function mpCentralizar(){var e=$('mpsc');if(e&&e.scrollWidth>e.clientWidth&&!e.d
 function mpRedesenhar(el){var p=el.selectionStart;draw();var n=document.querySelector('.mp-busca');if(n){n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function vListaAgentes(){var n=mpNos(),cls={on:'ok',warn:'wa',err:'er',off:'',lock:''},nome={on:'trabalhando',warn:'atenção',err:'parado',off:'desligado',lock:'em breve'};
   return '<div class="card" style="overflow-x:auto"><table class="ls-t"><tr><th>Departamento</th><th>Agente</th><th>Status</th><th>Agora</th><th></th></tr>'
-    +[['DIRETORIA',[{nome:'Gerente',ico:n.hub.ico,s:'on',info:n.hub.info,acao:n.hub.acao}]]].concat(n.deps.map(function(d){return [d.nome,d.filhos]})).map(function(r){return r[1].map(function(f,i){return '<tr><td class="mut sm">'+(i?'':r[0])+'</td><td><b>'+f.ico+' '+E(f.nome)+'</b></td><td><span class="tag '+cls[f.s]+'">'+nome[f.s]+'</span></td><td class="sm">'+E(f.info)+'</td><td>'+(f.acao?'<button class="btn s" onclick="'+f.acao+'">Abrir</button>':'')+'</td></tr>'}).join('')}).join('')+'</table></div>'}
+    +[['DIRETORIA',[{nome:n.hub.nome,ico:n.hub.ico,s:'on',info:n.hub.info,acao:n.hub.acao}]]].concat(n.deps.map(function(d){return [d.nome,d.filhos]})).map(function(r){return r[1].map(function(f,i){return '<tr><td class="mut sm">'+(i?'':r[0])+'</td><td><b>'+f.ico+' '+E(f.nome)+'</b></td><td><span class="tag '+cls[f.s]+'">'+nome[f.s]+'</span></td><td class="sm">'+E(f.info)+'</td><td>'+(f.acao?'<button class="btn s" onclick="'+f.acao+'">Abrir</button>':'')+'</td></tr>'}).join('')}).join('')+'</table></div>'}
 </script>
 </body>
 </html>

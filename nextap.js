@@ -72,6 +72,20 @@ function textoPromo(v, qtd, agoraMs = Date.now()) {
   return '';
 }
 
+// Financeiro do NexTap (somente leitura): o mesmo contador do admin, protegido pelo segredo da integração
+async function atualizarFinanceiro() {
+  const base = process.env.NEXTAP_API_BASE || origemDoSite(), seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
+  if (!base || seg.length < 16) return null;
+  const r = await fetch(base.replace(/\/+$/, '') + '/api/integracao/financeiro', { headers: { 'X-Automazap-Secret': seg }, signal: AbortSignal.timeout(15000) });
+  if (!r.ok) { setSetting('nextap_fin_erro', r.status === 401 ? 'O segredo da integração (NEXTAP_WEBHOOK_SECRET) está diferente no NexTap e no Automazap.' : 'O NexTap respondeu ' + r.status + '.'); throw new Error('NexTap respondeu ' + r.status + ' no financeiro'); }
+  const j = await r.json();
+  setSetting('nextap_fin', JSON.stringify({ ...j, recebido_em: Date.now() })); setSetting('nextap_fin_erro', '');
+  try { require('./predio.js').controller(j); } catch (e) { console.error('[CONTROLLER]', e.message); }
+  return j;
+}
+function financeiro() { try { return JSON.parse(getSetting('nextap_fin') || 'null'); } catch (e) { return null; } }
+const adminNextap = () => (origemDoSite() || '') + '/admin/';
+
 const brl = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const precoRevenda = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return v > 0 ? v : 80; };
 // Conta mostrada na conversa: custo das placas e quanto a pessoa faz revendendo (o frete entra só no checkout)
@@ -110,4 +124,4 @@ function receberEvento(b) {
   return { ok: true, achou: true, contato: c.id, tag };
 }
 
-module.exports = { atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };
+module.exports = { atualizarFinanceiro, financeiro, adminNextap, atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };
