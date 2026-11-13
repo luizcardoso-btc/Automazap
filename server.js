@@ -45,7 +45,9 @@ app.post('/webhook/instagram', express.raw({ type: '*/*', limit: '1mb' }), (req,
   try { corpo = JSON.parse(req.body.toString('utf8')); } catch (e) { return res.sendStatus(400); }
   res.status(200).send('EVENT_RECEIVED'); // a Meta exige resposta rápida; o processamento segue em seguida
 
-  const { mensagens, comentarios } = ig.lerWebhook(corpo);
+  const { mensagens, comentarios, ecos } = ig.lerWebhook(corpo);
+  // Resposta da equipe pelo app do Instagram: espera uns segundos para o robô já ter anotado o que ele mesmo enviou
+  for (const ev of ecos) setTimeout(() => { try { const r = engine.processarEco(ev); if (r.acao === 'pausado') eventos.registrar('equipe', 'respondeu pelo app', 'robô pausado'); } catch (e) { console.error('[IG] eco:', e.message); } }, Number(process.env.ECO_ESPERA_MS) >= 0 && process.env.ECO_ESPERA_MS !== undefined ? Number(process.env.ECO_ESPERA_MS) : 4000);
   eventos.registrar('evento', 'recebido', `${mensagens.length} mensagem(ns), ${comentarios.length} comentário(s)`);
   (async () => {
     for (const ev of mensagens) {

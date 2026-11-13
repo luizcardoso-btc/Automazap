@@ -577,7 +577,8 @@ function instalarV5({ desativarAntigos = true } = {}) {
     criar('Respondeu a um follow-up', [
       { type: 'text', text: 'Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
-    setSetting('textos_v5', '2'); setSetting('palavras_v5', '1');   // instalação nova já vem revisada
+    criarEquipeDemorou();
+    setSetting('textos_v5', '2'); setSetting('palavras_v5', '1'); setSetting('pausa_v5', '1');   // instalação nova já vem revisada
     criar('Mandou o WhatsApp', [
       { type: 'text', text: 'Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá.' },
     ], { tipo: 'evento', evento: 'recebeu_whatsapp', humano: 1, tags: ['QUENTE'] });
@@ -725,9 +726,21 @@ function atualizarPalavrasV5() {
   return n;
 }
 
+// Pausa inteligente: pediu atendente e ninguém da equipe respondeu a tempo → o robô volta com esta mensagem
+const criarEquipeDemorou = () => criar('Equipe não respondeu a tempo', [{ type: 'text', text: 'Nossa equipe já foi avisada e vai falar com você assim que possível. 💚\n\nEnquanto isso, pode continuar por aqui: é só me dizer o que você precisa.' }], { tipo: 'evento', evento: 'equipe_demorou' });
+function atualizarPausaV5() {
+  if (getSetting('pausa_v5') === '1') return false;
+  const ent = db.prepare('SELECT funil_id FROM flows WHERE name = ? AND funil_id IS NOT NULL').get(NOME_ENTRADA_V5);
+  db.transaction(() => {
+    if (ent && !db.prepare("SELECT 1 FROM flows WHERE event = 'equipe_demorou'").get()) { FUNIL = ent.funil_id; criarEquipeDemorou(); }
+    setSetting('pausa_v5', '1');
+  })();
+  return !!ent;
+}
+
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { atualizarTextosV5, atualizarPalavrasV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

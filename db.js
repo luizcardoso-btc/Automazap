@@ -192,6 +192,13 @@ const MIGRACOES = [
       db.prepare('UPDATE flows SET funil_id = ? WHERE funil_id IS NULL AND created_at BETWEEN ? AND ?').run(id, e.created_at - 15000, e.created_at + 15000);
     }
   },
+  // v8: pausa inteligente — o robô só fica quieto enquanto alguém da equipe está conversando
+  db => {
+    const tem = col => db.prepare('PRAGMA table_info(contacts)').all().some(c => c.name === col);
+    if (!tem('handoff_em')) db.exec('ALTER TABLE contacts ADD COLUMN handoff_em INTEGER');   // quando pediu atendente (esperando a equipe)
+    if (!tem('humano_em')) db.exec('ALTER TABLE contacts ADD COLUMN humano_em INTEGER');     // última resposta de uma pessoa da equipe
+    db.exec("UPDATE settings SET value = '2' WHERE key = 'handoff_hours' AND value = '12'");  // padrão antigo (12h) era longo demais
+  },
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
@@ -231,7 +238,9 @@ const SETTINGS_PADRAO = {
   fallback_enabled: '1',
   fallback_text: 'Oi! 👋 Sou o assistente automático da NexTap. Digite PREÇO para ver como revender, NFC para saber como a placa funciona ou ATENDENTE para falar com uma pessoa.',
   fallback_cooldown_hours: '24',
-  handoff_hours: '12',
+  handoff_hours: '2',           // depois da última resposta de alguém da equipe, o robô volta sozinho após X horas
+  espera_equipe_min: '15',      // pediu atendente e ninguém respondeu nesse tempo: o robô volta e avisa o cliente
+  contas_teste: 'dr.luizcardos0, dr.luizcardoso',   // @ que nunca ficam pausados (para testar o robô à vontade)
   max_replies_hour: '30',
   preco_revenda: '80,00',      // por quanto o revendedor costuma vender cada placa (conta do lucro na conversa; mesmo padrão do site)
   wa_max_novos_dia: '30',      // WhatsApp: primeiras mensagens para números que nunca responderam, por dia (protege o número de bloqueio)

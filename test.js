@@ -946,6 +946,46 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const kd = JSON.parse(db.prepare('SELECT keywords FROM flows WHERE id = ?').get(duv.id).keywords); assert.ok(!kd.includes('como funciona') && !kd.includes('funciona') && kd.includes('como e') && kd.includes('funciona no'));
     db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(ent.keywords, ent.id);
   });
+  await t('pausa inteligente: pediu atendente → pausa curta; ninguém respondeu → o robô volta e avisa uma vez', async () => {
+    const s1 = rec(); await engine.processarMensagem(msg('quero falar com atendente', { extId: 'pz1' }), s1);
+    const c = contatoDe('pz1'); assert.ok(c.handoff_em > 0); assert.ok(c.bot_paused_until - Date.now() <= 15 * 60e3 + 1000 && c.bot_paused_until > Date.now());
+    assert.strictEqual((await engine.processarMensagem(msg('oi?', { extId: 'pz1' }), rec())).motivo, 'pausado');
+    const s = rec(); await engine.tick(s, { agoraMs: Date.now() + 10 * 60e3 }); assert.strictEqual(s.env.filter(x => x.c === c.id).length, 0, 'voltou cedo demais');
+    db.prepare('UPDATE contacts SET bot_paused_until = ? WHERE id = ?').run(Date.now() - 1000, c.id);
+    await engine.tick(s, { agoraMs: Date.now() }); await engine.tick(s, { agoraMs: Date.now() + 60e3 });
+    const env = s.env.filter(x => x.c === c.id).map(x => x.p.text); assert.strictEqual(env.length, 1, JSON.stringify(env)); assert.ok(env[0].startsWith('Nossa equipe já foi avisada'));
+    assert.strictEqual((await engine.processarMensagem(msg('quanto custa?', { extId: 'pz1' }), rec())).fluxo, 'Entrada: 3 toques');
+  });
+  await t('pausa inteligente: a equipe respondeu (painel ou app) → robô quieto e volta 2h depois da ÚLTIMA resposta', async () => {
+    assert.strictEqual(require('./db.js').getSetting('handoff_hours'), '2');
+    await engine.processarMensagem(msg('atendente', { extId: 'pz2' }), rec());
+    const c = contatoDe('pz2');
+    // resposta pelo app do Instagram chega como eco com um código que o robô não conhece
+    const ecos = ig.lerWebhook({ object: 'instagram', entry: [{ id: 'conta', messaging: [{ sender: { id: 'conta' }, recipient: { id: 'pz2' }, message: { mid: 'MID-HUMANO', text: 'Oi! Aqui é o Luiz.', is_echo: true } }] }] }).ecos;
+    assert.deepStrictEqual(ecos, [{ canal: 'instagram', extId: 'pz2', texto: 'Oi! Aqui é o Luiz.', mid: 'MID-HUMANO' }]);
+    assert.strictEqual(engine.processarEco(ecos[0]).acao, 'pausado');
+    const d = contatoDe('pz2'); assert.strictEqual(d.handoff_em, null); assert.strictEqual(d.needs_human, 0); assert.ok(Math.abs(d.bot_paused_until - (Date.now() + 2 * 3600e3)) < 5000);
+    const s = rec(); db.prepare('UPDATE contacts SET bot_paused_until = ? WHERE id = ?').run(Date.now() - 1, d.id); await engine.tick(s, { agoraMs: Date.now() });
+    assert.strictEqual(s.env.filter(x => x.c === d.id).length, 0, 'mandou "equipe demorou" mesmo com a equipe tendo respondido');
+    assert.strictEqual((await engine.processarMensagem(msg('quanto custa?', { extId: 'pz2' }), rec())).fluxo, 'Entrada: 3 toques', 'não voltou depois da pausa');
+  });
+  await t('pausa inteligente: o eco das mensagens do próprio robô não pausa nada', async () => {
+    await engine.processarMensagem(msg('quanto custa?', { extId: 'pz3' }), rec());
+    const ultimo = db.prepare("SELECT text FROM messages WHERE contact_id = ? AND direction = 'out' ORDER BY id DESC LIMIT 1").get(contatoDe('pz3').id).text;
+    assert.strictEqual(engine.processarEco({ canal: 'instagram', extId: 'pz3', texto: ultimo, mid: 'MID-X' }).motivo, 'enviada pelo robô');
+    assert.strictEqual(contatoDe('pz3').bot_paused_until, 0);
+    assert.strictEqual(engine.processarEco({ canal: 'instagram', extId: 'ninguem', texto: 'x' }).motivo, 'contato desconhecido');
+  });
+  await t('contas de teste: o robô nunca fica pausado para elas', async () => {
+    const c = engine.upsertContato({ canal: 'instagram', extId: 'pz4', username: 'dr.luizcardos0' });
+    db.prepare('UPDATE contacts SET bot_paused_until = ?, needs_human = 1 WHERE id = ?').run(Date.now() + 365 * 86400e3, c.id);
+    assert.strictEqual((await engine.processarMensagem(msg('Como funciona?', { extId: 'pz4', username: 'dr.luizcardos0' }), rec())).fluxo, 'Entrada: 3 toques');
+    engine.upsertContato({ canal: 'instagram', extId: 'pz5', username: 'outra.pessoa' }); db.prepare("UPDATE contacts SET bot_paused_until = ? WHERE ext_id = 'pz5'").run(Date.now() + 3600e3);
+    assert.strictEqual((await engine.processarMensagem(msg('Como funciona?', { extId: 'pz5' }), rec())).motivo, 'pausado');
+    assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { contas_teste: 'a, b', espera_equipe_min: '20', handoff_hours: '3' }, headers: H })).status, 200);
+    assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { handoff_hours: '100' }, headers: H })).status, 400);
+    await chamar('PUT', '/api/settings', { corpo: { contas_teste: 'dr.luizcardos0, dr.luizcardoso', espera_equipe_min: '15', handoff_hours: '2' }, headers: H });
+  });
   await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
     const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);
     assert.strictEqual((await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { endpoint: 'http://x' } }, headers: H })).status, 400);
