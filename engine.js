@@ -49,7 +49,7 @@ function acharFluxo(texto, { comentario = false } = {}) {
 }
 
 // ---------- etiquetas do funil ----------
-const ETAPAS = ['NOVO LEAD', 'REVENDEDOR', 'QUANTIDADE', 'VIU DEMO', 'VIU PREÇO', 'ABRIU CHECKOUT', 'QUENTE', 'VENDA', 'FOLLOW-UP'];
+const ETAPAS = ['NOVO LEAD', 'REVENDEDOR', 'QUANTIDADE', 'VIU DEMO', 'VIU PREÇO', 'ABRIU CHECKOUT', 'CADASTROU', 'INICIOU PEDIDO', 'QUENTE', 'VENDA', 'FOLLOW-UP'];
 const tagsDe = c => { try { return JSON.parse(c.tags || '[]'); } catch (e) { return []; } };
 function addTag(contatoId, tag) {
   const c = db.prepare('SELECT tags FROM contacts WHERE id = ?').get(contatoId);
@@ -69,7 +69,7 @@ function urlDoSite() {
 }
 function criarLink(contato, destino) {
   const pub = (getSetting('public_url') || '').replace(/\/+$/, '');
-  if (!pub || !contato.id) return destino; // sem endereço público: link direto (sem rastreio)
+  if (!pub || !contato.id) return destino.replace('&lead=__LEAD__', ''); // sem endereço público: link direto (sem rastreio)
   const existente = db.prepare('SELECT token FROM links WHERE contact_id = ? AND url = ?').get(contato.id, destino);
   if (existente) return `${pub}/go/${existente.token}`;
   const token = require('crypto').randomBytes(6).toString('base64url');
@@ -88,7 +88,7 @@ function registrarClique(token) {
     const f = db.prepare("SELECT id FROM flows WHERE kind = 'evento' AND event = 'clique_link' AND active = 1 ORDER BY id LIMIT 1").get();
     if (f) db.prepare('INSERT INTO agenda (contact_id, flow_id, run_at) VALUES (?, ?, ?)').run(l.contact_id, f.id, t + (Number(process.env.CLICK_DELAY_MS) >= 0 ? Number(process.env.CLICK_DELAY_MS) : 25000));
   }
-  return l.url;
+  return l.url.replace('__LEAD__', l.token);   // o site devolve esse token nos avisos de cadastro/pagamento
 }
 
 // Faixa escolhida pela pessoa (etiqueta "QTD 11-49") em texto: "11 a 49"; sem faixa: "algumas"
@@ -97,6 +97,20 @@ function quantidadeDe(contato) {
   if (!q) return 'algumas';
   const f = q.slice(4);
   return f.endsWith('+') ? 'mais de ' + f.slice(0, -1) : f.replace('-', ' a ');
+}
+
+// Quantidade para a conta: a que a pessoa digitou/escolheu; sem isso, o pedido mínimo do site
+function qtdDe(contato) {
+  const nx = require('./nextap.js');
+  return Number(contato.qty) > 0 ? Number(contato.qty) : nx.minimo();
+}
+// {{qtd}}, {{preco}} (por placa), {{total}}, {{preco_venda}}, {{receita}}, {{lucro}}, {{minimo}}, {{link_pedido}} (abre o pedido no site já com a quantidade)
+function varDeVenda(v, contato) {
+  const nx = require('./nextap.js'), c = nx.conta(qtdDe(contato));
+  if (v === 'qtd') return String(c.qtd);
+  if (v === 'minimo') return String(nx.minimo());
+  if (v === 'link_pedido') return criarLink(contato, nx.urlPedido(c.qtd));
+  return nx.brl({ preco: c.unit, total: c.total, receita: c.receita, lucro: c.lucro, preco_venda: nx.precoRevenda() }[v]);
 }
 
 // {{nome}}, {{site}}, {{link}} (link do site com rastreio), {{telefone}}, {{video_demo}}, {{quantidade}}
@@ -114,6 +128,7 @@ function aplicarVars(texto, contato) {
     .replace(/\{\{\s*telefone\s*\}\}/g, getSetting('telefone') || '')
     .replace(/\{\{\s*video_demo\s*\}\}/g, getSetting('video_demo_url') || '')
     .replace(/\{\{\s*quantidade\s*\}\}/g, () => quantidadeDe(contato))
+    .replace(/\{\{\s*(qtd|preco|total|receita|lucro|preco_venda|minimo|link_pedido)\s*\}\}/g, (_, v) => varDeVenda(v, contato))
     .replace(/\s+([!,.?])/g, '$1');
 }
 function passoComVars(passo, contato) {
@@ -186,6 +201,16 @@ const dormir = ms => ms > 0 ? new Promise(r => setTimeout(r, ms)) : null;
 const pausaEntreMensagens = () => Number(process.env.STEP_DELAY_MS) >= 0 && process.env.STEP_DELAY_MS !== '' && process.env.STEP_DELAY_MS != null ? Number(process.env.STEP_DELAY_MS) : 700;
 
 // Aviso opcional no Telegram quando um lead pede (ou merece) atendimento humano
+// Aviso livre no Telegram (venda confirmada, token do Instagram caiu…). Sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID não faz nada.
+async function avisar(texto) {
+  const tk = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
+  if (!tk || !chat || process.env.NODE_ENV === 'test') return false;
+  try {
+    await fetch(`https://api.telegram.org/bot${tk}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chat, text: texto }) });
+    return true;
+  } catch (e) { console.error('[TELEGRAM]', e.message); return false; }
+}
+
 async function avisarHumano(contato, fluxo, prioridade) {
   const tk = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
   if (!tk || !chat || process.env.NODE_ENV === 'test') return;
@@ -244,14 +269,31 @@ async function enviarFluxo(contato, fluxo, sender) {
 
 // Resposta digitada à pergunta "quantas placas?": "100", "uns 50 placas" → faixa certa (só para quem já é REVENDEDOR)
 const FAIXAS = [[10, 'qtd_1_10'], [49, 'qtd_11_49'], [299, 'qtd_50_299'], [Infinity, 'qtd_300']];
+// Funil de vendas (preço na conversa): faixas iguais às do site. O número no evento é a quantidade de exemplo da conta.
+const FAIXAS_V4 = [[10, 'qtd4_10'], [49, 'qtd4_20'], [99, 'qtd4_50'], [Infinity, 'qtd4_100']];
+const fluxoDoEvento = ev => lerFluxo(db.prepare("SELECT * FROM flows WHERE kind = 'botao' AND event = ? AND active = 1 ORDER BY id LIMIT 1").get(ev));
+function numeroDePlacas(texto) {
+  const m = /^(?:uns |umas |cerca de |quero |preciso de )?(\d{1,5})(?: (?:placas?|unidades?|pecas?))?$/.exec(normalizar(texto));
+  return m && Number(m[1]) >= 1 ? Number(m[1]) : null;
+}
 function fluxoPorQuantidade(texto, contato) {
   if (!tagsDe(contato).includes('REVENDEDOR')) return null;
-  const m = /^(?:uns |umas |cerca de |quero |preciso de )?(\d{1,5})(?: (?:placas?|unidades?|pecas?))?$/.exec(normalizar(texto));
-  if (!m) return null;
-  const n = Number(m[1]);
-  if (n < 1) return null;
-  const ev = FAIXAS.find(f => n <= f[0])[1];
-  return lerFluxo(db.prepare("SELECT * FROM flows WHERE kind = 'botao' AND event = ? AND active = 1 ORDER BY id LIMIT 1").get(ev));
+  const n = numeroDePlacas(texto);
+  if (!n) return null;
+  if (fluxoDoEvento('qtd4_10')) {   // funil de vendas instalado
+    if (n < require('./nextap.js').minimo()) return fluxoDoEvento('qtd4_min') || fluxoDoEvento('qtd4_10');
+    return fluxoDoEvento(FAIXAS_V4.find(f => n <= f[0])[1]);
+  }
+  return fluxoDoEvento(FAIXAS.find(f => n <= f[0])[1]);
+}
+// "75 98820-9055", "(75) 9 8820-9055", "+55 75 98820 9055" → 5575988209055 (só celular/fixo com DDD; não confunde com quantidade)
+function telefoneDe(texto) {
+  const t = String(texto || '').trim();
+  if (t.length > 40 || /[a-zA-Z]{3,}/.test(t.replace(/whats(app)?|zap|meu|numero|número|e|é/gi, ''))) return null;
+  let d = t.replace(/\D/g, '').replace(/^0+/, '');
+  if (d.length === 12 || d.length === 13) { if (!d.startsWith('55')) return null; d = d.slice(2); }
+  if (d.length !== 10 && d.length !== 11) return null;
+  return Number(d.slice(0, 2)) >= 11 ? '55' + d : null;
 }
 
 async function processarMensagem(ev, sender) {
@@ -273,8 +315,26 @@ async function processarMensagem(ev, sender) {
   if (!fluxo || !fluxo.active) fluxo = (!ev.payload && fluxoPorQuantidade(ev.texto, atual)) || acharFluxo(ev.texto);
 
   if (fluxo) {
+    // Faixa do funil de vendas: guarda a quantidade para a conta (a digitada; pelo botão, o exemplo da faixa)
+    const fx = /^qtd4_(\d+)$/.exec(fluxo.event || '');
+    if (fx) {
+      const n = !ev.payload && numeroDePlacas(ev.texto);
+      atual.qty = n && n >= require('./nextap.js').minimo() ? n : Number(fx[1]);
+      db.prepare('UPDATE contacts SET qty = ? WHERE id = ?').run(atual.qty, atual.id);
+    }
     const enviados = await enviarFluxo(atual, fluxo, sender);
     return { acao: 'respondeu', fluxo: fluxo.name, enviados: enviados.length };
+  }
+
+  // Mandou o WhatsApp: guarda, abre a conversa na aba WhatsApp (sem o limite de 24h do Instagram) e confirma
+  const fone = !ev.payload && telefoneDe(ev.texto);
+  if (fone) {
+    db.prepare('UPDATE contacts SET phone = ? WHERE id = ?').run(fone, atual.id);
+    addTag(atual.id, 'WHATSAPP');
+    try { require('./whatsapp.js').registrarLead(fone, atual.name || (atual.username ? '@' + atual.username : '')); } catch (e) { console.error('[BOT] lead no WhatsApp:', e.message); }
+    avisar(`📱 Lead passou o WhatsApp: ${atual.name || atual.username || 'contato ' + atual.id} · +${fone}`);
+    const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'recebeu_whatsapp' AND active = 1 ORDER BY id LIMIT 1").get();
+    if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
   }
 
   // Respondeu (texto livre) a um follow-up: quem está engajado vai para uma pessoa, em vez de cair na resposta padrão
@@ -353,6 +413,7 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
       const c = db.prepare('SELECT * FROM contacts WHERE id = ? AND channel = ?').get(a.contact_id, canal);
       const f = fluxoPorId(a.flow_id);
       if (!c || !f || !f.active || c.bot_paused_until > t0 || t0 - c.last_inbound_at > JANELA - MARGEM) continue;
+      if (tagsDe(c).includes('VENDA')) continue;   // já comprou: não recebe "vi que você abriu o pedido"
       await enviarFluxo(c, f, sender); out.agenda++;
     }
     if (getSetting('followups_enabled') === '1') {
@@ -383,4 +444,4 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
   return out;
 }
 
-module.exports = { ETAPAS, SEGMENTOS, segmentoDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
+module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, telefoneDe, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };

@@ -755,6 +755,84 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   });
   evoSrv.close();
 
+
+  console.log('Funil de vendas (preço na conversa + avisos do NexTap)');
+  const nx = require('./nextap.js');
+  const nxSrv = http.createServer((rq, rs) => { rs.writeHead(200, { 'Content-Type': 'application/json' });
+    rs.end(JSON.stringify({ minimo: 5, frete: 0, tiers: [{ min_qty: 5, max_qty: 10, unit_price: 19.99 }, { min_qty: 11, max_qty: 49, unit_price: 17.99 }, { min_qty: 50, max_qty: 1000000, unit_price: 14.99 }] })); });
+  await new Promise(r => nxSrv.listen(0, r));
+  await t('tabela de preços: padrão igual à do site; depois de ler o NexTap vale a do site (ex.: promoção)', async () => {
+    assert.strictEqual(nx.precoUnitario(10), 21.9); assert.strictEqual(nx.precoUnitario(20), 18.9); assert.strictEqual(nx.precoUnitario(2), 21.9); assert.strictEqual(nx.precoUnitario(5000000), 15.9);
+    process.env.NEXTAP_API_BASE = `http://127.0.0.1:${nxSrv.address().port}`; await nx.atualizarPrecos();
+    assert.strictEqual(nx.precoUnitario(20), 17.99); assert.strictEqual(nx.minimo(), 5);
+    assert.deepStrictEqual(nx.conta(20), { qtd: 20, unit: 17.99, total: 359.8, receita: 1600, lucro: 1240.2 }); assert.strictEqual(nx.brl(1240.2), '1.240,20');
+    assert.ok((await chamar('GET', '/api/status', { headers: H })).json.precos.em > 0);
+  });
+  await t('instalação do funil de vendas pelo painel desliga os antigos e traz follow-ups por etapa', async () => {
+    assert.strictEqual((await chamar('POST', '/api/flows/instalar-v4', { corpo: {}, headers: H })).status, 200);
+    assert.strictEqual((await chamar('POST', '/api/flows/instalar-v4', { corpo: {}, headers: H })).status, 409);
+    const at = db.prepare("SELECT audience, COUNT(*) AS n FROM flows WHERE active = 1 AND kind = 'followup' GROUP BY audience").all();
+    assert.deepStrictEqual(at.map(x => x.audience).sort(), ['checkout', 'negocio', 'revenda_preco', 'revenda_qtd']);
+    for (const f of db.prepare('SELECT name, steps FROM flows WHERE active = 1').all()) for (const p of JSON.parse(f.steps)) {
+      (p.buttons || []).concat(p.replies || []).forEach(b => assert.ok(b.title.length <= 20, f.name + ': botão longo demais: ' + b.title));
+      if (p.type !== 'text' && p.text) assert.ok(p.text.length <= 640, f.name + ': texto com botão passa de 640');
+    }
+  });
+  let pedidoUrl, leadTok;
+  await t('quantidade digitada: preço, total e lucro na conversa; o botão abre o pedido no site já com a quantidade', async () => {
+    const s = rec(); await engine.processarMensagem(msg('quero revender', { extId: 'v4a' }), s);
+    assert.deepStrictEqual(s.env[0].p.replies.map(r => r.title), ['5–10', '11–49', '50–99', '100+']); assert.ok(s.env[0].p.text.includes('mínimo 5'));
+    const s2 = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v4a' }), s2);
+    assert.strictEqual(r.fluxo, 'Venda: 11 a 49 placas'); assert.strictEqual(contatoDe('v4a').qty, 20);
+    const txt = s2.env.map(x => x.p.text || '').join('\n');
+    assert.ok(txt.includes('Para 20 placas: R$ 17,99 cada, total de R$ 359,80'), txt); assert.ok(txt.includes('R$ 1.240,20 de lucro'), txt);
+    const bt = s2.env.map(x => x.p).find(p => p.type === 'button'); assert.strictEqual(bt.buttons[0].title, 'FAZER MEU PEDIDO');
+    leadTok = /\/go\/([\w-]+)$/.exec(bt.buttons[0].url)[1];
+    pedidoUrl = engine.registrarClique(leadTok);
+    assert.ok(pedidoUrl.includes('/revendedor/?tab=registro&qtd=20&lead=' + leadTok), pedidoUrl); assert.ok(tagsC('v4a').includes('ABRIU CHECKOUT'));
+  });
+  await t('faixa pelo botão usa a quantidade de exemplo; abaixo do mínimo explica e pergunta de novo', async () => {
+    const s = rec(); await engine.processarMensagem(msg('revender', { extId: 'v4b' }), s);
+    const s2 = rec(); await engine.processarMensagem(msg('x', { extId: 'v4b', payload: respRapida(s.env[0].p, '5–10') }), s2);
+    assert.strictEqual(contatoDe('v4b').qty, 10); assert.ok(s2.env.map(x => x.p.text || '').join('\n').includes('Para 10 placas: R$ 19,99 cada, total de R$ 199,90'));
+    const s3 = rec(); await engine.processarMensagem(msg('revender', { extId: 'v4c' }), rec()); const r = await engine.processarMensagem(msg('3', { extId: 'v4c' }), s3);
+    assert.strictEqual(r.fluxo, 'Venda: abaixo do pedido mínimo'); assert.ok(s3.env[0].p.text.includes('pedido mínimo é de 5 placas'));
+    const s4 = rec(); await engine.processarMensagem(msg('100', { extId: 'v4c' }), s4);
+    assert.strictEqual(contatoDe('v4c').qty, 100); assert.strictEqual(contatoDe('v4c').human_priority, 2); assert.ok(s4.env[0].p.text.includes('R$ 14,99 cada'));
+  });
+  await t('avisos do NexTap: exigem o segredo; cadastro e pagamento marcam as etiquetas, a venda e param os follow-ups', async () => {
+    const ev = (corpo, seg) => chamar('POST', '/webhook/nextap', { corpo, headers: seg ? { 'X-Automazap-Secret': seg } : {} });
+    assert.strictEqual((await ev({ evento: 'pago', lead: leadTok })).status, 503);
+    process.env.NEXTAP_WEBHOOK_SECRET = 'segredo-compartilhado-123';
+    assert.strictEqual((await ev({ evento: 'pago', lead: leadTok }, 'errado')).status, 401);
+    assert.strictEqual((await ev({ evento: 'xyz', lead: leadTok }, 'segredo-compartilhado-123')).status, 400);
+    assert.strictEqual((await ev({ evento: 'pago', lead: 'nao-existe' }, 'segredo-compartilhado-123')).json.achou, false);
+    await ev({ evento: 'cadastro', lead: leadTok }, 'segredo-compartilhado-123'); assert.ok(tagsC('v4a').includes('CADASTROU')); assert.ok(!tagsC('v4a').includes('VENDA'));
+    await ev({ evento: 'pedido', lead: leadTok, qty: 20 }, 'segredo-compartilhado-123'); assert.ok(tagsC('v4a').includes('INICIOU PEDIDO'));
+    const r = await ev({ evento: 'pago', lead: leadTok, qty: 20, total: 389.7 }, 'segredo-compartilhado-123');
+    assert.strictEqual(r.json.tag, 'VENDA'); const c = contatoDe('v4a'); assert.ok(tagsC('v4a').includes('VENDA')); assert.strictEqual(c.venda_total, 389.7);
+    const s = rec(); await engine.tick(s, { agoraMs: Date.now() + 4 * 3600e3 }); assert.strictEqual(s.env.filter(x => x.c === c.id).length, 0, 'follow-up para quem já comprou');
+    const st = (await chamar('GET', '/api/status', { headers: H })).json; assert.strictEqual(st.vendas_site.n, 1); assert.strictEqual(st.vendas_site.total, 389.7); assert.ok(st.funil['CADASTROU'] >= 1);
+  });
+  await t('follow-up de quem viu o preço traz o pedido montado; o final convida para o WhatsApp', async () => {
+    const e = rec(); await engine.processarMensagem(msg('revender', { extId: 'v4d' }), e);
+    await engine.processarMensagem(msg('x', { extId: 'v4d', payload: respRapida(e.env[0].p, '5–10') }), rec());
+    const id = contatoDe('v4d').id, s = rec();
+    await engine.tick(s, { agoraMs: Date.now() + 2.1 * 3600e3 });
+    const p = s.env.filter(x => x.c === id).map(x => x.p)[0]; assert.ok(p.text.includes('pedido de 10 placas montado: R$ 199,90'), p.text);
+    await engine.tick(s, { agoraMs: Date.now() + 20.5 * 3600e3 });
+    assert.ok(s.env.filter(x => x.c === id).map(x => x.p).pop().text.includes('me manda o seu número com DDD'));
+  });
+  await t('lead manda o WhatsApp: guarda o número, etiqueta, abre a conversa na aba WhatsApp e confirma', async () => {
+    assert.strictEqual(engine.telefoneDe('20'), null); assert.strictEqual(engine.telefoneDe('quero 100 placas'), null);
+    assert.strictEqual(engine.telefoneDe('meu whats é (75) 9 9123-4567'), '5575991234567');
+    const s = rec(); const r = await engine.processarMensagem(msg('75 99123-4567', { extId: 'v4b' }), s);
+    assert.strictEqual(r.fluxo, 'Recebeu o WhatsApp do lead'); const c = contatoDe('v4b');
+    assert.strictEqual(c.phone, '5575991234567'); assert.ok(tagsC('v4b').includes('WHATSAPP')); assert.strictEqual(c.needs_human, 1);
+    const l = (await chamar('GET', '/api/whatsapp/conversas', { headers: H })).json; assert.ok(l.some(x => x.jid === '5575991234567@s.whatsapp.net'));
+  });
+  nxSrv.close(); delete process.env.NEXTAP_API_BASE;
+
   srv.close();
   console.log(`\n${ok} passaram, ${falhou} falharam`);
   process.exit(falhou ? 1 : 0);

@@ -59,6 +59,9 @@ router.get('/status', (req, res) => {
     cliques: n("SELECT COALESCE(SUM(clicks), 0) AS n FROM links"),
     erros_24h: n("SELECT COUNT(*) AS n FROM messages WHERE status = 'erro' AND created_at > ?", Date.now() - 86400e3),
     followups: metricasFollowup(),
+    instagram_erro: getSetting('ig_conexao_erro') || '',
+    vendas_site: db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(venda_total), 0) AS total FROM contacts WHERE channel <> 'sim' AND venda_em IS NOT NULL").get(),
+    precos: require('./nextap.js').tabela(),
   });
 });
 
@@ -130,7 +133,7 @@ function validarFluxo(b) {
   if (tipo === 'normal' && !palavras.length) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   if (palavras.length > 50) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   const evento = b.event ? String(b.event).trim().slice(0, 40) : null;
-  if (tipo === 'evento' && !['clique_link', 'resposta_followup'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
+  if (tipo === 'evento' && !['clique_link', 'resposta_followup', 'recebeu_whatsapp'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
   const atraso = Number(b.delay_hours) || 0;
   if (tipo === 'followup' && !(atraso >= 0.5 && atraso <= 23)) return { erro: 'Follow-up: envie entre 0,5 e 23 horas após a última mensagem da pessoa (limite de 24h do Instagram).' };
   const publico = tipo === 'followup' ? (b.audience || 'checkout') : null;
@@ -180,6 +183,11 @@ router.post('/flows/instalar-v3', (req, res) => {
   if (!ok) return res.status(409).json({ error: 'O funil direto já está instalado.' });
   res.json({ ok: true });
 });
+router.post('/flows/instalar-v4', (req, res) => {
+  const ok = require('./seed.js').instalarV4({ desativarAntigos: (req.body || {}).desativar_antigos !== false });
+  if (!ok) return res.status(409).json({ error: 'O funil de vendas já está instalado.' });
+  res.json({ ok: true });
+});
 router.delete('/flows/:id', (req, res) => {
   const r = db.prepare('DELETE FROM flows WHERE id = ?').run(req.params.id);
   if (!r.changes) return res.status(404).json({ error: 'Fluxo não encontrado.' });
@@ -199,6 +207,7 @@ const REGRAS = {
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 720,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
   wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,
+  preco_revenda: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
 };
 // ---------- vídeo/imagem enviados pelo painel (servidos em /media) ----------
 const dirMidia = () => { const d = path.join(path.dirname(require('./db.js').arquivo === ':memory:' ? path.join(os.tmpdir(), 'x') : require('./db.js').arquivo), 'media'); fs.mkdirSync(d, { recursive: true }); return d; };

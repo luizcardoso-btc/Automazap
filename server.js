@@ -69,6 +69,22 @@ app.post('/webhook/whatsapp/:token', express.json({ limit: '5mb' }), (req, res) 
   try { wa.processarWebhook(req.body); } catch (e) { console.error('[WHATSAPP] webhook:', e.message); }
 });
 
+// ---------- Avisos do sistema NexTap (cadastro, pedido iniciado, pagamento) ----------
+// Os dois serviços guardam o mesmo segredo em NEXTAP_WEBHOOK_SECRET. Sem ele, a rota fica desligada.
+const nextap = require('./nextap.js');
+app.post('/webhook/nextap', express.json({ limit: '100kb' }), (req, res) => {
+  const seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
+  const a = Buffer.from(String(req.get('X-Automazap-Secret') || '')), b = Buffer.from(seg);
+  if (seg.length < 16) return res.status(503).json({ error: 'NEXTAP_WEBHOOK_SECRET não configurado (mínimo 16 caracteres).' });
+  if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) return res.sendStatus(401);
+  try {
+    const r = nextap.receberEvento(req.body);
+    if (r.erro) return res.status(400).json({ error: r.erro });
+    eventos.registrar('nextap', (req.body || {}).evento, r.achou ? 'contato ' + r.contato : 'lead não encontrado');
+    res.json(r);
+  } catch (e) { console.error('[NEXTAP] webhook:', e.message); res.status(500).json({ error: 'Falha ao registrar o evento.' }); }
+});
+
 // ---------- Painel e API ----------
 app.use(express.json({ limit: '1mb' }));
 const marca = require('./marca.js');
@@ -97,6 +113,23 @@ if (require.main === module) {
   if (!getSetting('public_url') && process.env.RAILWAY_PUBLIC_DOMAIN) setSetting('public_url', 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN);
   // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
   setInterval(() => { if (ig.configurado().token) { engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); engine.completarNomes(ig.sender).catch(() => {}); } }, 15000).unref();
+  // Tabela de preços do site (o robô mostra sempre o valor que o checkout cobra)
+  const precos = () => nextap.atualizarPrecos().catch(e => console.warn('[NEXTAP] preços:', e.message));
+  setTimeout(precos, 5000).unref(); setInterval(precos, 10 * 60e3).unref();
+  // Vigia do Instagram: se o token cair, avisa no Telegram e mostra no painel (em vez de ficar dias parado em silêncio)
+  const vigiar = async () => {
+    if (!ig.configurado().token) return;
+    try { await ig.conta(); if (getSetting('ig_conexao_erro')) { setSetting('ig_conexao_erro', ''); engine.avisar('✅ Instagram voltou a responder: o robô está no ar de novo.'); } }
+    catch (e) {
+      const novo = !getSetting('ig_conexao_erro');
+      setSetting('ig_conexao_erro', String(e.message).slice(0, 300));
+      if (novo || Date.now() - Number(getSetting('ig_alerta_em') || 0) > 12 * 3600e3) {
+        setSetting('ig_alerta_em', Date.now());
+        engine.avisar('🚨 O robô do Instagram PAROU de responder: ' + String(e.message).slice(0, 200) + '\nGere um token novo no app da Meta e troque IG_ACCESS_TOKEN no Railway.');
+      }
+    }
+  };
+  setTimeout(vigiar, 20000).unref(); setInterval(vigiar, 15 * 60e3).unref();
   // Disparos programados do WhatsApp
   setInterval(() => { wa.tick().catch(e => console.error('[WHATSAPP]', e.message)); }, 20000).unref();
   setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();
