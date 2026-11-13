@@ -44,6 +44,7 @@ router.use((req, res, next) => {
 router.use('/prospeccao', require('./prospeccao.js'));
 router.use('/whatsapp', require('./whatsapp.js').router);
 router.use('/push', require('./notificacoes.js').router);
+router.use('/predio', require('./predio.js').router);
 
 // ---------- status ----------
 router.get('/status', (req, res) => {
@@ -135,7 +136,7 @@ function validarFluxo(b) {
   if (tipo === 'normal' && !palavras.length) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   if (palavras.length > 50) return { erro: 'Informe de 1 a 50 palavras-chave.' };
   const evento = b.event ? String(b.event).trim().slice(0, 40) : null;
-  if (tipo === 'evento' && !['clique_link', 'resposta_followup', 'recebeu_whatsapp', 'equipe_demorou'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
+  if (tipo === 'evento' && !['clique_link', 'resposta_followup', 'recebeu_whatsapp', 'equipe_demorou', 'nao_entendi'].includes(evento)) return { erro: 'Escolha o evento que dispara este fluxo.' };
   const atraso = Number(b.delay_hours) || 0;
   if (tipo === 'followup' && !(atraso >= 0.5 && atraso <= 23)) return { erro: 'Follow-up: envie entre 0,5 e 23 horas após a última mensagem da pessoa (limite de 24h do Instagram).' };
   const publico = tipo === 'followup' ? (b.audience || 'checkout') : null;
@@ -299,6 +300,12 @@ const REGRAS = {
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 48,
   espera_equipe_min: v => /^\d+$/.test(v) && v >= 1 && v <= 240,
   contas_teste: v => v.length <= 300,
+  predio_hora: v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
+  prospeccao_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 50,
+  clientes_prova: v => v.length <= 300,
+  atendente_menu: v => v === '0' || v === '1',
+  vendedor_nome: v => v.length >= 1 && v.length <= 40,
+  cidade: v => v.length >= 2 && v.length <= 60,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
   wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,
   preco_revenda: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
@@ -470,3 +477,4 @@ router.post('/token/renovar', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.resultadosAB = resultadosAB;

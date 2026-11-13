@@ -578,6 +578,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
       { type: 'text', text: 'Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
     criarEquipeDemorou();
+    criarMenuNaoEntendi(); setSetting('atendente_v5', '1');
     setSetting('textos_v5', '2'); setSetting('palavras_v5', '1'); setSetting('pausa_v5', '1'); setSetting('black_v5', '1');   // instalação nova já vem revisada
     criar('Mandou o WhatsApp', [
       { type: 'text', text: 'Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá.' },
@@ -780,9 +781,28 @@ function atualizarBlackV5() {
   return n;
 }
 
+// Atendente do Prédio: quando o robô não entende, mostra um menu com botões em vez da resposta padrão
+function criarMenuNaoEntendi() {
+  const id = nome => (db.prepare('SELECT id FROM flows WHERE name = ? AND funil_id = ? ORDER BY id DESC LIMIT 1').get(nome, FUNIL) || {}).id;
+  const replies = [['💰 VER PREÇOS', id('Revender: quantas placas?')], ['❓ COMO FUNCIONA', id(NOME_ENTRADA_V5)], ['🙋 FALAR COM ALGUÉM', id('Falar com atendente')]]
+    .filter(r => r[1]).map(([title, flow_id]) => ({ title, flow_id }));
+  return criar('Não entendi (menu)', [replies.length
+    ? { type: 'quick', text: 'Não entendi muito bem. 😅\n\nMe ajuda escolhendo uma das opções abaixo:', replies }
+    : { type: 'text', text: 'Não entendi muito bem. 😅\n\nPode me contar de outro jeito?' }], { tipo: 'evento', evento: 'nao_entendi' });
+}
+function atualizarAtendenteV5() {
+  if (getSetting('atendente_v5') === '1') return false;
+  const ent = db.prepare('SELECT funil_id FROM flows WHERE name = ? AND funil_id IS NOT NULL').get(NOME_ENTRADA_V5);
+  db.transaction(() => {
+    if (ent && !db.prepare("SELECT 1 FROM flows WHERE event = 'nao_entendi'").get()) { FUNIL = ent.funil_id; criarMenuNaoEntendi(); }
+    setSetting('atendente_v5', '1');
+  })();
+  return !!ent;
+}
+
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); atualizarAtendenteV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

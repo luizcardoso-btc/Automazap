@@ -85,3 +85,16 @@ Instale em Visão geral → **Instalar funil de vendas** (os fluxos atuais são 
   teste), aviso do prazo no último follow-up e "Últimas horas" nas 48h finais. "BLACK", "black friday" e "promoção" abrem o robô.
 - Quando a promoção acaba no site, as linhas somem sozinhas e o preço volta ao normal. Variáveis: `{{black}}`,
   `{{preco_de_por}}`, `{{black_oferta}}`, `{{black_final}}`.
+
+
+## Prédio (agentes por regras, sem custo)
+Aba **Prédio** do painel. Os agentes rodam no próprio servidor, sem IA paga. Todo dia, na hora configurada (padrão 08:00):
+- **Gerente** (`predio.js`): resumo com os números de ontem, o funil da semana, a Black e as prioridades do dia. Chega no celular
+  (Configurações → Notificações → "Resumo diário da Gerente").
+- **Atendente** (`engine.js`): entende abreviações e erros de digitação; quando não entende, mostra um menu com botões e anota
+  a frase. Em Prédio → Atendente você escolhe a resposta e toca em **Ensinar**: a frase vira palavra-chave daquele fluxo.
+- **Prospectora**: lista do dia com os retornos (dias 1, 3 e 7) e as empresas novas de maior oportunidade, com a mensagem
+  pronta. "Abrir no WhatsApp" abre a conversa; "Já mandei" anota e agenda o próximo retorno.
+- **Conteúdo**: toda segunda, 5 conteúdos (prova social, como funciona, revenda, objeção e oferta) com gancho, roteiro e
+  legenda, usando os preços, o lucro e a promoção reais. As chamadas ("Comente COMO FUNCIONA / REVENDER / BLACK") disparam o robô.
+Configurações → Prédio: hora, empresas por dia, seu nome e cidade nas mensagens, clientes citados e o menu do "não entendi".

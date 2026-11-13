@@ -199,6 +199,24 @@ const MIGRACOES = [
     if (!tem('humano_em')) db.exec('ALTER TABLE contacts ADD COLUMN humano_em INTEGER');     // última resposta de uma pessoa da equipe
     db.exec("UPDATE settings SET value = '2' WHERE key = 'handoff_hours' AND value = '12'");  // padrão antigo (12h) era longo demais
   },
+  // v9: Prédio (agentes por regras, sem custo): diário dos agentes, frases que o robô não entendeu e calendário de conteúdo
+  db => db.exec(`
+    CREATE TABLE IF NOT EXISTS agentes_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, agente TEXT NOT NULL, titulo TEXT NOT NULL, texto TEXT NOT NULL DEFAULT '',
+      dados TEXT NOT NULL DEFAULT '{}', criado_em INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agentes_log ON agentes_log(agente, id);
+    CREATE TABLE IF NOT EXISTS nao_entendidas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, chave TEXT NOT NULL UNIQUE, exemplo TEXT NOT NULL, vezes INTEGER NOT NULL DEFAULT 1,
+      ultimo_em INTEGER NOT NULL, contact_id INTEGER, status TEXT NOT NULL DEFAULT 'nova', flow_id INTEGER   -- nova | ensinada | ignorada
+    );
+    CREATE TABLE IF NOT EXISTS conteudo (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, semana TEXT NOT NULL, dia TEXT NOT NULL, formato TEXT NOT NULL, pilar TEXT NOT NULL,
+      titulo TEXT NOT NULL, gancho TEXT NOT NULL DEFAULT '', roteiro TEXT NOT NULL DEFAULT '', legenda TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'rascunho', criado_em INTEGER NOT NULL      -- rascunho | aprovado | postado
+    );
+    CREATE INDEX IF NOT EXISTS idx_conteudo ON conteudo(semana, dia);
+  `),
 ];
 
 const versaoAtual = db.pragma('user_version', { simple: true });
@@ -239,7 +257,13 @@ const SETTINGS_PADRAO = {
   fallback_text: 'Oi! 👋 Sou o assistente automático da NexTap. Digite PREÇO para ver como revender, NFC para saber como a placa funciona ou ATENDENTE para falar com uma pessoa.',
   fallback_cooldown_hours: '24',
   handoff_hours: '2',           // depois da última resposta de alguém da equipe, o robô volta sozinho após X horas
-  espera_equipe_min: '15',      // pediu atendente e ninguém respondeu nesse tempo: o robô volta e avisa o cliente
+  espera_equipe_min: '15',
+  predio_hora: '08:00',          // hora (Brasília) do resumo da Gerente e da lista da Prospectora
+  prospeccao_dia: '10',          // empresas novas por dia na lista da Prospectora
+  clientes_prova: 'Neto Rodas, QE Pizza, Stop Pastelaria, Expresso',   // clientes citados nos conteúdos de prova social
+  atendente_menu: '1',
+  vendedor_nome: 'Luiz',         // nome usado nas mensagens da Prospectora
+  cidade: 'Feira de Santana',    // cidade usada nas mensagens da Prospectora e nas hashtags do Conteúdo           // quando o robô não entende: menu com botões em vez da resposta padrão      // pediu atendente e ninguém respondeu nesse tempo: o robô volta e avisa o cliente
   contas_teste: 'dr.luizcardos0, dr.luizcardoso',   // @ que nunca ficam pausados (para testar o robô à vontade)
   max_replies_hour: '30',
   preco_revenda: '80,00',      // por quanto o revendedor costuma vender cada placa (conta do lucro na conversa; mesmo padrão do site)
