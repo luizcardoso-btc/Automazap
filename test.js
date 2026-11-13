@@ -1008,6 +1008,66 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     setSetting('nextap_promo', 'null');
     const sem = await oferta('bfC', 'A'); assert.ok(sem.startsWith('📦 10 placas: R$ 17,99 cada, total de R$ 179,90.\n\n💰'), sem); assert.ok(!sem.includes('Black'));
   });
+  console.log('Prédio (agentes por regras)');
+  const predio = require('./predio.js');
+  await t('Atendente: entende abreviação e erro de digitação, mas não confunde "carro" com "caro"', async () => {
+    assert.strictEqual(engine.corrigirTexto('qnto custa?'), 'quanto custa'); assert.strictEqual(engine.corrigirTexto('meu carro quebrou'), 'meu carro quebrou');
+    assert.strictEqual((await engine.processarMensagem(msg('quero revendee', { extId: 'at1' }), rec())).fluxo, 'Revender: quantas placas?');
+    assert.strictEqual((await engine.processarMensagem(msg('vlr da plaquinha?', { extId: 'at1b' }), rec())).fluxo, 'Entrada: 3 toques');
+    assert.strictEqual((await engine.processarMensagem(msg('vocês entregam em salvador?', { extId: 'at1c' }), rec())).fluxo, 'Dúvida: prazo e entrega');
+  });
+  await t('Atendente: não entendeu → menu com botões (uma vez), anota a frase; ensinar faz o robô responder sozinho', async () => {
+    const s1 = rec(); const r = await engine.processarMensagem(msg('vocês atendem aos sábados', { extId: 'at2' }), s1);
+    assert.strictEqual(r.fluxo, 'Não entendi (menu)'); assert.deepStrictEqual(s1.env[0].p.replies.map(x => x.title), ['💰 VER PREÇOS', '❓ COMO FUNCIONA', '🙋 FALAR COM ALGUÉM']);
+    assert.strictEqual((await engine.processarMensagem(msg('vocês atendem aos sábados', { extId: 'at2' }), rec())).motivo, 'sem_fluxo', 'mandou o menu duas vezes');
+    const lista = (await chamar('GET', '/api/predio/atendente', { headers: H })).json.frases; const f = lista.find(x => x.chave === 'voces atendem aos sabados');
+    assert.strictEqual(f.vezes, 2);
+    const prazo = db.prepare("SELECT id FROM flows WHERE name = 'Falar com atendente' AND active = 1").get().id;
+    assert.strictEqual((await chamar('POST', `/api/predio/atendente/${f.id}/ensinar`, { corpo: { flow_id: 999999 }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('POST', `/api/predio/atendente/${f.id}/ensinar`, { corpo: { flow_id: prazo }, headers: H })).status, 200);
+    assert.strictEqual((await engine.processarMensagem(msg('vocês atendem aos sábados?', { extId: 'at3' }), rec())).fluxo, 'Falar com atendente');
+    assert.ok(!(await chamar('GET', '/api/predio/atendente', { headers: H })).json.frases.some(x => x.id === f.id));
+  });
+  await t('Prospectora: retornos primeiro, novas pela oportunidade, mensagem pronta; retornos nos dias 1, 3 e 7', async () => {
+    db.prepare("UPDATE prospects SET status = 'perdido'").run();
+    const nova = (nome, nota, av, tel) => (db.prepare("INSERT INTO prospects (nome, segmento, telefone, nota, avaliacoes, status, contato) VALUES (?, 'Barbearia', ?, ?, ?, 'novo', 'José Silva')").run(nome, tel, nota, av).lastInsertRowid);
+    const fraca = nova('Barbearia Poucas', 4.1, 3, '75 91111-1111'), forte = nova('Barbearia Top', 4.9, 400, '75 92222-2222'); nova('Sem Telefone', 3, 1, '');
+    const hoje = predio.dataStr(Date.now());
+    const ret = db.prepare("INSERT INTO prospects (nome, telefone, status, prox_contato) VALUES ('Ótica Retorno', '75 93333-3333', 'abordado', ?)").run(hoje).lastInsertRowid;
+    db.prepare("INSERT INTO prospect_hist (prospect_id, tipo, texto) VALUES (?, 'whatsapp', 'abordagem')").run(ret);
+    const l = (await chamar('POST', '/api/predio/prospectora/montar', { headers: H })).json;
+    assert.deepStrictEqual(l.itens.map(i => i.nome), ['Ótica Retorno', 'Barbearia Poucas', 'Barbearia Top']);
+    assert.strictEqual(l.itens[0].passo, 'd1'); assert.ok(l.itens[0].mensagem.includes('Conseguiu ver a minha mensagem?'));
+    assert.ok(l.itens[1].mensagem.startsWith('Oi José! Tudo bem? Sou o Luiz, aqui de Feira de Santana.\n\nEncontrei Barbearia Poucas no Google e reparei que tem poucas avaliações (só 3).'), l.itens[1].mensagem);
+    const dias = []; for (let i = 0; i < 4; i++) dias.push((await chamar('POST', '/api/predio/prospectora/feito', { corpo: { prospect_id: fraca }, headers: H })).json.prox_contato);
+    const d = k => predio.dataStr(Date.now() + k * 86400e3);
+    assert.deepStrictEqual(dias, [d(1), d(2), d(4), null]);
+    assert.strictEqual(db.prepare('SELECT status FROM prospects WHERE id = ?').get(fraca).status, 'abordado');
+    assert.ok((await chamar('GET', '/api/predio/prospectora', { headers: H })).json.itens.find(i => i.id === fraca).feito);
+  });
+  await t('Conteúdo: semana de segunda a sexta com números reais e chamadas que disparam o robô; aprovado não é trocado', async () => {
+    const r = (await chamar('GET', '/api/predio/conteudo', { headers: H })).json; assert.strictEqual(r.itens.length, 5);
+    assert.deepStrictEqual(r.itens.map(c => c.pilar), ['Prova social', 'Como funciona', 'Revenda e lucro', 'Quebra de objeção', 'Oferta']);
+    const dias = r.itens.map(c => new Date(c.dia + 'T12:00:00-03:00').getUTCDay()); assert.deepStrictEqual(dias, [1, 2, 3, 4, 5]);
+    for (const c of r.itens) { assert.ok(/Comente (COMO FUNCIONA|REVENDER|BLACK)/.test(c.legenda), c.titulo); assert.ok(c.legenda.includes('#avaliacoesgoogle')); assert.ok(c.legenda.length <= 2200); }
+    assert.strictEqual((await chamar('PUT', `/api/predio/conteudo/${r.itens[0].id}`, { corpo: { status: 'aprovado', legenda: 'Minha legenda' }, headers: H })).status, 200);
+    await chamar('POST', '/api/predio/conteudo/gerar', { headers: H });
+    const r2 = (await chamar('GET', '/api/predio/conteudo', { headers: H })).json; assert.strictEqual(r2.itens.length, 5);
+    assert.strictEqual(r2.itens.find(c => c.id === r.itens[0].id).legenda, 'Minha legenda');
+  });
+  await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
+    const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
+    await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;
+    const ontem = Date.now() - 86400e3; const c = engine.upsertContato({ canal: 'instagram', extId: 'gr1' }); db.prepare('UPDATE contacts SET created_at = ?, needs_human = 1 WHERE id = ?').run(ontem, c.id);
+    const r = predio.resumo(); assert.ok(r.texto.includes('📊 Ontem: '), r.texto); assert.ok(/🙋 \d+ pessoa\(s\) esperando atendente/.test(r.texto), r.texto); assert.ok(r.texto.includes('Prospectora'));
+    await new Promise(z => setTimeout(z, 30)); assert.ok(pushes.some(x => x.titulo.startsWith('☀️ Resumo de') && x.url === '/#predio'), JSON.stringify(pushes));
+    setSetting('predio_dia', ''); setSetting('predio_hora', '08:00');
+    const base = Date.parse(predio.dataStr(Date.now()) + 'T07:59:00-03:00');
+    assert.strictEqual(predio.tick(base), false, 'rodou antes da hora'); assert.strictEqual(predio.tick(base + 2 * 60e3), true); assert.strictEqual(predio.tick(base + 5 * 60e3), false, 'rodou duas vezes no dia');
+    assert.strictEqual((await chamar('GET', '/api/predio')).status, 401);
+    const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.ok(vis.gerente.titulo.startsWith('Resumo de')); assert.ok(vis.conteudo.total === 5);
+    await chamar('DELETE', '/api/push/aparelhos/' + (await chamar('GET', '/api/push', { headers: H })).json.aparelhos.find(a => a.aparelho === 'iPhone').id, { headers: H });
+  });
   await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
     const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);
     assert.strictEqual((await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { endpoint: 'http://x' } }, headers: H })).status, 400);

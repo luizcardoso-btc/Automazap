@@ -31,6 +31,61 @@ const lerFluxo = r => r && ({
 const fluxoPorId = id => lerFluxo(db.prepare('SELECT * FROM flows WHERE id = ?').get(id));
 
 // Escolhe o fluxo: maior prioridade; empate → palavra-chave mais longa (mais específica).
+// ---------- Atendente: abreviações e erros de digitação ----------
+const ABREV = { qnto: 'quanto', qto: 'quanto', qnt: 'quanto', qtos: 'quantos', vc: 'voce', vcs: 'voces', pq: 'porque', tb: 'tambem', tbm: 'tambem', pra: 'para',
+  qro: 'quero', kero: 'quero', qero: 'quero', ql: 'qual', vlr: 'valor', vl: 'valor', prc: 'preco', preso: 'preco', presso: 'preco', cm: 'como', oq: 'o que',
+  oque: 'o que', orsamento: 'orcamento', orcamentu: 'orcamento', info: 'info', infos: 'informacoes', hj: 'hoje', mto: 'muito', mt: 'muito', td: 'tudo' };
+function distancia(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  let ant = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(ant[j] + 1, cur[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    ant = cur;
+  }
+  return ant[b.length];
+}
+// Corrige palavra por palavra: abreviações conhecidas e erros pequenos em palavras longas que existem nas palavras-chave
+// (só palavras de 6+ letras, para não confundir "carro" com "caro")
+function corrigirTexto(texto) {
+  const vocab = new Set();
+  for (const r of db.prepare("SELECT keywords FROM flows WHERE active = 1 AND kind = 'normal' AND variante_de IS NULL").all()) {
+    for (const k of JSON.parse(r.keywords || '[]')) for (const w of normalizar(k).split(' ')) if (w.length >= 5) vocab.add(w);
+  }
+  const palavras = normalizar(texto).split(' ').filter(Boolean);
+  const out = palavras.map(w => {
+    if (ABREV[w]) return ABREV[w];
+    if (w.length < 6 || vocab.has(w)) return w;
+    const max = w.length >= 8 ? 2 : 1;
+    let melhor = null, dm = 99, empate = false;
+    for (const v of vocab) { const d = distancia(w, v); if (d < dm) { dm = d; melhor = v; empate = false; } else if (d === dm) empate = true; }
+    return melhor && dm <= max && !empate ? melhor : w;
+  });
+  return out.join(' ');
+}
+function acharFluxoTolerante(texto) {
+  const original = normalizar(texto), corrigido = corrigirTexto(texto);
+  if (!corrigido || corrigido === original) return null;
+  const f = acharFluxo(corrigido);
+  if (f) {
+    try { require('./predio.js').registrar('atendente', `"${String(texto).slice(0, 60)}" → "${corrigido.slice(0, 60)}"`, 'Entendido como: ' + f.name); } catch (e) { /* diário é só informativo */ }
+  }
+  return f;
+}
+// Lê a mensagem como veio e corrigida; fica com a leitura mais específica (maior prioridade). Ex.: "quero revendee" → Revender
+function melhorFluxo(texto, tolerante = true) {
+  const a = acharFluxo(texto), b = tolerante ? acharFluxoTolerante(texto) : null;
+  return b && (!a || b.priority > a.priority) ? b : a;
+}
+// Frases que o robô não entendeu: viram uma lista para ensinar (Prédio → Atendente)
+function anotarNaoEntendida(texto, contatoId) {
+  const chave = normalizar(texto).slice(0, 80);
+  if (chave.length < 3 || /^\d[\d ]*$/.test(chave)) return;
+  db.prepare(`INSERT INTO nao_entendidas (chave, exemplo, vezes, ultimo_em, contact_id) VALUES (?, ?, 1, ?, ?)
+    ON CONFLICT(chave) DO UPDATE SET vezes = vezes + 1, ultimo_em = excluded.ultimo_em, contact_id = excluded.contact_id,
+      status = CASE WHEN nao_entendidas.status = 'ensinada' THEN 'nova' ELSE nao_entendidas.status END`).run(chave, String(texto).slice(0, 200), agora(), contatoId);
+}
+
 function acharFluxo(texto, { comentario = false } = {}) {
   const t = normalizar(texto);
   if (!t) return null;
@@ -350,7 +405,7 @@ async function processarMensagem(ev, sender) {
   let fluxo = null;
   const m = /^FLOW:(\d+)$/.exec(ev.payload || '');
   if (m) fluxo = fluxoPorId(Number(m[1]));
-  if (!fluxo || !fluxo.active) fluxo = (!ev.payload && fluxoPorQuantidade(ev.texto, atual)) || acharFluxo(ev.texto);
+  if (!fluxo || !fluxo.active) fluxo = (!ev.payload && fluxoPorQuantidade(ev.texto, atual)) || melhorFluxo(ev.texto, !ev.payload);
 
   if (fluxo) {
     // Faixa do funil de vendas: guarda a quantidade para a conta (a digitada; pelo botão, o exemplo da faixa)
@@ -382,6 +437,18 @@ async function processarMensagem(ev, sender) {
   if (contato.last_followup_at > contato.last_inbound_at) {
     const r = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'resposta_followup' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
     if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
+  }
+
+  // Atendente: anota a frase e, em vez da resposta padrão, mostra um menu com botões (no máximo um a cada X horas por pessoa)
+  if (!ev.payload) anotarNaoEntendida(ev.texto, contato.id);
+  if (getSetting('atendente_menu') === '1') {
+    const menu = db.prepare("SELECT * FROM flows WHERE kind = 'evento' AND event = 'nao_entendi' AND active = 1 AND variante_de IS NULL ORDER BY id LIMIT 1").get();
+    if (menu) {
+      const horas = Number(getSetting('fallback_cooldown_hours')) || 24;
+      if (db.prepare("SELECT 1 FROM messages WHERE contact_id = ? AND flow_id = ? AND direction = 'out' AND created_at > ?").get(contato.id, menu.id, agora() - horas * 3600e3)) return { acao: 'ignorada', motivo: 'sem_fluxo' };
+      const enviados = await enviarFluxo(atual, lerFluxo(menu), sender);
+      return { acao: 'respondeu', fluxo: menu.name, enviados: enviados.length };
+    }
   }
 
   // Sem fluxo: resposta padrão, no máximo uma por pessoa a cada X horas
@@ -494,4 +561,4 @@ async function tick(sender, { canal = 'instagram', agoraMs } = {}) {
   return out;
 }
 
-module.exports = { ETAPAS, SEGMENTOS, segmentoDe, avisar, escolherVariante, telefoneDe, processarEco, respostaDaEquipe, ehTeste, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };
+module.exports = { ETAPAS, SEGMENTOS, segmentoDe, corrigirTexto, acharFluxoTolerante, avisar, escolherVariante, telefoneDe, processarEco, respostaDaEquipe, ehTeste, normalizar, criarRegex, acharFluxo, fluxoPorId, lerFluxo, passoParaTexto, aplicarVars, processarMensagem, processarComentario, upsertContato, registrar, addTag, removeTag, tagsDe, registrarClique, criarLink, tick, enriquecerContato, completarNomes };

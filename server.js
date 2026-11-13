@@ -139,6 +139,8 @@ if (require.main === module) {
     }
   };
   setTimeout(vigiar, 20000).unref(); setInterval(vigiar, 15 * 60e3).unref();
+  // Prédio: lista da Prospectora, conteúdo da semana e resumo da Gerente (todo dia, na hora configurada)
+  setInterval(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 60e3).unref();
   // Disparos programados do WhatsApp
   setInterval(() => { wa.tick().catch(e => console.error('[WHATSAPP]', e.message)); }, 20000).unref();
   setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();

@@ -13,8 +13,15 @@ const TIPOS = {
   venda: 'Venda paga',
   wa_msg: 'Mensagem nova na aba WhatsApp',
   sistema: 'Robô parou ou voltou (Instagram)',
+  resumo: 'Resumo diário da Gerente (Prédio)',
 };
 const PADRAO = Object.keys(TIPOS);
+
+// Tipos criados depois que o aparelho foi cadastrado entram ligados uma vez (dá para desligar em Configurações)
+if (getSetting('push_tipos_v') !== '2') {
+  for (const s of db.prepare('SELECT id, prefs FROM push_subs').all()) { const p = JSON.parse(s.prefs || '[]'); if (!p.includes('resumo')) db.prepare('UPDATE push_subs SET prefs = ? WHERE id = ?').run(JSON.stringify([...p, 'resumo']), s.id); }
+  setSetting('push_tipos_v', '2');
+}
 
 // Chaves VAPID: geradas uma vez e guardadas no banco (sobrevivem a deploys com o Volume)
 function chaves() {
