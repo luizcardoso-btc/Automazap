@@ -258,6 +258,7 @@ const SETTINGS_PADRAO = {
   fallback_cooldown_hours: '24',
   handoff_hours: '2',           // depois da última resposta de alguém da equipe, o robô volta sozinho após X horas
   espera_equipe_min: '15',
+  predio_nomes: '{"gerente":"Helena","atendente":"Sofia","prospectora":"Bianca","conteudo":"Theo","financeiro":"Otávio","recepcao":"Clara"}',   // nome de cada agente do Prédio
   predio_hora: '08:00',          // hora (Brasília) do resumo da Gerente e da lista da Prospectora
   prospeccao_dia: '10',          // empresas novas por dia na lista da Prospectora
   clientes_prova: 'Neto Rodas, QE Pizza, Stop Pastelaria, Expresso',   // clientes citados nos conteúdos de prova social

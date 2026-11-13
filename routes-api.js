@@ -300,6 +300,7 @@ const REGRAS = {
   handoff_hours: v => /^\d+$/.test(v) && v >= 1 && v <= 48,
   espera_equipe_min: v => /^\d+$/.test(v) && v >= 1 && v <= 240,
   contas_teste: v => v.length <= 300,
+  predio_nomes: v => { try { const o = JSON.parse(v); return v.length <= 600 && o && typeof o === 'object' && Object.values(o).every(x => typeof x === 'string' && x.trim().length >= 1 && x.length <= 20); } catch (e) { return false; } },
   predio_hora: v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
   prospeccao_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 50,
   clientes_prova: v => v.length <= 300,

@@ -1060,7 +1060,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;
     const ontem = Date.now() - 86400e3; const c = engine.upsertContato({ canal: 'instagram', extId: 'gr1' }); db.prepare('UPDATE contacts SET created_at = ?, needs_human = 1 WHERE id = ?').run(ontem, c.id);
     const r = predio.resumo(); assert.ok(r.texto.includes('📊 Ontem: '), r.texto); assert.ok(/🙋 \d+ pessoa\(s\) esperando atendente/.test(r.texto), r.texto); assert.ok(r.texto.includes('Prospectora'));
-    await new Promise(z => setTimeout(z, 30)); assert.ok(pushes.some(x => x.titulo.startsWith('☀️ Resumo de') && x.url === '/#predio'), JSON.stringify(pushes));
+    await new Promise(z => setTimeout(z, 30)); assert.ok(pushes.some(x => x.titulo.startsWith('☀️ Helena: Resumo de') && x.url === '/#predio'), JSON.stringify(pushes));
     setSetting('predio_hora', '08:00');
     const base = Date.parse(predio.dataStr(Date.now()) + 'T07:59:00-03:00');
     setSetting('predio_dia', ''); assert.strictEqual(predio.tick(base), true, 'primeira vez: devia começar na hora, sem esperar');
