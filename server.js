@@ -123,7 +123,7 @@ if (require.main === module) {
   // Agenda (mensagem após o clique) e follow-ups dentro da janela de 24h
   setInterval(() => { if (ig.configurado().token) { engine.tick(ig.sender).catch(e => console.error('[AGENDA]', e.message)); engine.completarNomes(ig.sender).catch(() => {}); } }, 15000).unref();
   // Tabela de preços do site (o robô mostra sempre o valor que o checkout cobra)
-  const precos = () => nextap.atualizarPrecos().catch(e => console.warn('[NEXTAP] preços:', e.message));
+  const precos = () => { nextap.atualizarPrecos().catch(e => console.warn('[NEXTAP] preços:', e.message)); nextap.atualizarPromo().catch(e => console.warn('[NEXTAP] promoção:', e.message)); };
   setTimeout(precos, 5000).unref(); setInterval(precos, 10 * 60e3).unref();
   // Vigia do Instagram: se o token cair, avisa no Telegram e mostra no painel (em vez de ficar dias parado em silêncio)
   const vigiar = async () => {

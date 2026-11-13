@@ -489,7 +489,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
     const PEDIR = { title: 'FAZER MEU PEDIDO', url: '{{link_pedido}}' };
     const VIDEO = { title: 'VER FUNCIONANDO', url: '{{video_demo}}' };   // some sozinho se o vídeo não estiver configurado
     const GARANTIA = '✅ Acompanha o roteiro de vendas e a troca de placas com defeito.';
-    const ULTIMA = 'Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱';
+    const ULTIMA = '{{black_final}}Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱';
 
     // ---------- fechamento ----------
     const querAjuda = criar('Botão: QUERO AJUDA', [
@@ -503,8 +503,8 @@ function instalarV5({ desativarAntigos = true } = {}) {
     ], { tipo: 'botao', tags: ['VIU PREÇO'] });
 
     // ---------- oferta (o número no evento é a quantidade de exemplo da faixa) ----------
-    const ofertaA = '📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n' + GARANTIA;
-    const ofertaB = '🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.\n\n' + GARANTIA;
+    const ofertaA = '📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}}.{{black_oferta}}\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n' + GARANTIA;
+    const ofertaB = '🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.{{black_oferta}}\n\n' + GARANTIA;
     const oferta = (nome, evento, faixa) => {
       const tags = ['QUANTIDADE', 'QTD ' + faixa, 'VIU PREÇO'];
       const a = criar(nome, [{ type: 'button', text: ofertaA, buttons: [PEDIR, VIDEO] }], { tipo: 'botao', evento, tags });
@@ -514,7 +514,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
     const q1 = oferta('Oferta: 5 a 10 placas', 'qtd5_10', '5-10');
     const q2 = oferta('Oferta: 11 a 49 placas', 'qtd5_20', '11-49');
     const q3 = criar('Oferta: 50 ou mais (lead quente)', [
-      { type: 'quick', text: '📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?', replies: [
+      { type: 'quick', text: '📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}}.{{black_oferta}}\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?', replies: [
         { title: 'SIM, ME CHAMA', flow_id: meChama }, { title: 'VER MEU PEDIDO', flow_id: verPedido },
       ] },
     ], { tipo: 'botao', evento: 'qtd5_50', humano: 2, tags: ['QUANTIDADE', 'QTD 50+', 'LEAD GRANDE', 'QUENTE', 'VIU PREÇO'] });
@@ -532,11 +532,11 @@ function instalarV5({ desativarAntigos = true } = {}) {
       { type: 'button', text: 'Com a NexTap, o seu cliente aproxima o celular da placa e abre direto a avaliação da sua empresa no Google, sem aplicativo. ⭐\n\nEscolha o modelo e faça o seu pedido:', buttons: [{ title: 'VER MODELOS E PEDIR', url: '{{site}}' }] },
     ], { prioridade: 15, palavras: ['meu negocio', 'minha empresa', 'minha loja', 'para meu negocio'], tags: ['MEU NEGÓCIO', 'VIU PREÇO'] });
     criar(NOME_ENTRADA_V5, [
-      { type: 'quick', text: 'Olá! 👋 Aqui é a NexTap.\n\nA nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?', replies: [
+      { type: 'quick', text: 'Olá! 👋 Aqui é a NexTap.\n\n{{black}}A nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?', replies: [
         { title: '💰 REVENDER', flow_id: revender }, { title: '🏪 MEU NEGÓCIO', flow_id: negocio },
       ] },
     ], { prioridade: 10, comentario: true,
-      palavras: ['como funciona', 'preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
+      palavras: ['como funciona', 'black', 'black friday', 'promocao', 'preco', 'valor', 'quanto custa', 'quanto e', 'quanto fica', 'quanto sai', 'orcamento', 'tabela', 'quero', 'eu quero', 'nfc', 'nextap', 'comprar', 'atacado', 'informacoes', 'info', 'interesse'],
       textoComentario: 'Olá! 👋 Responda por aqui: a placa é para REVENDER ou para o seu NEGÓCIO?' });
 
     // ---------- respostas por palavra-chave (1 mensagem cada) ----------
@@ -578,7 +578,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
       { type: 'text', text: 'Que bom! 💚\n\nVou chamar alguém da equipe para continuar a conversa com você por aqui.' },
     ], { tipo: 'evento', evento: 'resposta_followup', acao: 'handoff', humano: 1, tags: ['QUENTE'] });
     criarEquipeDemorou();
-    setSetting('textos_v5', '2'); setSetting('palavras_v5', '1'); setSetting('pausa_v5', '1');   // instalação nova já vem revisada
+    setSetting('textos_v5', '2'); setSetting('palavras_v5', '1'); setSetting('pausa_v5', '1'); setSetting('black_v5', '1');   // instalação nova já vem revisada
     criar('Mandou o WhatsApp', [
       { type: 'text', text: 'Anotado! 📱\n\nAlguém da nossa equipe vai chamar você no WhatsApp para continuar por lá.' },
     ], { tipo: 'evento', evento: 'recebeu_whatsapp', humano: 1, tags: ['QUENTE'] });
@@ -738,9 +738,51 @@ function atualizarPausaV5() {
   return !!ent;
 }
 
+// Promoção do site nas mensagens do funil 3 toques (entrada, oferta A e B por igual, oferta 50+ e último follow-up).
+// Bancos com o v5 instalado: troca uma vez só as mensagens iguais às originais e acrescenta "black" às palavras da entrada.
+const TROCAS_BLACK = [
+[
+"Olá! 👋 Aqui é a NexTap.\n\nA nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?",
+"Olá! 👋 Aqui é a NexTap.\n\n{{black}}A nossa placa leva o cliente direto para a avaliação da empresa no Google, sem precisar de aplicativo.\n\nVocê quer a placa para revender ou para usar no seu negócio?"
+],
+[
+"Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱",
+"{{black_final}}Esta é a nossa última mensagem por aqui. 😄\n\nSe preferir, envie o seu WhatsApp com DDD que continuamos a conversa por lá. 📱"
+],
+[
+"📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito.",
+"📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}}.{{black_oferta}}\n\n💰 Revendendo a R$ {{preco_venda}} cada, você recebe R$ {{receita}}: são R$ {{lucro}} de lucro.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito."
+],
+[
+"🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito.",
+"🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.{{black_oferta}}\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito."
+],
+[
+"📦 {{qtd}} placas: R$ {{preco}} cada, total de R$ {{total}}.\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?",
+"📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}}.{{black_oferta}}\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?"
+]
+];
+function atualizarBlackV5() {
+  if (getSetting('black_v5') === '1') return 0;
+  const mapa = new Map(TROCAS_BLACK);
+  let n = 0;
+  db.transaction(() => {
+    for (const f of db.prepare("SELECT f.id, f.name, f.steps, f.keywords FROM flows f JOIN funis u ON u.id = f.funil_id WHERE u.nome = 'Funil 3 toques (v5)'").all()) {
+      const passos = JSON.parse(f.steps || '[]');
+      let mudou = false;
+      for (const p of passos) if (p.text != null && mapa.has(p.text)) { p.text = mapa.get(p.text); mudou = true; }
+      let kws = JSON.parse(f.keywords || '[]');
+      if (f.name === NOME_ENTRADA_V5) { const novas = ['black', 'black friday', 'promocao'].filter(k => !kws.includes(k)); if (novas.length) { kws = [...kws, ...novas]; mudou = true; } }
+      if (mudou) { db.prepare('UPDATE flows SET steps = ?, keywords = ? WHERE id = ?').run(JSON.stringify(passos), JSON.stringify(kws), f.id); n++; }
+    }
+    setSetting('black_v5', '1');
+  })();
+  return n;
+}
+
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

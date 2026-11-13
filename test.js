@@ -986,6 +986,28 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { handoff_hours: '100' }, headers: H })).status, 400);
     await chamar('PUT', '/api/settings', { corpo: { contas_teste: 'dr.luizcardos0, dr.luizcardoso', espera_equipe_min: '15', handoff_hours: '2' }, headers: H });
   });
+  await t('Black do site: entra igual nas ofertas A e B, some quando acaba, avisa as últimas horas e "BLACK" abre o robô', async () => {
+    const pr = http.createServer((rq, rs) => { rs.writeHead(200, { 'Content-Type': 'application/json' });
+      rs.end(JSON.stringify(rq.url.includes('promocao') ? { ativa: true, nome: 'Black NexTap', fim: new Date(Date.now() + 10 * 86400e3).toISOString(), a_partir: 14.99, minimo_a_partir: 50,
+        normais: [{ min_qty: 5, max_qty: 10, unit_price: 21.9 }, { min_qty: 11, max_qty: 49, unit_price: 18.9 }, { min_qty: 50, max_qty: 1000000, unit_price: 17.9 }] }
+        : { minimo: 5, tiers: [{ min_qty: 5, max_qty: 9, unit_price: 19.99 }, { min_qty: 10, max_qty: 49, unit_price: 17.99 }, { min_qty: 50, max_qty: 1000000, unit_price: 14.99 }] })); });
+    await new Promise(r => pr.listen(0, r)); process.env.NEXTAP_API_BASE = `http://127.0.0.1:${pr.address().port}`;
+    await nx.atualizarPrecos(); await nx.atualizarPromo(); pr.close(); delete process.env.NEXTAP_API_BASE;
+    const oferta = async (ext, lado) => { await engine.processarMensagem(msg('revender', { extId: ext }), rec()); db.prepare('UPDATE contacts SET ab_grupo = ? WHERE ext_id = ?').run(lado, ext);
+      const s = rec(); await engine.processarMensagem(msg('10', { extId: ext }), s); return s.env[0].p.text; };
+    const a = await oferta('bfA', 'A'), b = await oferta('bfB', 'B');
+    for (const t of [a, b]) { assert.ok(t.includes('de R$ 21,90 por R$ 17,99 cada'), t); assert.ok(t.includes('\n\n🖤 Preço da Black NexTap, válido até '), t); assert.ok(t.length <= 640); }
+    assert.ok(a.includes('de lucro') && b.startsWith('🚀'), 'as duas versões continuam diferentes no que está sendo testado');
+    // banco com o v5 já instalado (a entrada ainda sem a linha da Black): troca uma vez e só o que estava igual ao original
+    const sd = require('./seed.js'); setSetting('black_v5', '0'); assert.ok(sd.atualizarBlackV5() >= 1); assert.strictEqual(sd.atualizarBlackV5(), 0, 'rodou duas vezes');
+    const e = rec(); assert.strictEqual((await engine.processarMensagem(msg('BLACK', { extId: 'bfE' }), e)).fluxo, 'Entrada: 3 toques');
+    assert.ok(e.env[0].p.text.includes('🖤 Black NexTap: placas a partir de R$ 14,99 (pedidos de 50 ou mais), até '));
+    assert.ok(nx.textoPromo('black_final', 10).includes('termina em 10 dias'));
+    assert.ok(nx.textoPromo('black_final', 10, Date.now() + 9.5 * 86400e3).startsWith('⏰ Últimas horas'));
+    assert.strictEqual(nx.textoPromo('black', 10, Date.now() + 11 * 86400e3), '', 'promoção vencida continuou aparecendo');
+    setSetting('nextap_promo', 'null');
+    const sem = await oferta('bfC', 'A'); assert.ok(sem.startsWith('📦 10 placas: R$ 17,99 cada, total de R$ 179,90.\n\n💰'), sem); assert.ok(!sem.includes('Black'));
+  });
   await t('notificações: assinar, escolher tipos, lead quente avisa uma vez, aparelho desinstalado é removido', async () => {
     const info = (await chamar('GET', '/api/push', { headers: H })).json; assert.ok(info.chave.length > 60); assert.ok(info.tipos.quantidade);
     assert.strictEqual((await chamar('POST', '/api/push/assinar', { corpo: { assinatura: { endpoint: 'http://x' } }, headers: H })).status, 400);

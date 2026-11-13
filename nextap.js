@@ -33,6 +33,45 @@ async function atualizarPrecos() {
   return nova;
 }
 
+// Promoção do site (ex.: Black NexTap): lida de /api/public/promocao junto com os preços. As mensagens só falam dela
+// enquanto está ativa no site e até a data de fim; depois disso as linhas somem sozinhas.
+async function atualizarPromo() {
+  const base = process.env.NEXTAP_API_BASE || origemDoSite();
+  if (!base) return null;
+  const r = await fetch(base.replace(/\/+$/, '') + '/api/public/promocao', { signal: AbortSignal.timeout(10000) });
+  if (!r.ok) throw new Error('NexTap respondeu ' + r.status + ' na promoção');
+  const j = await r.json();
+  const p = j && j.ativa && Date.parse(j.fim) ? { nome: String(j.nome || 'Promoção').slice(0, 40), fim: j.fim, a_partir: Number(j.a_partir) || null,
+    minimo_a_partir: Number(j.minimo_a_partir) || null, normais: (Array.isArray(j.normais) ? j.normais : []).map(t => ({ min_qty: Number(t.min_qty), max_qty: Number(t.max_qty), unit_price: Number(t.unit_price) })) } : null;
+  setSetting('nextap_promo', JSON.stringify(p));
+  return p;
+}
+function promo(agoraMs = Date.now()) {
+  try { const p = JSON.parse(getSetting('nextap_promo') || 'null'); return p && Date.parse(p.fim) > agoraMs ? p : null; } catch (e) { return null; }
+}
+const DIA = 86400e3, FUSO = 3 * 3600e3, dia0 = t => Math.floor((t - FUSO) / DIA) * DIA + FUSO;
+const dataBR = iso => new Date(Date.parse(iso) - FUSO).toISOString().slice(5, 10).split('-').reverse().join('/');
+// Preço normal (fora da promoção) da quantidade, pela tabela que o site guardou antes da promoção começar
+function precoNormal(qtd, p) {
+  const t = (p && p.normais) || [];
+  if (!t.length) return null;
+  const f = t.find(x => qtd >= x.min_qty && qtd <= x.max_qty);
+  return f ? f.unit_price : qtd > t[t.length - 1].max_qty ? t[t.length - 1].unit_price : t[0].unit_price;
+}
+// Linhas da promoção usadas nas mensagens ({{black}}, {{preco_de_por}}, {{black_oferta}}, {{black_final}}). Sem promoção: '' (ou só o preço).
+function textoPromo(v, qtd, agoraMs = Date.now()) {
+  const p = promo(agoraMs), unit = precoUnitario(qtd);
+  if (v === 'preco_de_por') { const de = p && precoNormal(qtd, p); return de && de > unit ? `de R$ ${brl(de)} por R$ ${brl(unit)}` : `R$ ${brl(unit)}`; }
+  if (!p) return '';
+  const fim = Date.parse(p.fim), ate = dataBR(p.fim), dias = Math.round((dia0(fim) - dia0(agoraMs)) / DIA);
+  const quando = dias <= 0 ? 'termina hoje' : dias === 1 ? 'termina amanhã' : `termina em ${dias} dias (${ate})`;
+  const ultimas = fim - agoraMs < 48 * 3600e3;
+  if (v === 'black') return p.a_partir ? `🖤 ${p.nome}: placas a partir de R$ ${brl(p.a_partir)}${p.minimo_a_partir > 1 ? ` (pedidos de ${p.minimo_a_partir} ou mais)` : ''}, até ${ate}.\n\n` : `🖤 ${p.nome} até ${ate}.\n\n`;
+  if (v === 'black_oferta') return ultimas ? `\n\n⏰ Últimas horas da ${p.nome}: o preço promocional ${quando}.` : `\n\n🖤 Preço da ${p.nome}, válido até ${ate}.`;
+  if (v === 'black_final') return `${ultimas ? '⏰ Últimas horas: a' : '🖤 A'} ${p.nome} ${quando}. Depois disso, o preço volta ao normal.\n\n`;
+  return '';
+}
+
 const brl = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const precoRevenda = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return v > 0 ? v : 80; };
 // Conta mostrada na conversa: custo das placas e quanto a pessoa faz revendendo (o frete entra só no checkout)
@@ -71,4 +110,4 @@ function receberEvento(b) {
   return { ok: true, achou: true, contato: c.id, tag };
 }
 
-module.exports = { tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };
+module.exports = { atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };

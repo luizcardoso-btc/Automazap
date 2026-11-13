@@ -77,3 +77,11 @@ Instale em Visão geral → **Instalar funil de vendas** (os fluxos atuais são 
 - "Parar" continua silenciando a pessoa de vez.
 - **Contas de teste** (Configurações): o robô nunca pausa para elas. Na lista de Conversas aparece "⏸ até 18:40" e o botão
   "Religar agora".
+
+
+## Promoção do site nas mensagens (Black NexTap)
+- O robô lê a promoção ativa do NexTap (`/api/public/promocao`) junto com os preços, a cada 10 min.
+- Enquanto ela está ativa: linha da promoção na entrada, "de R$ X por R$ Y" e validade na oferta (igual nas versões A e B do
+  teste), aviso do prazo no último follow-up e "Últimas horas" nas 48h finais. "BLACK", "black friday" e "promoção" abrem o robô.
+- Quando a promoção acaba no site, as linhas somem sozinhas e o preço volta ao normal. Variáveis: `{{black}}`,
+  `{{preco_de_por}}`, `{{black_oferta}}`, `{{black_final}}`.
