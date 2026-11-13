@@ -63,6 +63,7 @@ router.get('/status', (req, res) => {
     instagram_erro: getSetting('ig_conexao_erro') || '',
     vendas_site: db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(venda_total), 0) AS total FROM contacts WHERE channel <> 'sim' AND venda_em IS NOT NULL").get(),
     precos: require('./nextap.js').tabela(),
+    promo: require('./nextap.js').promo(),
   });
 });
 
