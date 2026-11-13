@@ -201,8 +201,10 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
 // ======================= RELÓGIO =======================
 // Todo dia, a partir da hora configurada (padrão 08:00 de Brasília): lista da Prospectora, conteúdo da semana e resumo da Gerente
 function tick(t0 = Date.now()) {
+  if (!n('SELECT COUNT(*) AS n FROM conteudo WHERE semana = ?', semanaDe(t0))) { try { gerarSemana(t0); } catch (e) { console.error('[PRÉDIO] conteúdo:', e.message); } }
   const [h, m] = String(getSetting('predio_hora') || '08:00').split(':').map(Number);
-  if (t0 < dia0(t0) + ((h || 0) * 60 + (m || 0)) * 60e3) return false;
+  const primeiraVez = !getSetting('predio_dia');   // acabou de instalar: os agentes começam já, sem esperar a hora do dia seguinte
+  if (!primeiraVez && t0 < dia0(t0) + ((h || 0) * 60 + (m || 0)) * 60e3) return false;
   const hoje = dataStr(t0);
   if (getSetting('predio_dia') === hoje) return false;
   setSetting('predio_dia', hoje);
@@ -218,13 +220,26 @@ router.get('/', (req, res) => {
   const g = ultimo('gerente'), l = listaDeHoje(), sem = semanaDe(Date.now());
   const conteudo = db.prepare('SELECT status, COUNT(*) AS n FROM conteudo WHERE semana = ? GROUP BY status').all(sem);
   const s7 = Date.now() - 7 * DIA;
+  const hoje0 = dia0(Date.now());
+  const ultima = db.prepare(`SELECT m.created_at AS em, c.name, c.username FROM messages m JOIN contacts c ON c.id = m.contact_id
+    WHERE c.channel = 'instagram' AND m.direction = 'out' AND m.status = 'ok' AND m.kind <> 'manual' ORDER BY m.id DESC LIMIT 1`).get();
+  const proxima = l && l.itens.find(i => !i.feito);
+  const hojeC = db.prepare('SELECT titulo, formato, status FROM conteudo WHERE dia = ? ORDER BY id DESC LIMIT 1').get(dataStr(Date.now()));
   res.json({
-    gerente: g ? { titulo: g.titulo, texto: g.texto, em: g.criado_em, prioridades: g.dados.prioridades || 0 } : null,
+    agora: {
+      leads_hoje: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND created_at >= ?", hoje0),
+      respostas_hoje: n("SELECT COUNT(*) AS n FROM messages m JOIN contacts c ON c.id = m.contact_id WHERE c.channel = 'instagram' AND m.direction = 'out' AND m.status = 'ok' AND m.kind <> 'manual' AND m.created_at >= ?", hoje0),
+      ultima_resposta: ultima ? { em: ultima.em, nome: ultima.name || (ultima.username ? '@' + ultima.username : '') } : null,
+      esperando: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND needs_human = 1"),
+      robo_parado: !!getSetting('ig_conexao_erro'),
+    },
+    feed: db.prepare('SELECT agente, titulo, criado_em FROM agentes_log ORDER BY id DESC LIMIT 12').all(),
+    gerente: g ? { titulo: g.titulo, texto: g.texto, em: g.criado_em, prioridades: g.dados.prioridades || 0, novos: g.dados.novos || 0, vendas: g.dados.vendas || 0 } : null,
     atendente: { novas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova'"), ensinadas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'ensinada'"),
       menus7: n("SELECT COUNT(*) AS n FROM messages m JOIN flows f ON f.id = m.flow_id WHERE f.event = 'nao_entendi' AND m.direction = 'out' AND m.created_at >= ?", s7),
       corrigidas7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'atendente' AND criado_em >= ?", s7) },
-    prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length } : null,
-    conteudo: { semana: sem, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
+    prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length, proxima: proxima ? proxima.nome : null } : null,
+    conteudo: { semana: sem, hoje: hojeC || null, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
   });
 });
 router.get('/gerente', (req, res) => res.json(db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'gerente' ORDER BY id DESC LIMIT 14").all()));
