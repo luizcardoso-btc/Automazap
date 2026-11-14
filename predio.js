@@ -309,15 +309,24 @@ router.post('/atendente/:id/ensinar', (req, res) => {
 router.post('/atendente/:id/ignorar', (req, res) => { db.prepare("UPDATE nao_entendidas SET status = 'ignorada' WHERE id = ?").run(req.params.id); res.json({ ok: true }); });
 router.get('/financeiro', (req, res) => {
   const nx = require('./nextap.js');
-  res.json({ dados: fin(), erro: getSetting('nextap_fin_erro') || '', admin: nx.adminNextap(), configurado: (process.env.NEXTAP_WEBHOOK_SECRET || '').length >= 16,
+  res.json({ dados: fin(), erro: getSetting('nextap_fin_erro') || '', admin: nx.adminNextap(), configurado: nx.conectado(),
     avisos: db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'financeiro' ORDER BY id DESC LIMIT 20").all() });
 });
 router.post('/financeiro/atualizar', async (req, res) => {
-  try { const j = await require('./nextap.js').atualizarFinanceiro(); if (!j) return res.status(400).json({ error: 'Configure NEXTAP_WEBHOOK_SECRET (o mesmo valor no NexTap e no Automazap) e o endereço do site.' }); res.json({ ok: true }); }
+  try { const j = await require('./nextap.js').atualizarFinanceiro(); if (!j) return res.status(400).json({ error: 'O Automazap ainda não está conectado ao NexTap. Toque em "Conectar ao NexTap".' }); res.json({ ok: true }); }
   catch (e) { res.status(502).json({ error: getSetting('nextap_fin_erro') || e.message }); }
 });
 // Theo + banco de artes do NexTap (ChatGPT grátis ou API da OpenAI no NexTap)
 const nxArtes = (fn) => async (req, res) => { try { res.json(await fn(req)); } catch (e) { res.status(e.status && e.status < 600 ? e.status : 502).json({ error: e.message }); } };
+// Botão "Conectar ao NexTap": gera o código de uso único e devolve o link da página de conexão do NexTap
+router.post('/nextap/conectar', (req, res) => {
+  const nx = require('./nextap.js'), base = nx.baseNx() || 'https://www.nextapbrasil.com.br';
+  const codigo = require('crypto').randomBytes(24).toString('hex');
+  setSetting('nextap_parear', JSON.stringify({ codigo, exp: Date.now() + 10 * 60e3 }));
+  const volta = `${req.protocol}://${req.get('host')}`;
+  res.json({ url: `${base}/admin/conectar-automazap?volta=${encodeURIComponent(volta)}&codigo=${codigo}`, conectado: nx.conectado(), base });
+});
+router.get('/nextap/status', (req, res) => { const nx = require('./nextap.js'); res.json({ conectado: nx.conectado(), base: nx.baseNx(), por_variavel: !!process.env.NEXTAP_WEBHOOK_SECRET }); });
 router.get('/artes', nxArtes(req => require('./nextap.js').artes('GET', '?destino=' + encodeURIComponent(req.query.destino || '') + '&limite=40')));
 router.post('/artes/prompt', nxArtes(req => require('./nextap.js').artes('POST', '/prompt', req.body || {})));
 router.post('/artes', nxArtes(async req => { const a = await require('./nextap.js').artes('POST', '', req.body || {}); registrar('conteudo', `Arte enviada ao banco: ${a.titulo}`, a.destino, {}); return a; }));
