@@ -7,6 +7,10 @@ const { db, getSetting, setSetting } = require('./db.js');
 const PADRAO = { minimo: 5, tiers: [[5, 10, 21.9], [11, 49, 18.9], [50, 99, 17.9], [100, 299, 16.9], [300, 1000000, 15.9]].map(([min_qty, max_qty, unit_price]) => ({ min_qty, max_qty, unit_price })) };
 
 const origemDoSite = () => { try { return new URL(getSetting('site_url') || '').origin; } catch (e) { return ''; } };
+// Segredo e endereço do NexTap: da variável do Railway OU da conexão automática (botão "Conectar ao NexTap")
+const segredo = () => process.env.NEXTAP_WEBHOOK_SECRET || getSetting('nextap_segredo') || '';
+const baseNx = () => (process.env.NEXTAP_API_BASE || getSetting('nextap_base') || origemDoSite() || '').replace(/\/+$/, '');
+const conectado = () => segredo().length >= 16 && !!baseNx();
 
 function tabela() {
   try { const j = JSON.parse(getSetting('nextap_precos') || 'null'); if (j && Array.isArray(j.tiers) && j.tiers.length) return j; } catch (e) { /* usa a padrão */ }
@@ -20,7 +24,7 @@ function precoUnitario(qtd) {
 }
 
 async function atualizarPrecos() {
-  const base = process.env.NEXTAP_API_BASE || origemDoSite();
+  const base = baseNx();
   if (!base) return null;
   const r = await fetch(base.replace(/\/+$/, '') + '/api/public/price-tiers', { signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error('NexTap respondeu ' + r.status + ' na tabela de preços');
@@ -36,7 +40,7 @@ async function atualizarPrecos() {
 // Promoção do site (ex.: Black NexTap): lida de /api/public/promocao junto com os preços. As mensagens só falam dela
 // enquanto está ativa no site e até a data de fim; depois disso as linhas somem sozinhas.
 async function atualizarPromo() {
-  const base = process.env.NEXTAP_API_BASE || origemDoSite();
+  const base = baseNx();
   if (!base) return null;
   const r = await fetch(base.replace(/\/+$/, '') + '/api/public/promocao', { signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error('NexTap respondeu ' + r.status + ' na promoção');
@@ -74,10 +78,10 @@ function textoPromo(v, qtd, agoraMs = Date.now()) {
 
 // Financeiro do NexTap (somente leitura): o mesmo contador do admin, protegido pelo segredo da integração
 async function atualizarFinanceiro() {
-  const base = process.env.NEXTAP_API_BASE || origemDoSite(), seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
+  const base = baseNx(), seg = segredo();
   if (!base || seg.length < 16) return null;
   const r = await fetch(base.replace(/\/+$/, '') + '/api/integracao/financeiro', { headers: { 'X-Automazap-Secret': seg }, signal: AbortSignal.timeout(15000) });
-  if (!r.ok) { setSetting('nextap_fin_erro', r.status === 401 ? 'O segredo da integração (NEXTAP_WEBHOOK_SECRET) está diferente no NexTap e no Automazap.' : 'O NexTap respondeu ' + r.status + '.'); throw new Error('NexTap respondeu ' + r.status + ' no financeiro'); }
+  if (!r.ok) { setSetting('nextap_fin_erro', r.status === 401 ? 'A conexão com o NexTap mudou: toque em "Conectar ao NexTap" de novo.' : 'O NexTap respondeu ' + r.status + '.'); throw new Error('NexTap respondeu ' + r.status + ' no financeiro'); }
   const j = await r.json();
   setSetting('nextap_fin', JSON.stringify({ ...j, recebido_em: Date.now() })); setSetting('nextap_fin_erro', '');
   try { require('./predio.js').controller(j); } catch (e) { console.error('[CONTROLLER]', e.message); }
@@ -85,16 +89,16 @@ async function atualizarFinanceiro() {
 }
 // Banco de artes do NexTap (Theo): o Automazap só repassa, com o segredo da integração
 async function artes(metodo, caminho, corpo) {
-  const base = (process.env.NEXTAP_API_BASE || origemDoSite() || '').replace(/\/+$/, ''), seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
-  if (!base || seg.length < 16) { const e = new Error('Ligue o NexTap: crie NEXTAP_WEBHOOK_SECRET (o mesmo valor no NexTap e no Automazap) e confira o endereço do site.'); e.status = 400; throw e; }
+  const base = baseNx(), seg = segredo();
+  if (!base || seg.length < 16) { const e = new Error('O Automazap ainda não está conectado ao NexTap. Toque em "Conectar ao NexTap".'); e.status = 400; throw e; }
   const r = await fetch(base + '/api/integracao/artes' + caminho, { method: metodo, headers: { 'X-Automazap-Secret': seg, 'Content-Type': 'application/json' },
     body: corpo ? JSON.stringify(corpo) : undefined, signal: AbortSignal.timeout(200000) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error || (r.status === 401 ? 'O segredo da integração está diferente no NexTap e no Automazap.' : 'O NexTap respondeu ' + r.status + '.')); e.status = r.status === 401 ? 502 : r.status; throw e; }
+  if (!r.ok) { const e = new Error(j.error || (r.status === 401 ? 'A conexão com o NexTap mudou: toque em "Conectar ao NexTap" de novo.' : 'O NexTap respondeu ' + r.status + '.')); e.status = r.status === 401 ? 502 : r.status; throw e; }
   return { ...j, base };
 }
 function financeiro() { try { return JSON.parse(getSetting('nextap_fin') || 'null'); } catch (e) { return null; } }
-const adminNextap = () => (origemDoSite() || '') + '/admin/';
+const adminNextap = () => (baseNx() || '') + '/admin/';
 
 const brl = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const precoRevenda = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return v > 0 ? v : 80; };
@@ -134,4 +138,4 @@ function receberEvento(b) {
   return { ok: true, achou: true, contato: c.id, tag };
 }
 
-module.exports = { artes, atualizarFinanceiro, financeiro, adminNextap, atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };
+module.exports = { segredo, baseNx, conectado, artes, atualizarFinanceiro, financeiro, adminNextap, atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };

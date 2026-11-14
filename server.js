@@ -75,9 +75,9 @@ app.post('/webhook/whatsapp/:token', express.json({ limit: '5mb' }), (req, res) 
 // Os dois serviços guardam o mesmo segredo em NEXTAP_WEBHOOK_SECRET. Sem ele, a rota fica desligada.
 const nextap = require('./nextap.js');
 app.post('/webhook/nextap', express.json({ limit: '100kb' }), (req, res) => {
-  const seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
+  const seg = nextap.segredo();
   const a = Buffer.from(String(req.get('X-Automazap-Secret') || '')), b = Buffer.from(seg);
-  if (seg.length < 16) return res.status(503).json({ error: 'NEXTAP_WEBHOOK_SECRET não configurado (mínimo 16 caracteres).' });
+  if (seg.length < 16) return res.status(503).json({ error: 'Automazap ainda não conectado ao NexTap.' });
   if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) return res.sendStatus(401);
   try {
     const r = nextap.receberEvento(req.body);
@@ -85,6 +85,23 @@ app.post('/webhook/nextap', express.json({ limit: '100kb' }), (req, res) => {
     eventos.registrar('nextap', (req.body || {}).evento, r.achou ? 'contato ' + r.contato : 'lead não encontrado');
     res.json(r);
   } catch (e) { console.error('[NEXTAP] webhook:', e.message); res.status(500).json({ error: 'Falha ao registrar o evento.' }); }
+});
+
+// Conexão automática: a página /admin/conectar-automazap do NexTap (admin logado) entrega o segredo aqui,
+// junto com o código de uso único que o painel gerou (vale 10 min). Nada de variável para preencher no Railway.
+app.options('/integracao/parear', (req, res) => res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type' }).sendStatus(204));
+app.post('/integracao/parear', express.json({ limit: '10kb' }), (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  const { getSetting: g, setSetting: s } = require('./db.js'), b = req.body || {};
+  let p = null; try { p = JSON.parse(g('nextap_parear') || 'null'); } catch (e) { /* sem pedido */ }
+  const cod = Buffer.from(String(b.codigo || '')), ok = p && p.exp > Date.now() && cod.length === Buffer.from(p.codigo).length && require('crypto').timingSafeEqual(cod, Buffer.from(p.codigo));
+  if (!ok) return res.status(400).json({ error: 'Código vencido ou inválido. Toque de novo em "Conectar ao NexTap" no Automazap.' });
+  let base; try { const u = new URL(String(b.base || '')); if (u.protocol !== 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(u.hostname)) throw new Error(); base = u.origin; } catch (e) { return res.status(400).json({ error: 'Endereço do NexTap inválido.' }); }
+  if (!/^[\w-]{16,200}$/.test(String(b.segredo || ''))) return res.status(400).json({ error: 'Segredo inválido.' });
+  s('nextap_parear', ''); s('nextap_segredo', b.segredo); s('nextap_base', base); s('nextap_fin_erro', '');
+  eventos.registrar('nextap', 'conectado', base);
+  nextap.atualizarFinanceiro().catch(() => {}); nextap.atualizarPrecos().catch(() => {});
+  res.json({ ok: true });
 });
 
 // ---------- Painel e API ----------
