@@ -88,6 +88,7 @@ app.post('/webhook/nextap', express.json({ limit: '100kb' }), (req, res) => {
 });
 
 // ---------- Painel e API ----------
+app.use('/api/predio/artes', express.json({ limit: '15mb' }));   // imagens do Theo para o banco de artes do NexTap
 app.use(express.json({ limit: '1mb' }));
 const marca = require('./marca.js');
 app.use('/media', (req, res, next) => {
