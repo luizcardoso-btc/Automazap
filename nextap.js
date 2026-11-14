@@ -83,6 +83,16 @@ async function atualizarFinanceiro() {
   try { require('./predio.js').controller(j); } catch (e) { console.error('[CONTROLLER]', e.message); }
   return j;
 }
+// Banco de artes do NexTap (Theo): o Automazap só repassa, com o segredo da integração
+async function artes(metodo, caminho, corpo) {
+  const base = (process.env.NEXTAP_API_BASE || origemDoSite() || '').replace(/\/+$/, ''), seg = process.env.NEXTAP_WEBHOOK_SECRET || '';
+  if (!base || seg.length < 16) { const e = new Error('Ligue o NexTap: crie NEXTAP_WEBHOOK_SECRET (o mesmo valor no NexTap e no Automazap) e confira o endereço do site.'); e.status = 400; throw e; }
+  const r = await fetch(base + '/api/integracao/artes' + caminho, { method: metodo, headers: { 'X-Automazap-Secret': seg, 'Content-Type': 'application/json' },
+    body: corpo ? JSON.stringify(corpo) : undefined, signal: AbortSignal.timeout(200000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || (r.status === 401 ? 'O segredo da integração está diferente no NexTap e no Automazap.' : 'O NexTap respondeu ' + r.status + '.')); e.status = r.status === 401 ? 502 : r.status; throw e; }
+  return { ...j, base };
+}
 function financeiro() { try { return JSON.parse(getSetting('nextap_fin') || 'null'); } catch (e) { return null; } }
 const adminNextap = () => (origemDoSite() || '') + '/admin/';
 
@@ -124,4 +134,4 @@ function receberEvento(b) {
   return { ok: true, achou: true, contato: c.id, tag };
 }
 
-module.exports = { atualizarFinanceiro, financeiro, adminNextap, atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };
+module.exports = { artes, atualizarFinanceiro, financeiro, adminNextap, atualizarPromo, promo, textoPromo, precoNormal, tabela, minimo, precoUnitario, atualizarPrecos, conta, brl, precoRevenda, urlPedido, receberEvento, PADRAO };

@@ -316,6 +316,13 @@ router.post('/financeiro/atualizar', async (req, res) => {
   try { const j = await require('./nextap.js').atualizarFinanceiro(); if (!j) return res.status(400).json({ error: 'Configure NEXTAP_WEBHOOK_SECRET (o mesmo valor no NexTap e no Automazap) e o endereço do site.' }); res.json({ ok: true }); }
   catch (e) { res.status(502).json({ error: getSetting('nextap_fin_erro') || e.message }); }
 });
+// Theo + banco de artes do NexTap (ChatGPT grátis ou API da OpenAI no NexTap)
+const nxArtes = (fn) => async (req, res) => { try { res.json(await fn(req)); } catch (e) { res.status(e.status && e.status < 600 ? e.status : 502).json({ error: e.message }); } };
+router.get('/artes', nxArtes(req => require('./nextap.js').artes('GET', '?destino=' + encodeURIComponent(req.query.destino || '') + '&limite=40')));
+router.post('/artes/prompt', nxArtes(req => require('./nextap.js').artes('POST', '/prompt', req.body || {})));
+router.post('/artes', nxArtes(async req => { const a = await require('./nextap.js').artes('POST', '', req.body || {}); registrar('conteudo', `Arte enviada ao banco: ${a.titulo}`, a.destino, {}); return a; }));
+router.post('/artes/gerar', nxArtes(async req => { const a = await require('./nextap.js').artes('POST', '/gerar', req.body || {}); registrar('conteudo', `Arte gerada pela API: ${a.titulo}`, a.destino, {}); return a; }));
+router.put('/artes/:id', nxArtes(req => require('./nextap.js').artes('PUT', '/' + Number(req.params.id), req.body || {})));
 router.get('/prospectora', (req, res) => res.json(listaDeHoje() || montarLista()));
 router.post('/prospectora/montar', (req, res) => res.json(montarLista()));
 router.post('/prospectora/feito', (req, res) => {
