@@ -50,7 +50,7 @@ function normalizar(g) {
 
 // ---------- Fonte GRÁTIS: OpenStreetMap (Nominatim + Overpass). Sem chave, sem cartão. ----------
 // Não traz nota nem avaliações (isso só o Google tem): use o botão "Ver no Google" e digite a nota na ficha.
-const OVERPASS = () => (process.env.OVERPASS_URLS ? process.env.OVERPASS_URLS.split(',') : ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']).map(u => u.trim());
+const OVERPASS = () => (process.env.OVERPASS_URLS ? process.env.OVERPASS_URLS.split(',') : ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter']).map(u => u.trim());
 const NOMINATIM = () => (process.env.NOMINATIM_BASE || 'https://nominatim.openstreetmap.org').replace(/\/+$/, '');
 const UA = 'Automazap-Prospeccao/1.0 (uso interno)';
 // Catálogo de nichos → etiquetas do OpenStreetMap. Cada "alternativa" é um conjunto de condições (E); as alternativas são "OU".
@@ -120,16 +120,20 @@ async function geocodificar(local) {
   if (!j.length) return null;
   return { lat: Number(j[0].lat), lng: Number(j[0].lon), nome: j[0].display_name };
 }
+// O mapa livre é gratuito e às vezes um servidor fica lento: consulta todos ao mesmo tempo e usa o primeiro que responder.
+// Resultado guardado por 6 horas (a mesma busca não pesa de novo).
+const cacheOsm = new Map();
 async function overpass(q) {
-  let erro = 'sem resposta';
-  for (const url of OVERPASS()) {
-    try {
-      const r = await fetch(url, { method: 'POST', headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: AbortSignal.timeout(30000) });
-      if (r.ok) return (await r.json()).elements || [];
-      erro = 'Overpass ' + r.status;
-    } catch (e) { erro = e.message; }
-  }
-  throw new Error(erro);
+  const c = cacheOsm.get(q);
+  if (c && Date.now() - c.em < 6 * 3600e3) return c.els;
+  const tentar = url => fetch(url, { method: 'POST', headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: AbortSignal.timeout(Number(process.env.OVERPASS_TIMEOUT_MS) || 35000) })
+    .then(async r => { if (!r.ok) throw new Error('Overpass ' + r.status); const j = await r.json(); if (j.remark && /runtime error|timed out/i.test(j.remark) && !(j.elements || []).length) throw new Error('consulta pesada demais'); return j.elements || []; });
+  try {
+    const els = await Promise.any(OVERPASS().map(tentar));
+    if (cacheOsm.size > 200) cacheOsm.clear();
+    cacheOsm.set(q, { em: Date.now(), els });
+    return els;
+  } catch (e) { throw new Error((e.errors || [e]).map(x => x.message).filter(Boolean)[0] || 'sem resposta'); }
 }
 function normalizarOsm(e, centro) {
   const t = e.tags || {};
@@ -163,7 +167,11 @@ async function acharNicho(nicho, centro, raio, cidade) {
     const nome = String(cidade).replace(/["\\]/g, '');
     els = await overpass(`[out:json][timeout:60];area["name"="${nome}"]["boundary"="administrative"]->.a;(${filtroQ(nicho.alt, '(area.a)')});out center tags 800;`);
   }
-  if (!els.length) els = await overpass(`[out:json][timeout:30];(${filtroQ(nicho.alt, `(around:${raio},${centro.lat},${centro.lng})`)});out center tags 500;`);
+  if (!els.length) {
+    const q = r => `[out:json][timeout:30];(${filtroQ(nicho.alt, `(around:${r},${centro.lat},${centro.lng})`)});out center tags 500;`;
+    try { els = await overpass(q(raio)); }
+    catch (e) { if (raio <= 6000) throw e; els = await overpass(q(6000)); }   // raio grande pesou: tenta 6 km ao redor do centro
+  }
   const visto = new Set();
   return els.map(e => normalizarOsm(e, centro)).filter(p => p && !visto.has(p.place_id) && visto.add(p.place_id)).map(p => ({ ...p, segmento: nicho.nome, nicho: nicho.id }));
 }
