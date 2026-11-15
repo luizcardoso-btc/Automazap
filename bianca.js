@@ -51,46 +51,96 @@ async function mapear(t0 = Date.now()) {
   return { nicho: nicho.nome, fonte, encontradas: achados.length, novos, comCel };
 }
 
-// Lotes do Google (grátis): uma tarefa agendada do Claude busca empresas no Google Maps (nota, avaliações, telefone, endereço)
-// e grava bianca/lotes/AAAA-MM-DD.json neste repositório. Na subida do servidor a Bianca importa os lotes novos para a fila.
+// Horário de funcionamento do Google ("Monday: 8:00 AM – 6:00 PM", "Tuesday: 11:00 AM – 3:00 PM, 6:00 – 11:00 PM", "Closed",
+// "Open 24 hours", ou em português "segunda-feira: 08:00–18:00"). Vira, por dia (0 = domingo), a lista de [abre, fecha] em minutos;
+// "fecha" passa de 1440 quando vira a madrugada.
+const DIAS_H = [['sun', 'dom'], ['mon', 'seg'], ['tue', 'ter'], ['wed', 'qua'], ['thu', 'qui'], ['fri', 'sex'], ['sat', 'sáb', 'sab']];
+function horariosDe(raw) {
+  let L = raw; if (typeof L === 'string') { try { L = JSON.parse(L); } catch (e) { L = L.split(/\n|;\s*(?=[A-Za-zÀ-ú]+[-\w]*\s*:)/); } }
+  if (!Array.isArray(L) || !L.length) return null;
+  const sem = Array.from({ length: 7 }, () => null);
+  for (const linha0 of L) {
+    const linha = String(linha0).replace(/[   ]/g, ' ').trim(), i = linha.indexOf(':');
+    if (i < 0) continue;
+    const nome = linha.slice(0, i).trim().toLowerCase(), corpo = linha.slice(i + 1).trim(), d = DIAS_H.findIndex(a => a.some(x => nome.startsWith(x)));
+    if (d < 0) continue;
+    if (/closed|fechad/i.test(corpo)) { sem[d] = []; continue; }
+    if (/24\s*h|24 hours|24 horas/i.test(corpo)) { sem[d] = [[0, 1440]]; continue; }
+    const ints = [];
+    for (const faixa of corpo.split(',')) {
+      const pts = faixa.split(/\s*[–—-]\s*|\s+(?:às|a|to)\s+/i).map(x => x.trim()).filter(Boolean);
+      if (pts.length !== 2) continue;
+      const hm = x => { const m = /^(\d{1,2})(?::|h)?(\d{2})?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?$/i.exec(x); return m ? { h: +m[1], m: +(m[2] || 0), suf: m[3] ? m[3][0].toLowerCase() : '' } : null; };
+      const a = hm(pts[0]), b = hm(pts[1]); if (!a || !b) continue;
+      if (!a.suf && b.suf) a.suf = b.suf;
+      const min = t => (t.suf ? (t.h % 12) + (t.suf === 'p' ? 12 : 0) : t.h) * 60 + t.m;
+      let ini = min(a), fim = min(b); if (fim <= ini) fim += 1440;
+      ints.push([ini, fim]);
+    }
+    sem[d] = ints;
+  }
+  return sem.some(x => x) ? sem.map(x => x || []) : null;
+}
+// Aberta agora? (hora da Bahia) e a próxima abertura/fechamento.
+function abertaAgora(sem, t0 = Date.now()) {
+  if (!sem) return null;
+  const d = local(t0), dia = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes(), ontem = (dia + 6) % 7, hh = x => String(Math.floor(x / 60) % 24).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
+  for (const [a, b] of sem[dia]) if (m >= a && m < b) return { aberta: true, fecha: hh(b) };
+  for (const [, b] of sem[ontem]) if (b > 1440 && m < b - 1440) return { aberta: true, fecha: hh(b) };
+  const NOME = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  for (let k = 0; k < 8; k++) { const dd = (dia + k) % 7; const prox = sem[dd].filter(([a]) => k > 0 || a > m).sort((x, y) => x[0] - y[0])[0]; if (prox) return { aberta: false, abre: (k === 0 ? 'hoje ' : k === 1 ? 'amanhã ' : NOME[dd] + ' ') + hh(prox[0]) }; }
+  return { aberta: false, abre: '' };
+}
+// Funciona à noite (entre 18:30 e meia-noite) em algum dia da semana?
+const abreNoite = sem => !!sem && sem.some(ints => ints.some(([a, b]) => b > 1110 && a < 1440));
+
+// Lotes do Google (grátis): uma tarefa agendada do Claude busca empresas no Google Maps (nota, avaliações, telefone, endereço, horário)
+// e grava bianca/lotes/*.json neste repositório. Na subida do servidor a Bianca importa os lotes novos para a fila;
+// empresa que já existe só recebe os dados que faltavam (horário, nota, avaliações, localização).
 function importarLotes(dir = require('path').join(__dirname, 'bianca', 'lotes'), t0 = Date.now()) {
   const fs = require('fs'), path = require('path'), W = require('./whatsapp.js');
-  let arqs = []; try { arqs = fs.readdirSync(dir).filter(f => /^[\w.-]+\.json$/.test(f)).sort(); } catch (e) { return { arquivos: 0, novos: 0 }; }
+  let arqs = []; try { arqs = fs.readdirSync(dir).filter(f => /^[\w.-]+\.json$/.test(f)).sort(); } catch (e) { return { arquivos: 0, novos: 0, atualizados: 0 }; }
   const s = (v, m) => String(v ?? '').trim().slice(0, m), nn = v => { const x = Number(String(v ?? '').replace(',', '.')); return v === '' || v == null || !Number.isFinite(x) ? null : x; };
-  const temPid = db.prepare('SELECT 1 FROM prospects WHERE place_id = ?'), temNome = db.prepare('SELECT 1 FROM prospects WHERE lower(nome) = lower(?)');
-  const ins = db.prepare(`INSERT INTO prospects (place_id, nome, segmento, telefone, instagram, endereco, bairro, nota, avaliacoes, site, maps_url, lat, lng, origem, obs)
-    VALUES (@place_id, @nome, @segmento, @telefone, @instagram, @endereco, @bairro, @nota, @avaliacoes, @site, @maps_url, @lat, @lng, 'bianca', @obs)`);
-  let arquivos = 0, novos = 0;
+  const porPid = db.prepare('SELECT id FROM prospects WHERE place_id = ?'), porNome = db.prepare('SELECT id FROM prospects WHERE lower(nome) = lower(?)');
+  const ins = db.prepare(`INSERT INTO prospects (place_id, nome, segmento, telefone, instagram, endereco, bairro, nota, avaliacoes, site, maps_url, lat, lng, origem, obs, horarios)
+    VALUES (@place_id, @nome, @segmento, @telefone, @instagram, @endereco, @bairro, @nota, @avaliacoes, @site, @maps_url, @lat, @lng, 'bianca', @obs, @horarios)`);
+  const upd = db.prepare(`UPDATE prospects SET horarios = CASE WHEN @horarios <> '' THEN @horarios ELSE horarios END, nota = COALESCE(@nota, nota),
+    avaliacoes = CASE WHEN @av IS NOT NULL THEN @av ELSE avaliacoes END, lat = COALESCE(lat, @lat), lng = COALESCE(lng, @lng),
+    maps_url = CASE WHEN maps_url = '' THEN @maps_url ELSE maps_url END, site = CASE WHEN site = '' THEN @site ELSE site END,
+    place_id = CASE WHEN (place_id IS NULL OR place_id LIKE 'lote:%') AND @gpid <> '' AND NOT EXISTS (SELECT 1 FROM prospects q WHERE q.place_id = @gpid) THEN @gpid ELSE place_id END WHERE id = @id`);
+  let arquivos = 0, novos = 0, atualizados = 0;
   for (const f of arqs) {
     const chave = 'bianca_lote_' + f; if (getSetting(chave)) continue;
     let j; try { j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { console.error('[BIANCA] lote inválido:', f, e.message); continue; }
     const lista = Array.isArray(j) ? j : Array.isArray(j.empresas) ? j.empresas : [];
-    const tels = new Set(db.prepare("SELECT telefone FROM prospects WHERE telefone <> ''").all().map(p => W.normalizarNumero(p.telefone)).filter(Boolean));
-    let n0 = 0, cel = 0;
+    const tels = new Map(db.prepare("SELECT id, telefone FROM prospects WHERE telefone <> ''").all().map(p => [W.normalizarNumero(p.telefone), p.id]).filter(x => x[0]));
+    let n0 = 0, cel = 0, up = 0;
     db.transaction(() => {
       for (const e of lista.slice(0, 400)) {
-        const nome = s(e.nome, 120), num = W.normalizarNumero(e.telefone || '');
-        if (!nome || !num || tels.has(num) || temNome.get(nome)) continue;
-        const pid = s(e.place_id, 120) || 'lote:' + num; if (temPid.get(pid)) continue;
-        const nota = nn(e.nota ?? e.google_nota), av = nn(e.avaliacoes ?? e.google_avaliacoes);
-        ins.run({ place_id: pid, nome, segmento: s(e.segmento, 40), telefone: s(e.telefone, 25), instagram: s(e.instagram, 60).replace(/^@/, ''), endereco: s(e.endereco, 200), bairro: s(e.bairro, 60),
-          nota: nota == null || nota < 0 || nota > 5 ? null : Math.round(nota * 10) / 10, avaliacoes: Math.max(0, Math.floor(av || 0)), site: s(e.site, 200), maps_url: s(e.maps_url, 300),
-          lat: nn(e.lat), lng: nn(e.lng), obs: s(e.obs, 400) });
-        tels.add(num); n0++; if (celular(num)) cel++;
+        const nome = s(e.nome, 120), num = W.normalizarNumero(e.telefone || ''), gpid = s(e.place_id, 120);
+        if (!nome) continue;
+        const sem = horariosDe(e.horarios || e.weekday_hours), horarios = sem ? JSON.stringify(e.horarios || e.weekday_hours) : '';
+        const nota0 = nn(e.nota ?? e.google_nota ?? e.rating), nota = nota0 == null || nota0 < 0 || nota0 > 5 ? null : Math.round(nota0 * 10) / 10, av0 = nn(e.avaliacoes ?? e.google_avaliacoes ?? e.rating_count);
+        const ja = (gpid && porPid.get(gpid)) || (num && tels.has(num) && { id: tels.get(num) }) || porNome.get(nome);
+        if (ja) { upd.run({ id: ja.id, horarios, nota, av: av0 == null ? null : Math.max(0, Math.floor(av0)), lat: nn(e.lat), lng: nn(e.lng), maps_url: s(e.maps_url, 300), site: s(e.site, 200), gpid }); up++; continue; }
+        if (!num) continue;   // empresa nova sem telefone não serve para o WhatsApp
+        ins.run({ place_id: gpid || 'lote:' + num, nome, segmento: s(e.segmento, 40), telefone: s(e.telefone, 25), instagram: s(e.instagram, 60).replace(/^@/, ''), endereco: s(e.endereco, 200), bairro: s(e.bairro, 60),
+          nota, avaliacoes: Math.max(0, Math.floor(av0 || 0)), site: s(e.site, 200), maps_url: s(e.maps_url, 300), lat: nn(e.lat), lng: nn(e.lng), obs: s(e.obs, 400), horarios });
+        tels.set(num, -1); n0++; if (celular(num)) cel++;
       }
       setSetting(chave, new Date(t0).toISOString());
     })();
-    arquivos++; novos += n0;
-    require('./predio.js').registrar('prospectora', `Lote do Google: ${f.replace('.json', '')}`, `${lista.length} empresa(s) no lote, ${n0} nova(s) na fila (${cel} com celular).`, { arquivo: f, novos: n0, comCel: cel }, t0);
+    arquivos++; novos += n0; atualizados += up;
+    require('./predio.js').registrar('prospectora', `Lote do Google: ${f.replace('.json', '')}`, `${lista.length} empresa(s) no lote: ${n0} nova(s) na fila (${cel} com celular), ${up} já cadastrada(s) atualizada(s).`, { arquivo: f, novos: n0, comCel: cel, atualizados: up }, t0);
   }
-  return { arquivos, novos };
+  return { arquivos, novos, atualizados };
 }
 
 // ======================= V2: conversa autônoma e humanizada =======================
 // A Bianca acompanha cada empresa por etapa da conversa e responde sozinha o que é previsível (interesse, preço, compra, objeções comuns).
 // O que ela não reconhece vai para você: ela nunca chuta resposta. Se perguntarem, diz que é a assistente virtual da NexTap.
 { const tem = c => db.prepare('PRAGMA table_info(prospects)').all().some(x => x.name === c);
-  for (const [c, def] of [['variante', "TEXT NOT NULL DEFAULT ''"], ['respondeu_em', 'INTEGER'], ['etapa', "TEXT NOT NULL DEFAULT ''"], ['etapa_em', 'INTEGER'], ['auto_n', 'INTEGER NOT NULL DEFAULT 0'], ['ultima_intencao', "TEXT NOT NULL DEFAULT ''"]]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`);
+  for (const [c, def] of [['variante', "TEXT NOT NULL DEFAULT ''"], ['respondeu_em', 'INTEGER'], ['etapa', "TEXT NOT NULL DEFAULT ''"], ['etapa_em', 'INTEGER'], ['auto_n', 'INTEGER NOT NULL DEFAULT 0'], ['ultima_intencao', "TEXT NOT NULL DEFAULT ''"], ['horarios', "TEXT NOT NULL DEFAULT ''"]]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`);
   db.exec('CREATE TABLE IF NOT EXISTS bianca_respostas (id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER NOT NULL, textos TEXT NOT NULL, enviar_em INTEGER NOT NULL, feito INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL)'); }
 const ETAPAS = [['fila', 'Na fila', 'Mapeada, esperando a vez'], ['abertura', 'Abertura enviada', 'Primeira mensagem enviada, sem resposta ainda'], ['retorno', 'Em retorno', 'Retornos dos dias 1, 3 e 7, sem resposta'],
   ['explicou', 'Explicação enviada', 'Respondeu com interesse e recebeu como funciona'], ['preco', 'Preço enviado', 'Perguntou o valor ou pediu para seguir'], ['objecao', 'Tratando objeção', 'Levantou uma objeção e recebeu a resposta'],
@@ -328,4 +378,4 @@ function painel(t0 = Date.now()) {
     google: !!process.env.GOOGLE_PLACES_API_KEY };
 }
 
-module.exports = { importarLotes, testeABC, salvarABC, varianteDe, tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
+module.exports = { importarLotes, horariosDe, abertaAgora, abreNoite, testeABC, salvarABC, varianteDe, tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };

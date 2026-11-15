@@ -295,7 +295,7 @@ function campos(b) {
 const LISTA = `SELECT p.*, (SELECT COUNT(*) FROM prospect_hist h WHERE h.prospect_id = p.id) AS contatos,
   (SELECT MAX(h.criado_em) FROM prospect_hist h WHERE h.prospect_id = p.id AND h.tipo <> 'nota') AS ultimo_contato FROM prospects p`;
 
-router.get('/', (req, res) => { const B = require('./bianca.js'), nomes = Object.fromEntries(B.ETAPAS.map(x => [x[0], x[1]])); res.json(db.prepare(LISTA + ' ORDER BY p.atualizado_em DESC, p.id DESC LIMIT 3000').all().map(p => { const e = B.etapaDe(p); return { ...p, raiox: p.raiox ? 1 : 0, etapa_id: e, etapa_nome: nomes[e] || e }; })); });
+router.get('/', (req, res) => { const B = require('./bianca.js'), nomes = Object.fromEntries(B.ETAPAS.map(x => [x[0], x[1]])); res.json(db.prepare(LISTA + ' ORDER BY p.atualizado_em DESC, p.id DESC LIMIT 3000').all().map(p => { const e = B.etapaDe(p); const hrs = B.horariosDe(p.horarios); return { ...p, raiox: p.raiox ? 1 : 0, etapa_id: e, etapa_nome: nomes[e] || e, hrs, noite: B.abreNoite(hrs) }; })); });
 
 router.post('/', (req, res) => {
   const v = campos(req.body); if (v.erro) return res.status(400).json({ error: v.erro });

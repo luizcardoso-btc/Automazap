@@ -1215,12 +1215,35 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     fs.writeFileSync(path.join(dir, '2099-01-01.json'), JSON.stringify({ empresas: [
       { nome: 'Barbearia Lote', telefone: '(75) 98877-1001', segmento: 'Barbearia', bairro: 'Centro', google_nota: 4.3, google_avaliacoes: 12, lat: -12.25, lng: -38.96 },
       { nome: 'Barbearia Lote', telefone: '(75) 98877-1001' }, { nome: 'Sem Fone' }, { nome: 'Pizzaria Lote', telefone: '75 3221-1002', nota: '4,8', avaliacoes: 310, place_id: 'ChIJlote2' }] }));
-    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 1, novos: 2 });
+    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 1, novos: 2, atualizados: 1 });
     const a = db.prepare("SELECT * FROM prospects WHERE nome = 'Barbearia Lote'").get(), b = db.prepare("SELECT * FROM prospects WHERE nome = 'Pizzaria Lote'").get();
     assert.ok(a.nota === 4.3 && a.avaliacoes === 12 && a.origem === 'bianca' && a.place_id.startsWith('lote:') && a.lat === -12.25);
     assert.ok(b.nota === 4.8 && b.avaliacoes === 310 && b.place_id === 'ChIJlote2');
-    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 0, novos: 0 });
+    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 0, novos: 0, atualizados: 0 });
     db.prepare("DELETE FROM prospects WHERE nome IN ('Barbearia Lote','Pizzaria Lote')").run();
+  });
+  await t('horário do Google: aberta agora, fecha de madrugada, só à noite, fechada, 24h e português', () => {
+    const B = require('./bianca.js'), N = '\u202f', T = '\u2009';
+    const piz = B.horariosDe(['Monday: Closed', `Tuesday: 11:00${N}AM${T}–${T}3:00${N}PM, 6:00${T}–${T}11:00${N}PM`, 'Wednesday: Closed', 'Thursday: Closed', 'Friday: Closed', `Saturday: 6:00${N}PM${T}–${T}2:00${N}AM`, 'Sunday: Open 24 hours']);
+    assert.deepStrictEqual(piz[2], [[660, 900], [1080, 1380]]); assert.deepStrictEqual(piz[6], [[1080, 1560]]); assert.deepStrictEqual(piz[0], [[0, 1440]]); assert.deepStrictEqual(piz[1], []);
+    const h = s => Date.parse(s + '-03:00');
+    assert.deepStrictEqual(B.abertaAgora(piz, h('2026-12-22T19:00:00')), { aberta: true, fecha: '23:00' });       // terça 19h
+    assert.deepStrictEqual(B.abertaAgora(piz, h('2026-12-22T16:00:00')), { aberta: false, abre: 'hoje 18:00' });
+    assert.deepStrictEqual(B.abertaAgora(piz, h('2026-12-22T23:30:00')), { aberta: false, abre: 'sáb 18:00' });
+    assert.deepStrictEqual(B.abertaAgora(piz, h('2026-12-27T01:30:00')), { aberta: true, fecha: '00:00' });   // domingo 24h
+    assert.strictEqual(B.abertaAgora(B.horariosDe(['Saturday: 6:00 PM – 2:00 AM']), h('2026-12-27T01:30:00')).aberta, true);   // madrugada de sábado para domingo
+    assert.ok(B.abreNoite(piz)); assert.ok(!B.abreNoite(B.horariosDe(['Monday: 8:00 AM – 6:00 PM'])));
+    assert.deepStrictEqual(B.horariosDe(['segunda-feira: 08:00–18:00', 'sábado: Fechado'])[1], [[480, 1080]]);
+    assert.strictEqual(B.horariosDe([]), null); assert.strictEqual(B.abertaAgora(null), null);
+  });
+  await t('lote atualiza empresa já cadastrada com horário e nota (sem duplicar)', () => {
+    const B = require('./bianca.js'), fs = require('fs'), os = require('os'), path = require('path'), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lotes-'));
+    const id = db.prepare("INSERT INTO prospects (place_id, nome, telefone, origem) VALUES ('lote:5575988771234', 'Bar da Noite', '(75) 98877-1234', 'bianca')").run().lastInsertRowid;
+    fs.writeFileSync(path.join(dir, 'horarios-1.json'), JSON.stringify({ empresas: [{ nome: 'Bar da Noite Ltda', telefone: '+55 75 98877-1234', place_id: 'ChIJnoite', rating: 4.4, rating_count: 51, weekday_hours: ['Friday: 6:00 PM – 1:00 AM'] }] }));
+    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 1, novos: 0, atualizados: 1 });
+    const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(id);
+    assert.ok(p.nota === 4.4 && p.avaliacoes === 51 && p.place_id === 'ChIJnoite' && JSON.parse(p.horarios).length === 1);
+    db.prepare('DELETE FROM prospects WHERE id = ?').run(id);
   });
   await t('Bianca automática: só ligada e em horário comercial, intervalo entre envios, pula número sem WhatsApp, meta do dia, resposta para os retornos e pedido de parar encerra', async () => {
     const B = require('./bianca.js'), P = require('./predio.js'), W = require('./whatsapp.js');
