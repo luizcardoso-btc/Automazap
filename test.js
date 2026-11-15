@@ -1129,6 +1129,17 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       urls.length = 0; await ig.publicar({ tipo: 'story', urls: ['https://a/s.jpg'] }); assert.ok(urls[0].includes('"media_type":"STORIES"'));
     } finally { global.fetch = fo; if (tk === undefined) delete process.env.IG_ACCESS_TOKEN; else process.env.IG_ACCESS_TOKEN = tk; if (esp === undefined) delete process.env.IG_ESPERA_MS; else process.env.IG_ESPERA_MS = esp; }
   });
+  await t('Resumo da Gerente no WhatsApp do CEO: precisa do número e do WhatsApp ligado; número inválido é recusado', async () => {
+    const W = require('./whatsapp.js'); setSetting('ceo_whatsapp', '');
+    assert.ok(/Informe o seu WhatsApp/.test((await W.avisarDono('oi')).motivo));
+    assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { ceo_whatsapp: '123' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { ceo_whatsapp: '(75) 98820-9055' }, headers: H })).status, 200);
+    const fo = global.fetch, eu = process.env.EVOLUTION_URL, ek = process.env.EVOLUTION_API_KEY, env = [];
+    process.env.EVOLUTION_URL = 'https://evo.teste'; process.env.EVOLUTION_API_KEY = 'chave';
+    global.fetch = async (u, o) => { env.push([String(u), JSON.parse(o.body)]); return { ok: true, status: 200, text: async () => '{"key":{"id":"x"}}' }; };
+    try { const r = await W.avisarDono('Resumo de hoje'); assert.ok(r.ok); assert.ok(env[0][0].includes('/message/sendText/')); assert.deepStrictEqual(env[0][1], { number: '5575988209055', text: 'Resumo de hoje' }); }
+    finally { global.fetch = fo; if (eu === undefined) delete process.env.EVOLUTION_URL; else process.env.EVOLUTION_URL = eu; if (ek === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = ek; setSetting('ceo_whatsapp', ''); }
+  });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;

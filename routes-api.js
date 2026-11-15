@@ -306,6 +306,7 @@ const REGRAS = {
   clientes_prova: v => v.length <= 300,
   atendente_menu: v => v === '0' || v === '1',
   vendedor_nome: v => v.length >= 1 && v.length <= 40,
+  ceo_whatsapp: v => v === '' || !!require('./whatsapp.js').normalizarNumero(v),
   cidade: v => v.length >= 2 && v.length <= 60,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
   wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,

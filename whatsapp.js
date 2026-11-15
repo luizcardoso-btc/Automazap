@@ -396,4 +396,14 @@ router.post('/disparos/:id/enviar-agora', async (req, res) => {
   }
 });
 
-module.exports = { router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+// Recado direto para o dono (ex.: resumo diário da Gerente geral). Não entra na caixa de conversas nem conta no limite de primeiras mensagens.
+async function avisarDono(texto) {
+  const numero = normalizarNumero(getSetting('ceo_whatsapp'));
+  if (!numero) return { ok: false, motivo: 'Informe o seu WhatsApp em Configurações → Prédio.' };
+  if (!configurado()) return { ok: false, motivo: 'O WhatsApp ainda não está ligado: conecte o número na aba WhatsApp → Conexão.' };
+  try { await evo('POST', '/message/sendText/{i}', { number: numero, text: String(texto).slice(0, 4000) }); return { ok: true, numero }; }
+  catch (e) { return { ok: false, motivo: e.message }; }
+}
+router.post('/avisar-dono/teste', async (req, res) => { const r = await avisarDono('✅ Teste do Automazap: é aqui que o resumo diário da Gerente geral vai chegar.'); res.status(r.ok ? 200 : 400).json(r.ok ? r : { error: r.motivo }); });
+
+module.exports = { avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

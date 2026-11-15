@@ -481,6 +481,8 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
   ];
   const titulo = 'Resumo de ' + diaBR(t0), texto = linhas.join('\n');
   registrar('gerente', titulo, texto, { novos, recebidas, cliques, vendas: v.n, total: v.total, esperando, semResposta, prioridades: prioridades.length, lucro_mes: rf ? rf.lucro_mes : null }, t0);
+  // O resumo completo também vai para o WhatsApp do CEO (se o número estiver informado e o WhatsApp ligado)
+  if (avisar) require('./whatsapp.js').avisarDono(`☀️ *${nomes().gerente} · ${titulo}*\n\n${texto}`).then(r => { if (!r.ok && getSetting('ceo_whatsapp')) console.warn('[PRÉDIO] resumo no WhatsApp:', r.motivo); }).catch(() => {});
   if (avisar) require('./notificacoes.js').notificar({ tipo: 'resumo', titulo: '☀️ ' + nomes().gerente + ': ' + titulo, texto: `${novos} lead(s), ${v.n} venda(s) ontem${rf ? ` · lucro do mês ${reais(rf.lucro_mes)}` : ''} · ${prioridades.length} prioridade(s) hoje`, url: '/#predio' }).catch(() => {});
   return { titulo, texto };
 }
