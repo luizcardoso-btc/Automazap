@@ -28,7 +28,7 @@ function oportunidade(p) {
   if (n == null || n < 10) { s += 40; porque.push(n ? `só ${n} avaliações` : 'quase sem avaliações'); }
   else if (n < 30) { s += 30; porque.push(`poucas avaliações (${n})`); }
   else if (n < 100) { s += 15; porque.push(`${n} avaliações`); }
-  if (r != null && r < 4.0) { s += 25; porque.push(`nota baixa (${String(r).replace('.', ',')})`); }
+  if (r != null && r > 0 && r < 4.0) { s += 25; porque.push(`nota baixa (${String(r).replace('.', ',')})`); }   // 0 = sem nota (mapa livre), não é nota baixa
   else if (r != null && r < 4.5) { s += 15; porque.push(`nota ${String(r).replace('.', ',')}`); }
   else if (r != null && r < 4.7) s += 5;
   if (p.telefone) s += 20; else porque.push('sem telefone no Google');

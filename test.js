@@ -1060,13 +1060,26 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     db.prepare("INSERT INTO prospect_hist (prospect_id, tipo, texto) VALUES (?, 'whatsapp', 'abordagem')").run(ret);
     const l = (await chamar('POST', '/api/predio/prospectora/montar', { headers: H })).json;
     assert.deepStrictEqual(l.itens.map(i => i.nome), ['Ótica Retorno', 'Barbearia Poucas', 'Barbearia Top']);
-    assert.strictEqual(l.itens[0].passo, 'd1'); assert.ok(l.itens[0].mensagem.includes('Conseguiu ver a minha mensagem?'));
-    assert.ok(l.itens[1].mensagem.startsWith('Oi José! Tudo bem? Sou o Luiz, aqui de Feira de Santana.\n\nEncontrei Barbearia Poucas no Google e reparei que tem poucas avaliações (só 3).'), l.itens[1].mensagem);
+    assert.strictEqual(l.itens[0].passo, 'd1'); assert.ok(/minha mensagem|dia é corrido/.test(l.itens[0].mensagem), l.itens[0].mensagem);
+    const m1 = l.itens[1].mensagem; assert.ok(['A', 'B', 'C'].includes(l.itens[1].variante)); assert.ok(m1.includes('José') && m1.includes('Barbearia Poucas') && /\b3\b/.test(m1) && m1.includes('tráfego') && m1.endsWith('é só me dizer que eu não escrevo mais.'), m1);
+    assert.notStrictEqual(l.itens[1].variante, l.itens[2].variante);   // teste A/B/C: empresas seguidas recebem versões diferentes
     const dias = []; for (let i = 0; i < 4; i++) dias.push((await chamar('POST', '/api/predio/prospectora/feito', { corpo: { prospect_id: fraca }, headers: H })).json.prox_contato);
     const d = k => predio.dataStr(Date.now() + k * 86400e3);
     assert.deepStrictEqual(dias, [d(1), d(2), d(4), null]);
     assert.strictEqual(db.prepare('SELECT status FROM prospects WHERE id = ?').get(fraca).status, 'abordado');
     assert.ok((await chamar('GET', '/api/predio/prospectora', { headers: H })).json.itens.find(i => i.id === fraca).feito);
+  });
+  await t('Teste A/B/C da abertura: textos editáveis, versão desligada não é sorteada, métricas por versão', async () => {
+    const t0 = (await chamar('GET', '/api/predio/prospectora/abc', { headers: H })).json; assert.deepStrictEqual(t0.variantes.map(v => v.id), ['A', 'B', 'C']); assert.ok(t0.exemplo.B.includes('Barbearia Navalha'));
+    assert.strictEqual((await chamar('PUT', '/api/predio/prospectora/abc', { corpo: { textos: { B: 'curto' } }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('PUT', '/api/predio/prospectora/abc', { corpo: { ativas: '' }, headers: H })).status, 400);
+    const t1 = (await chamar('PUT', '/api/predio/prospectora/abc', { corpo: { textos: { B: 'Olá{nome}! Teste da versão B para {empresa}. {numeros} Posso te mostrar?' }, ativas: 'B' }, headers: H })).json;
+    assert.deepStrictEqual(t1.variantes.map(v => v.ativa), [false, true, false]); assert.ok(t1.exemplo.B.startsWith('Olá, Carlos! Teste da versão B para Barbearia Navalha. Vi que vocês estão com nota 4,3 e 18 avaliações.'));
+    const B = require('./bianca.js'), id = db.prepare("INSERT INTO prospects (place_id, nome, telefone, status) VALUES ('abc1', 'Loja ABC', '75988887777', 'abordado')").run().lastInsertRowid;
+    assert.ok(B.saida(db.prepare('SELECT * FROM prospects WHERE id = ?').get(id), 'd0').startsWith('Olá! Teste da versão B para Loja ABC.'));
+    B.respondeu(id, 'pode sim');
+    const v = (await chamar('GET', '/api/predio/prospectora/abc', { headers: H })).json.variantes.find(x => x.id === 'B'); assert.ok(v.enviadas >= 1 && v.respostas >= 1 && v.interesse >= 1);
+    await chamar('PUT', '/api/predio/prospectora/abc', { corpo: { textos: { A: '', B: '', C: '' }, ativas: 'ABC' }, headers: H }); db.prepare('DELETE FROM prospects WHERE id = ?').run(id);
   });
   await t('Conteúdo: semana de segunda a sexta com números reais e chamadas que disparam o robô; aprovado não é trocado', async () => {
     const r = (await chamar('GET', '/api/predio/conteudo', { headers: H })).json; assert.strictEqual(r.itens.length, 5);
@@ -1213,7 +1226,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.strictEqual((await B.tick(Date.parse('2026-12-20T10:00:00-03:00'))).motivo, 'fora do horário');   // domingo
       assert.strictEqual((await B.tick(seg('08:10'))).motivo, 'fora do horário'); assert.ok(B.naJanela(seg('09:00')) && !B.naJanela(seg('17:30')) && B.naJanela(Date.parse('2026-12-19T11:00:00-03:00')) && !B.naJanela(Date.parse('2026-12-19T12:30:00-03:00')));
       const r1 = await B.tick(seg('09:05'), { sorteio: () => 0 }); assert.ok(r1.enviado && r1.passo === 'd0'); assert.strictEqual(env.length, 1);
-      assert.ok(env[0].number.startsWith('55759881100') && env[0].text.includes('Auto ') && env[0].text.includes('assistente da NexTap') && env[0].text.includes('é só me dizer que eu não escrevo mais'));
+      assert.ok(env[0].number.startsWith('55759881100') && env[0].text.includes('Auto ') && env[0].text.includes('tráfego') && env[0].text.includes('é só me dizer que eu não escrevo mais'));
       assert.strictEqual((await B.tick(seg('09:07'))).motivo, 'intervalo');                                   // 5 min mínimos
       const r2 = await B.tick(seg('09:11'), { sorteio: () => 0 }); assert.ok(r2.enviado); assert.strictEqual(env.length, 2);
       const r3 = await B.tick(seg('09:30'), { sorteio: () => 0 }); assert.ok(!r3.enviado); assert.strictEqual(env.length, 2);   // meta de 2 novas atingida
@@ -1229,7 +1242,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.deepStrictEqual(db.prepare('SELECT status, prox_contato, etapa FROM prospects WHERE id = ?').get(ids[0]), { status: 'interessado', prox_contato: null, etapa: 'explicou' });
       assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM bianca_respostas WHERE feito = 0').get().n, q0 + 1);
       assert.strictEqual(await B.responder(seg('10:00')), 0);                                                // ainda "digitando": sai 1 min depois
-      const antes = env.length; assert.strictEqual(await B.responder(seg('10:02')), 2); assert.ok(env[antes].text.includes('acrílico') && env[antes].delay > 1000 && env[antes + 1].text.includes('valor'));
+      const antes = env.length; assert.strictEqual(await B.responder(seg('10:02')), 2); assert.ok(env[antes].text.includes('acrílico') && env[antes].delay > 1000 && /valor|custa/.test(env[antes + 1].text));
       // segue a conversa sozinha: preço → compra (avisa você) ; pergunta fora do roteiro vai para você sem resposta automática
       const r6 = B.respondeu(ids[0], 'quanto custa?', null, seg('10:05'), { sorteio: () => 0 }); assert.deepStrictEqual([r6.intencao, r6.etapa], ['preco', 'preco']); await B.responder(seg('10:07')); assert.ok(env[env.length - 2].text.includes('R$ ') && env[env.length - 1].text.includes('azul ou'));
       const r7 = B.respondeu(ids[0], 'quero a preta', null, seg('10:10'), { sorteio: () => 0 }); assert.deepStrictEqual([r7.intencao, r7.etapa, r7.responde], ['compra', 'fechamento', true]); await B.responder(seg('10:12')); assert.ok(env[env.length - 1].text.includes('link de pagamento'));

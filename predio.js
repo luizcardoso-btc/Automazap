@@ -73,12 +73,8 @@ function abertura(p) {
   return `${base} Parabéns! O desafio agora é manter o ritmo e ficar na frente dos concorrentes da região.`;
 }
 const primeiro = p => (p.contato ? ' ' + String(p.contato).split(' ')[0] : '');
-const MSG = {
-  d0: p => `Oi${primeiro(p)}! Tudo bem? Sou o ${vendedor()}, aqui de ${cidade()}.\n\n${abertura(p)}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
-  d1: p => `Oi${primeiro(p)}! Conseguiu ver a minha mensagem?\n\nImagina cada cliente satisfeito avaliando ${p.nome} na saída, em 5 segundos. Posso te mandar um vídeo rápido?`,
-  d3: p => `Oi${primeiro(p)}! Só para não deixar passar: consigo deixar a placa de vocês configurada ainda esta semana.\n\nPrefere uma só, para o balcão, ou duas (balcão e caixa)?`,
-  d7: p => `Oi${primeiro(p)}! Última mensagem por aqui. 🙂\n\nQuando quiser mais avaliações no Google para ${p.nome}, é só me chamar. Obrigado pela atenção!`,
-};
+// As mensagens da lista são as mesmas da abordagem automática (inclui a versão A/B/C da abertura de cada empresa)
+const MSG = { d0: p => require('./bianca.js').saida(p, 'd0'), d1: p => require('./bianca.js').saida(p, 'd1'), d3: p => require('./bianca.js').saida(p, 'd3'), d7: p => require('./bianca.js').saida(p, 'd7') };
 const PASSOS = ['d0', 'd1', 'd3', 'd7'], PROXIMO = [1, 2, 4];   // depois do 1º contato: +1 dia; 2º: +2 (dia 3); 3º: +4 (dia 7)
 const contatosWpp = id => n("SELECT COUNT(*) AS n FROM prospect_hist WHERE prospect_id = ? AND tipo = 'whatsapp'", id);
 
@@ -90,7 +86,7 @@ function montarLista(t0 = Date.now()) {
   const retornos = db.prepare("SELECT * FROM prospects WHERE status IN ('abordado', 'interessado', 'orcamento') AND telefone <> '' AND prox_contato IS NOT NULL AND prox_contato <= ? ORDER BY prox_contato, id LIMIT 50").all(hoje);
   const itens = [
     ...retornos.map(p => { const k = PASSOS[Math.min(3, Math.max(1, contatosWpp(p.id)))]; return { id: p.id, nome: p.nome, telefone: p.telefone, segmento: p.segmento, tipo: 'retorno', passo: k, mensagem: MSG[k](p), feito: false }; }),
-    ...novos.map(({ p, o }) => ({ id: p.id, nome: p.nome, telefone: p.telefone, segmento: p.segmento, tipo: 'abordagem', passo: 'd0', motivo: o.porque.join(', '), nivel: o.nivel, mensagem: MSG.d0(p), feito: false })),
+    ...novos.map(({ p, o }) => { const m = MSG.d0(p); return { id: p.id, nome: p.nome, telefone: p.telefone, segmento: p.segmento, tipo: 'abordagem', passo: 'd0', motivo: o.porque.join(', '), nivel: o.nivel, variante: p.variante || '', mensagem: m, feito: false }; }),
   ];
   db.prepare("DELETE FROM agentes_log WHERE agente = 'prospectora' AND json_extract(dados, '$.dia') = ?").run(hoje);
   const texto = itens.length ? `${retornos.length} retorno(s) e ${novos.length} empresa(s) nova(s) para abordar hoje.` : 'Nenhuma empresa para hoje: busque novas empresas na Prospecção.';
@@ -588,6 +584,8 @@ router.put('/artes/:id', nxArtes(req => require('./nextap.js').artes('PUT', '/' 
 router.delete('/artes/:id', nxArtes(async req => { const r = await require('./nextap.js').artes('DELETE', '/' + Number(req.params.id)); registrar('conteudo', `Arte #${Number(req.params.id)} excluída do banco`, '', {}); return r; }));
 router.get('/prospectora', (req, res) => res.json(listaDeHoje() || montarLista()));
 router.post('/prospectora/montar', (req, res) => res.json(montarLista()));
+router.get('/prospectora/abc', (req, res) => res.json(require('./bianca.js').testeABC()));
+router.put('/prospectora/abc', (req, res) => { try { res.json(require('./bianca.js').salvarABC(req.body || {})); } catch (e) { res.status(e.status || 500).json({ error: e.message }); } });
 router.get('/prospectora/mapa', (req, res) => res.json(require('./bianca.js').mapa(Number(req.query.id) || 0)));
 router.get('/prospectora/auto', (req, res) => res.json(require('./bianca.js').painel()));
 router.post('/prospectora/mapear', async (req, res) => { try { const r = await require('./bianca.js').mapear(); montarLista(); res.json({ ...r, painel: require('./bianca.js').painel() }); } catch (e) { res.status(502).json({ error: 'Não consegui mapear agora: ' + e.message }); } });

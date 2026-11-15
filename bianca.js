@@ -55,7 +55,7 @@ async function mapear(t0 = Date.now()) {
 // A Bianca acompanha cada empresa por etapa da conversa e responde sozinha o que é previsível (interesse, preço, compra, objeções comuns).
 // O que ela não reconhece vai para você: ela nunca chuta resposta. Se perguntarem, diz que é a assistente virtual da NexTap.
 { const tem = c => db.prepare('PRAGMA table_info(prospects)').all().some(x => x.name === c);
-  for (const [c, def] of [['etapa', "TEXT NOT NULL DEFAULT ''"], ['etapa_em', 'INTEGER'], ['auto_n', 'INTEGER NOT NULL DEFAULT 0'], ['ultima_intencao', "TEXT NOT NULL DEFAULT ''"]]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`);
+  for (const [c, def] of [['variante', "TEXT NOT NULL DEFAULT ''"], ['respondeu_em', 'INTEGER'], ['etapa', "TEXT NOT NULL DEFAULT ''"], ['etapa_em', 'INTEGER'], ['auto_n', 'INTEGER NOT NULL DEFAULT 0'], ['ultima_intencao', "TEXT NOT NULL DEFAULT ''"]]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`);
   db.exec('CREATE TABLE IF NOT EXISTS bianca_respostas (id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER NOT NULL, textos TEXT NOT NULL, enviar_em INTEGER NOT NULL, feito INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL)'); }
 const ETAPAS = [['fila', 'Na fila', 'Mapeada, esperando a vez'], ['abertura', 'Abertura enviada', 'Primeira mensagem enviada, sem resposta ainda'], ['retorno', 'Em retorno', 'Retornos dos dias 1, 3 e 7, sem resposta'],
   ['explicou', 'Explicação enviada', 'Respondeu com interesse e recebeu como funciona'], ['preco', 'Preço enviado', 'Perguntou o valor ou pediu para seguir'], ['objecao', 'Tratando objeção', 'Levantou uma objeção e recebeu a resposta'],
@@ -97,15 +97,13 @@ function intencao(texto, etapa) {
 const precoBR = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return (v > 0 ? v : 80).toFixed(2).replace('.', ','); };
 function vars(p, t0 = Date.now()) {
   const P = require('./predio.js'), h = local(t0).getUTCHours(), nome = String(p.contato || '').trim().split(' ')[0];
-  return { saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR(),
+  const av = Number(p.avaliacoes) || 0, nt = Number(p.nota) > 0 ? String(p.nota).replace('.', ',') : '';
+  const numeros = av && nt ? `Vi que vocês estão com nota ${nt} e ${av} avaliações.` : av ? `Vi que vocês têm ${av} avaliações por lá.` : 'Vi que vocês ainda têm poucas avaliações por lá.';
+  return { numeros, saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR(),
     ver: String(getSetting('video_demo_url') || '').trim() || String(getSetting('site_url') || '').trim(), temVideo: !!String(getSetting('video_demo_url') || '').trim() };
 }
 const escolher = (l, p) => l[(Number(p.id) || 0) % l.length];
 const T = {
-  abertura: [
-    v => `${v.saud}${v.cnome}! Aqui é a ${v.eu}, assistente da NexTap, aqui de ${v.cidade}. 🙂\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
-    v => `${v.saud}${v.cnome}, tudo bem? Sou a ${v.eu}, da NexTap (${v.cidade}).\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
-    v => `${v.saud}${v.cnome}! ${v.eu} aqui, da NexTap. Estava olhando os negócios de ${v.cidade} no Google e parei no perfil de vocês.\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`],
   aviso: () => 'Se não for do seu interesse, é só me dizer que eu não escrevo mais.',
   d1: [v => `${v.saud}${v.cnome}! Passando só pra saber se você conseguiu ver a minha mensagem. 🙂\n\nÉ coisa rápida: mostro como cada cliente satisfeito avalia a ${v.empresa} em 5 segundos. Posso mandar?`,
     v => `Oi${v.cnome}! Sei que o dia é corrido. Fica a pergunta: posso te mandar um vídeo curtinho mostrando como aumentar as avaliações da ${v.empresa}?`],
@@ -128,9 +126,55 @@ const T = {
   nao: [v => ['Sem problema, obrigada pela atenção! Se um dia quiser mais avaliações no Google, é só me chamar. Bom trabalho por aí! 🙌']],
   parar: [v => ['Combinado, não escrevo mais. Desculpa o incômodo e bom trabalho!']],
 };
+
+// ---------- Teste A/B/C da primeira mensagem ----------
+// Cada empresa recebe sempre a mesma versão (A, B ou C), distribuídas por igual. Os textos são editáveis na sala da Bianca.
+// Marcadores: {saudacao} {nome} {eu} {cidade} {empresa} {dado} (frase com os números dela) {numeros} (só os números, curto)
+const ABERTURAS0 = {
+  A: '{saudacao}{nome}! Aqui é a {eu}, assistente da NexTap, aqui de {cidade}. 🙂\n\n{dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?',
+  B: '{saudacao}{nome}, tudo bem? Estava olhando os negócios de {cidade} no Google e parei na {empresa}. {numeros}\n\nTem um jeito simples de fazer os seus próprios clientes avaliarem vocês na hora, sem tráfego pago. Posso te mostrar em 1 minuto?',
+  C: '{saudacao}{nome}! Sou a {eu}, da NexTap. Pergunta rápida: hoje vocês pedem para os clientes avaliarem a {empresa} no Google?\n\n{numeros} Dá para ter muito mais, e de clientes reais.\n\nTenho um jeito de fazer isso acontecer sozinho, sem pagar tráfego. Posso te mostrar?',
+};
+const LETRAS = ['A', 'B', 'C'];
+const aberturaTxt = l => String(getSetting('bianca_abertura_' + l) || '').trim() || ABERTURAS0[l];
+const ativas = () => { const a = String(getSetting('bianca_abertura_ativas') || 'ABC').toUpperCase().split('').filter(l => LETRAS.includes(l)); return a.length ? [...new Set(a)] : ['A']; };
+function varianteDe(p) {
+  const at = ativas();
+  if (p.variante && at.includes(p.variante)) return p.variante;
+  const cont = Object.fromEntries(at.map(l => [l, 0]));
+  for (const r of db.prepare("SELECT variante, COUNT(*) AS n FROM prospects WHERE variante <> '' GROUP BY variante").all()) if (r.variante in cont) cont[r.variante] = r.n;
+  const v = at.slice().sort((a, b) => cont[a] - cont[b] || at.indexOf(a) - at.indexOf(b))[0];
+  if (p.id) db.prepare('UPDATE prospects SET variante = ? WHERE id = ?').run(v, p.id);
+  p.variante = v;
+  return v;
+}
+const preencher = (tpl, v) => String(tpl).replace(/\{saudacao\}/g, v.saud).replace(/\{nome\}/g, v.cnome).replace(/\{eu\}/g, v.eu).replace(/\{cidade\}/g, v.cidade).replace(/\{empresa\}/g, v.empresa).replace(/\{dado\}/g, v.dado).replace(/\{numeros\}/g, v.numeros);
+function abertura(p, t0 = Date.now(), letra) { return preencher(aberturaTxt(letra || varianteDe(p)), vars(p, t0)); }
+function testeABC() {
+  const at = ativas(), dados = LETRAS.map(l => {
+    const r = db.prepare(`SELECT COUNT(*) AS enviadas, SUM(CASE WHEN respondeu_em IS NOT NULL THEN 1 ELSE 0 END) AS respostas,
+      SUM(CASE WHEN etapa IN ('explicou','preco','objecao','fechamento','fechado') OR status IN ('orcamento','fechado') OR ultima_intencao IN ('positivo','preco','compra','caro','pensar','ja_tenho','tempo') THEN 1 ELSE 0 END) AS interesse,
+      SUM(CASE WHEN status = 'fechado' THEN 1 ELSE 0 END) AS fechadas FROM prospects WHERE variante = ? AND status <> 'novo'`).get(l);
+    const env = r.enviadas || 0;
+    return { id: l, texto: aberturaTxt(l), padrao: !String(getSetting('bianca_abertura_' + l) || '').trim(), ativa: at.includes(l), enviadas: env, respostas: r.respostas || 0, interesse: r.interesse || 0, fechadas: r.fechadas || 0,
+      taxa: env ? Math.round((1000 * (r.respostas || 0)) / env) / 10 : 0, taxa_interesse: env ? Math.round((1000 * (r.interesse || 0)) / env) / 10 : 0 };
+  });
+  const prontas = dados.filter(d => d.ativa && d.enviadas >= 20), melhor = prontas.slice().sort((a, b) => b.taxa_interesse - a.taxa_interesse || b.taxa - a.taxa)[0];
+  return { variantes: dados, vencedora: prontas.length >= 2 && melhor ? melhor.id : null, minimo: 20,
+    exemplo: Object.fromEntries(LETRAS.map(l => [l, abertura({ id: 0, nome: 'Barbearia Navalha', contato: 'Carlos Silva', nota: 4.3, avaliacoes: 18 }, Date.now(), l) + '\n\n' + T.aviso()])) };
+}
+function salvarABC({ textos, ativas: at } = {}) {
+  if (textos && typeof textos === 'object') for (const l of LETRAS) if (typeof textos[l] === 'string') {
+    const t = textos[l].trim();
+    if (t && (t.length < 30 || t.length > 900)) { const e = new Error(`A versão ${l} precisa ter entre 30 e 900 caracteres.`); e.status = 400; throw e; }
+    setSetting('bianca_abertura_' + l, t === ABERTURAS0[l] ? '' : t);
+  }
+  if (typeof at === 'string') { const a = [...new Set(at.toUpperCase().split('').filter(l => LETRAS.includes(l)))]; if (!a.length) { const e = new Error('Deixe pelo menos uma versão ligada.'); e.status = 400; throw e; } setSetting('bianca_abertura_ativas', a.join('')); }
+  return testeABC();
+}
 const texto = (chave, p, t0) => { const r = escolher(T[chave], p)(vars(p, t0)); return Array.isArray(r) ? r : [r]; };
 // Mensagem de saída (abertura e retornos) da abordagem automática
-function saida(p, passo, t0 = Date.now()) { const [m] = texto(passo === 'd0' ? 'abertura' : passo, p, t0); return passo === 'd0' ? m + '\n\n' + T.aviso() : m; }
+function saida(p, passo, t0 = Date.now()) { return passo === 'd0' ? abertura(p, t0) + '\n\n' + T.aviso() : texto(passo, p, t0)[0]; }
 
 const DEPOIS = { positivo: 'explicou', preco: 'preco', compra: 'fechamento', caro: 'objecao', pensar: 'objecao', ja_tenho: 'objecao', tempo: 'objecao', dono: 'humano', humano: 'humano', robo: null, origem: null, nao: 'perdido', parar: 'perdido' };
 const AVISAR = { compra: '🔥 quer fechar', dono: '👤 não é o dono (pediu contato do responsável)', humano: '🙋 pediu para falar com uma pessoa', '': '❓ mandou algo que eu não sei responder' };
@@ -151,6 +195,7 @@ function respondeu(prospectId, textoIn, contato, t0 = Date.now(), { sorteio = Ma
   db.prepare("UPDATE prospects SET status = ?, prox_contato = ?, motivo_perda = ?, etapa = ?, etapa_em = ?, ultima_intencao = ?, auto_n = auto_n + ?, atualizado_em = datetime('now') WHERE id = ?")
     .run(final ? 'perdido' : nova === 'preco' || nova === 'fechamento' ? 'orcamento' : (['novo', 'abordado'].includes(p.status) ? 'interessado' : p.status),
       k === 'pensar' && responde ? dataStr(t0 + 2 * DIA) : null, k === 'parar' ? 'Pediu para não receber mensagens' : k === 'nao' ? 'Sem interesse agora' : '', nova, t0, k || '', responde ? 1 : 0, p.id);
+  db.prepare('UPDATE prospects SET respondeu_em = COALESCE(respondeu_em, ?) WHERE id = ?').run(t0, p.id);
   db.prepare('UPDATE bianca_respostas SET feito = 2 WHERE prospect_id = ? AND feito = 0').run(p.id);   // resposta nova substitui a que ainda não saiu
   if (responde) db.prepare('INSERT INTO bianca_respostas (prospect_id, textos, enviar_em, criado_em) VALUES (?, ?, ?, ?)').run(p.id, JSON.stringify(texto(k, p, t0)), t0 + Math.round((60 + sorteio() * 110) * 1000), t0);
   const motivo = !responde || AVISAR[k] ? (responde ? AVISAR[k] : (k && AVISAR[k]) || (tua ? '💬 respondeu (a conversa já é sua)' : repetiu || limite ? '🔁 insistiu no mesmo ponto: melhor você assumir' : AVISAR[''])) : '';
@@ -181,7 +226,7 @@ function mapa(id, t0 = Date.now()) {
   const tx = k => texto(k, ex, t0).join('\n\n');
   return { ligada: ligada(), conversa: conversa(), empresa: ex.id ? { id: ex.id, nome: ex.nome, etapa: etapaDe(ex) } : null,
     etapas: ETAPAS.map(([eid, nome, desc]) => ({ id: eid, nome, desc, total: (por[eid] || []).length, empresas: (por[eid] || []).sort((a, b) => (b.desde || 0) - (a.desde || 0)).slice(0, 30) })),
-    textos: { abertura: saida(ex, 'd0', t0), d1: tx('d1'), d3: tx('d3'), d7: tx('d7'), positivo: tx('positivo'), preco: tx('preco'), compra: tx('compra'), caro: tx('caro'), pensar: tx('pensar'), ja_tenho: tx('ja_tenho'), tempo: tx('tempo'), dono: tx('dono'), humano: tx('humano'), robo: tx('robo'), origem: tx('origem'), nao: tx('nao'), parar: tx('parar') } };
+    textos: { abertura: saida(ex.id ? ex : { ...ex, variante: 'A' }, 'd0', t0), d1: tx('d1'), d3: tx('d3'), d7: tx('d7'), positivo: tx('positivo'), preco: tx('preco'), compra: tx('compra'), caro: tx('caro'), pensar: tx('pensar'), ja_tenho: tx('ja_tenho'), tempo: tx('tempo'), dono: tx('dono'), humano: tx('humano'), robo: tx('robo'), origem: tx('origem'), nao: tx('nao'), parar: tx('parar') } };
 }
 
 let ocupada = false;
@@ -247,4 +292,4 @@ function painel(t0 = Date.now()) {
     google: !!process.env.GOOGLE_PLACES_API_KEY };
 }
 
-module.exports = { tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
+module.exports = { testeABC, salvarABC, varianteDe, tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
