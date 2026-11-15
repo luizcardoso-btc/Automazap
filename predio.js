@@ -308,6 +308,26 @@ function comando(p, s, i, n) {
   const onde = p.canal === 'stories' ? 'no centro da imagem' : `no terço ${i % 2 ? 'inferior' : 'superior'}`;
   return `${p.tipo === 'carrossel' ? `Imagem ${i + 1} de ${n} do carrossel "${p.titulo}"` : p.canal === 'stories' ? `Story "${p.titulo}"` : `Post do feed "${p.titulo}"`}, ${FORMATO[p.canal]}. Cena: ${s.visual}. Deixe uma área limpa ${onde} e escreva nela, grande, exatamente: "${s.texto}"${s.sub ? ` e, menor, logo abaixo: "${s.sub}"` : ''}. Mantenha o texto e tudo que é importante longe das bordas (margem de 12% em cada lado): a imagem será cortada na proporção do Instagram. Nenhum outro texto na imagem.${p.tipo === 'carrossel' && i ? ' Mesma paleta, mesma tipografia e mesma luz da imagem anterior.' : ''}`;
 }
+// Legenda da Lia: gancho com emoji do tema, os pontos do carrossel em lista, chamada que dispara o robô e hashtags do tema.
+const TEMA = {
+  'Como funciona': { e: ['⚡', '📲', '✅', '👆', '🔔'], h: '#qrcode #nfc #tecnologia #atendimentoaocliente #googlemeunegocio #dicasdenegocios' },
+  'Quebra de objeção': { e: ['🤔', '💡', '✅', '👉', '🙌'], h: '#googlemeunegocio #marketinglocal #dicasdenegocios #clientes #reputacaoonline #vendas' },
+  'Revenda e lucro': { e: ['💰', '🚀', '🤝', '📈', '🏪'], h: '#rendaextra #revenda #empreender #negociolocal #oportunidade #vendas' },
+  'Bastidores': { e: ['📦', '🛠️', '✨', '🚚', '🙌'], h: '#bastidores #feitonobrasil #pequenosnegocios #entrega #produtopersonalizado #negociolocal' },
+  'Autoridade': { e: ['⭐', '📈', '🏆', '💡', '✅'], h: '#reputacaoonline #googlemeunegocio #marketinglocal #dicasdenegocios #clientes #estrelasnogoogle' },
+  'Prova social': { e: ['⭐', '🙌', '📍', '💚', '✅'], h: '#clientesatisfeito #provasocial #negociolocal #googlemeunegocio #marketinglocal #comerciolocal' },
+};
+const TEMA0 = { e: ['✨', '✅', '👉', '⭐', '📲'], h: '#googlemeunegocio #marketinglocal #dicasdenegocios #negociolocal #clientes #comerciolocal' };
+function legendaRica(p, cta) {
+  const t = TEMA[p.pilar] || TEMA0, sl = p.slides, semSeta = x => String(x || '').replace(/\s*→\s*$/, '').trim(), pt = x => (/[.!?…]$/.test(x) ? x : x + '.');
+  const palavra = (/Comente ([A-ZÇÃÕÉÊÍÓÚ ]+)/.exec(cta || '') || [, 'COMO FUNCIONA'])[1].trim();
+  const linhas = [`${t.e[0]} ${pt(semSeta(sl[0].texto))}`];
+  if (sl.length > 2) { linhas.push(''); sl.slice(1, -1).forEach((x, i) => linhas.push(`${t.e[1 + (i % (t.e.length - 1))]} ${semSeta(x.texto)}${x.sub ? ': ' + semSeta(x.sub).replace(/^./, c => c.toLowerCase()) : ''}`)); }
+  else if (sl[0].sub && !/Arraste/.test(sl[0].sub)) linhas.push('', `${t.e[1]} ${pt(semSeta(sl[0].sub))}`);
+  linhas.push('', `👉 Comente ${palavra} que eu te explico no direct.`, sl.length > 1 ? '📌 Salve este post para consultar depois e envie para quem precisa ver.' : '📌 Salve para lembrar depois.');
+  const hs = [...new Set((tags() + ' ' + t.h + ' #nextap').split(/\s+/).filter(Boolean))].slice(0, 12).join(' ');
+  return (linhas.join('\n') + '\n\n' + hs).slice(0, 2200);
+}
 // Monta uma peça (Nina: textos e legenda · Lia: comandos). "v" troca o modelo quando o CTO pede outra versão.
 function montarPeca(t0, slot, v = 0) {
   const dia = dataStr(t0), k = Math.floor(dia0(t0) / DIA) + v * 5, canal = slot.startsWith('story') ? 'stories' : 'feed', idx = Number(slot.slice(-1)) - 1;
@@ -328,6 +348,7 @@ function montarPeca(t0, slot, v = 0) {
       const c = ordem[k % ordem.length]; p = { tipo: 'carrossel', titulo: c.titulo, pilar: c.pilar, slides: c.slides.map(x => ({ texto: x[0], sub: x[1], visual: x[2] })), legenda: c.legenda + '\n\n' + tags() }; }
     else { const o = POSTS[(k + idx * 5) % POSTS.length]; p = { tipo: 'post', titulo: o[0], pilar: 'Post do dia', slides: [{ texto: o[1], sub: o[2], visual: o[3] }], legenda: `${o[1]}${/[.!?]$/.test(o[1]) ? '' : '.'} ${o[2]}${/[.!?]$/.test(o[2]) ? '' : '.'} ✨\n\nComente ${o[4]} que eu te explico no direct.\n\n${tags()}` }; }
   }
+  if (canal === 'feed') p.legenda = legendaRica(p, ctaDe(p.legenda));
   p = { ...p, dia, slot, canal, versao: v };
   p.slides = p.slides.map((s, i) => ({ ...s, n: i + 1, prompt: comando(p, s, i, p.slides.length) }));
   return p;
@@ -596,6 +617,7 @@ router.post('/marketing/pecas/:id/imagem', tratarMk(req => social.anexar(Number(
 router.post('/marketing/pecas/:id/aprovar', tratarMk(req => social.aprovar(Number(req.params.id), req.body || {})));
 router.post('/marketing/pecas/:id/publicar', tratarMk(async req => { const p = await social.publicarPeca(Number(req.params.id)); if (p.status === 'erro') { const e = new Error(p.erro); e.status = 502; throw e; } return p; }));
 router.put('/marketing/horarios', tratarMk(req => { social.salvarHorarios(req.body || {}); return marketingSemana(Date.now()); }));
+router.post('/marketing/pecas/:id/legenda', tratarMk(req => { const p = lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(req.params.id)); if (!p) { const e = new Error('Peça não encontrada.'); e.status = 404; throw e; } if (p.canal !== 'feed') { const e = new Error('Stories não têm legenda.'); e.status = 400; throw e; } const l = legendaRica(p, ctaDe(p.legenda)); if (p.status !== 'postado') db.prepare('UPDATE mkt_pecas SET legenda = ? WHERE id = ?').run(l, p.id); return { legenda: l }; }));
 router.post('/marketing/relatorio', (req, res) => res.json(turnoMarketing(Date.now(), { avisar: false })));
 router.post('/conteudo/gerar', (req, res) => res.json(gerarSemana(Date.now(), { forcar: true })));
 router.put('/conteudo/:id', (req, res) => {
@@ -607,4 +629,4 @@ router.put('/conteudo/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, tick, marketingSemana, copyVideo, pecasDoDia, montarPeca, revisar, refazerPeca, metricasMkt, turnoMarketing, cronograma, resumo, controller, resumoFin, nomes, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };
+module.exports = { router, tick, legendaRica, marketingSemana, copyVideo, pecasDoDia, montarPeca, revisar, refazerPeca, metricasMkt, turnoMarketing, cronograma, resumo, controller, resumoFin, nomes, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };
