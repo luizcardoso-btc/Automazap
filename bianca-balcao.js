@@ -63,7 +63,7 @@ function textos() {
     // Confirmação SEM preço (preço só se o cliente perguntar): benefícios do que ainda não foi explicado + o que vem a seguir
     dados: (q, mods, jaExplicados = []) => { const novos = mods.filter(m => !jaExplicados.includes(m)), oque = q === 2 ? (mods[0] === mods[1] ? `2 placas do *${mods[0]}*` : `2 placas (*${mods.join('* + *')}*)`) : `1 placa do *${mods[0]}*`;
       return [`Perfeito! ✅ Anotado: ${oque}.${novos.length ? `\n\n${beneficios(novos)}` : ''}\n\nO ${dono} leva até você já configurada, *sem taxa de entrega*, e te mostra funcionando na hora.`,
-        `Pra eu agendar, me manda:\n• o *nome da empresa* como aparece no Google\n• o *endereço* (rua e bairro)\n• o melhor *dia e horário* pro ${dono} passar aí`]; },
+        `${q === 1 ? 'Se quiser 2 placas, é só me falar: levando 2 você ganha desconto. 😉\n\n' : ''}Pra eu agendar, me manda:\n• o *nome da empresa* como aparece no Google\n• o *endereço* (rua e bairro)\n• o melhor *dia e horário* pro ${dono} passar aí`]; },
     modelos: () => [`Temos estes modelos:\n${LISTA_MODELOS}\n\nO ${dono} leva todos pra você ver na hora da entrega. Você prefere a do *Google* ou outro?`],
     dadosOk: () => [`Anotado! ✅ O ${dono} vai te confirmar por aqui o dia e o horário. Ele leva a placa já configurada, sem taxa de entrega, e você só paga na hora, depois de ver funcionando. Obrigada pela confiança! 💙`],
     atacado: () => [`Que legal! Para revenda (atacado), quem cuida é o ${dono} pessoalmente, com valor por quantidade.`, 'Me conta: quantas placas você está pensando e de qual cidade você é?'],
@@ -130,7 +130,7 @@ function decidir(e, textoIn, nome) {
     const q = qtdDe(t), tudo = { ...d, modelos: mods };
     if (q >= 3 || mods.length >= 3) { const n = Math.max(q, mods.length); return R(T.muitas(n), 'humano', 'varejo', { ...tudo, qtd: n }, `🔥 VAREJO: quer ${n} placas${mods.length ? ' (' + mods.join(', ') + ')' : ''}. Faça um preço especial (não é atacado)`); }
     if (mods.length === 2 || (mods.length && q)) { const n = mods.length === 2 ? 2 : q, m = n === 2 && mods.length === 1 ? [mods[0], mods[0]] : mods; return R(T.dados(n, m), 'dados', 'varejo', { ...tudo, modelos: m, qtd: n }); }
-    if (mods.length === 1) return R(T.qtd(mods), 'qtd', 'varejo', tudo);
+    if (mods.length === 1) return R(T.dados(1, mods), 'dados', 'varejo', { ...tudo, qtd: 1 });   // escolheu: já pede os dados da empresa
     if (extra === 'preco') return R(T.preco('E qual modelo você prefere: *Google*, *Instagram*, *WhatsApp* ou *Pix*?'), etapa);
     if (extra) return R(extra, etapa);
     if (/modelo|tipo|quais|opc/.test(t)) return R(T.modelos(), etapa);
@@ -159,6 +159,12 @@ function decidir(e, textoIn, nome) {
     if (extra === 'preco') return R(T.preco('E a segunda placa, é do mesmo modelo ou de outro?'), 'segundo');
     if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'varejo', d, '❓ quer 2 placas, mas não entendi o modelo da segunda');
     return { ...R(T.segundo(), 'segundo'), tentativas: 1 };
+  }
+  if (etapa === 'dados') {
+    const q = qtdDe(t), curta = t.length <= 50 && !/\b(rua|av|avenida|travessa|bairro|n[ºo°]?\s?\d)/.test(t);
+    if (curta && q >= 3) return R(T.muitas(q), 'humano', 'varejo', { ...d, qtd: q }, `🔥 VAREJO: quer ${q} placas (${(d.modelos || []).join(', ')}). Faça um preço especial (não é atacado)`);
+    if (curta && q === 2 && (d.qtd || 1) === 1) { const m = modelosDe(t).find(x => x !== d.modelos[0]) || d.modelos[0], m2 = [d.modelos[0], m]; return R(T.dados(2, m2, d.modelos), 'dados', 'varejo', { ...d, modelos: m2, qtd: 2 }); }
+    if (extra === 'preco') return R(T.preco('Agora é só me mandar o nome da empresa, o endereço e o melhor dia e horário. 🙂'), 'dados');
   }
   if (etapa === 'dados') return R(T.dadosOk(), 'humano', 'varejo', { ...d, dados: String(textoIn).slice(0, 300) }, `🧾 PEDIDO VAREJO: ${d.qtd || 1} placa(s)${(d.modelos || []).length ? ' (' + d.modelos.join(', ') + ')' : ''}. Confirme dia e horário da entrega (pagamento na entrega)`);
   return R(null, 'humano', tipo, d, '❓ mandou algo que eu não sei responder');
