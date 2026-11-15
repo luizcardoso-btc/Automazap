@@ -106,6 +106,7 @@ app.post('/integracao/parear', express.json({ limit: '10kb' }), (req, res) => {
 });
 
 // ---------- Painel e API ----------
+require('./prospeccao.js'); require('./bianca.js');   // garante as colunas da prospecção e da Bianca logo na subida
 app.use('/api/predio/artes', express.json({ limit: '15mb' }));
 app.use('/api/predio/marketing/pecas', express.json({ limit: '15mb' }));   // imagens que o CEO envia para o Renan publicar   // imagens do Theo para o banco de artes do NexTap
 app.use(express.json({ limit: '1mb' }));

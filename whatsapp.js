@@ -130,14 +130,14 @@ async function espaçar() {
   ultimoEnvio = agora();
 }
 
-async function enviar(contato, { texto = '', midia = null }, origem = 'painel') {
+async function enviar(contato, { texto = '', midia = null, digitando = 0 }, origem = 'painel') {
   const numero = contato.grupo ? contato.jid : numeroDoJid(contato.jid);
   await espaçar();
   let r;
   try {
     r = midia
       ? await evo('POST', '/message/sendMedia/{i}', { number: numero, mediatype: /\.(mp4|mov)(\?|$)/i.test(midia) ? 'video' : 'image', media: midia, caption: texto })
-      : await evo('POST', '/message/sendText/{i}', { number: numero, text: texto });
+      : await evo('POST', '/message/sendText/{i}', digitando ? { number: numero, text: texto, delay: digitando } : { number: numero, text: texto });
   } catch (e) {
     registrar(contato.id, 'out', origem, texto, { midia, erro: e.message });
     throw e;
@@ -413,10 +413,10 @@ async function temWhatsapp(numero) {
   try { const r = await evo('POST', '/chat/whatsappNumbers/{i}', { numbers: [numero] }); const x = Array.isArray(r) ? r[0] : r; return x && typeof x.exists === 'boolean' ? { existe: x.exists, jid: x.jid || '' } : null; }
   catch (e) { return null; }
 }
-async function enviarNumero(numero, texto, origem = 'bianca') {
+async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   const c = contatoPorJid(jidDe(numero), {});
   if (ehNovo(c) && novosHoje() >= limiteNovos()) { const e = new Error('Limite diário de primeiras mensagens do WhatsApp atingido.'); e.limite = true; throw e; }
-  await enviar(c, { texto }, origem);
+  await enviar(c, { texto, digitando }, origem);
   return c;
 }
 

@@ -307,6 +307,7 @@ const REGRAS = {
   atendente_menu: v => v === '0' || v === '1',
   vendedor_nome: v => v.length >= 1 && v.length <= 40,
   bianca_auto: v => v === '0' || v === '1',
+  bianca_conversa: v => v === '0' || v === '1',
   bianca_meta: v => /^\d+$/.test(v) && v >= 1 && v <= 20,
   ceo_whatsapp: v => v === '' || !!require('./whatsapp.js').normalizarNumero(v),
   cidade: v => v.length >= 2 && v.length <= 60,

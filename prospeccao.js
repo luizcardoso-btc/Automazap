@@ -271,7 +271,7 @@ function campos(b) {
 const LISTA = `SELECT p.*, (SELECT COUNT(*) FROM prospect_hist h WHERE h.prospect_id = p.id) AS contatos,
   (SELECT MAX(h.criado_em) FROM prospect_hist h WHERE h.prospect_id = p.id AND h.tipo <> 'nota') AS ultimo_contato FROM prospects p`;
 
-router.get('/', (req, res) => res.json(db.prepare(LISTA + ' ORDER BY p.atualizado_em DESC, p.id DESC LIMIT 3000').all()));
+router.get('/', (req, res) => { const B = require('./bianca.js'), nomes = Object.fromEntries(B.ETAPAS.map(x => [x[0], x[1]])); res.json(db.prepare(LISTA + ' ORDER BY p.atualizado_em DESC, p.id DESC LIMIT 3000').all().map(p => { const e = B.etapaDe(p); return { ...p, raiox: p.raiox ? 1 : 0, etapa_id: e, etapa_nome: nomes[e] || e }; })); });
 
 router.post('/', (req, res) => {
   const v = campos(req.body); if (v.erro) return res.status(400).json({ error: v.erro });
@@ -423,7 +423,7 @@ function roteiro(p) {
         { titulo: 'Confirmar o pedido', texto: `Fechado! Me confirma o nome que vai no pedido e o melhor WhatsApp. Te mando o link de pagamento agora e a placa chega pronta pra usar.` },
         { titulo: 'Depois de fechar', texto: 'Você conhece outro dono de negócio aqui perto que também ia querer mais avaliações? Se me passar o contato, eu falo com ele(a) citando você.' } ] } ] };
 }
-const ficha = id => { const p = db.prepare(LISTA + ' WHERE p.id = ?').get(id); if (!p) return null; try { p.raiox = p.raiox ? JSON.parse(p.raiox) : null; } catch (e) { p.raiox = null; } p.roteiro = roteiro(p); p.historico = db.prepare('SELECT id, tipo, texto, criado_em FROM prospect_hist WHERE prospect_id = ? ORDER BY id DESC LIMIT 200').all(p.id); return p; };
+const ficha = id => { const p = db.prepare(LISTA + ' WHERE p.id = ?').get(id); if (!p) return null; { const B = require('./bianca.js'), e = B.etapaDe(p), d = B.ETAPAS.find(x => x[0] === e); p.etapa_atual = { id: e, nome: d ? d[1] : e, desc: d ? d[2] : '' }; } try { p.raiox = p.raiox ? JSON.parse(p.raiox) : null; } catch (e) { p.raiox = null; } p.roteiro = roteiro(p); p.historico = db.prepare('SELECT id, tipo, texto, criado_em FROM prospect_hist WHERE prospect_id = ? ORDER BY id DESC LIMIT 200').all(p.id); return p; };
 router.get('/:id/roteiro', (req, res) => { const p = ficha(req.params.id); if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' }); res.json(p.roteiro); });
 
 router.post('/:id/contato', (req, res) => {

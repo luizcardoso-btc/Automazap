@@ -1190,7 +1190,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.strictEqual((await B.tick(Date.parse('2026-12-20T10:00:00-03:00'))).motivo, 'fora do horário');   // domingo
       assert.strictEqual((await B.tick(seg('08:10'))).motivo, 'fora do horário'); assert.ok(B.naJanela(seg('09:00')) && !B.naJanela(seg('17:30')) && B.naJanela(Date.parse('2026-12-19T11:00:00-03:00')) && !B.naJanela(Date.parse('2026-12-19T12:30:00-03:00')));
       const r1 = await B.tick(seg('09:05'), { sorteio: () => 0 }); assert.ok(r1.enviado && r1.passo === 'd0'); assert.strictEqual(env.length, 1);
-      assert.ok(env[0].number.startsWith('55759881100') && env[0].text.includes('Auto ') && env[0].text.includes('é só me avisar que eu não escrevo mais'));
+      assert.ok(env[0].number.startsWith('55759881100') && env[0].text.includes('Auto ') && env[0].text.includes('assistente da NexTap') && env[0].text.includes('é só me dizer que eu não escrevo mais'));
       assert.strictEqual((await B.tick(seg('09:07'))).motivo, 'intervalo');                                   // 5 min mínimos
       const r2 = await B.tick(seg('09:11'), { sorteio: () => 0 }); assert.ok(r2.enviado); assert.strictEqual(env.length, 2);
       const r3 = await B.tick(seg('09:30'), { sorteio: () => 0 }); assert.ok(!r3.enviado); assert.strictEqual(env.length, 2);   // meta de 2 novas atingida
@@ -1201,13 +1201,28 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       const ab = db.prepare("SELECT id, status, prox_contato FROM prospects WHERE id IN (?, ?, ?) ORDER BY id").all(ids[0], ids[1], ids[3]); assert.ok(ab.every(x => x.status === 'abordado' && x.prox_contato === '2026-12-22'));
       const pa = B.painel(seg('10:00')); assert.deepStrictEqual([pa.ligada, pa.novos_hoje, pa.enviados_hoje], [true, 3, 3]);
       // respostas
-      assert.deepStrictEqual(B.respondeu(ids[0], 'Oi, pode mandar o vídeo'), { parar: false }); assert.deepStrictEqual(db.prepare('SELECT status, prox_contato FROM prospects WHERE id = ?').get(ids[0]), { status: 'interessado', prox_contato: null });
-      assert.deepStrictEqual(B.respondeu(ids[1], 'Não tenho interesse, obrigado'), { parar: true }); const pp = db.prepare('SELECT status, prox_contato, motivo_perda FROM prospects WHERE id = ?').get(ids[1]); assert.deepStrictEqual([pp.status, pp.prox_contato], ['perdido', null]); assert.ok(pp.motivo_perda.includes('não receber'));
+      const q0 = db.prepare('SELECT COUNT(*) AS n FROM bianca_respostas WHERE feito = 0').get().n;
+      const rs = B.respondeu(ids[0], 'Oi, pode mandar o vídeo', null, seg('10:00'), { sorteio: () => 0 }); assert.deepStrictEqual([rs.intencao, rs.etapa, rs.responde], ['positivo', 'explicou', true]);
+      assert.deepStrictEqual(db.prepare('SELECT status, prox_contato, etapa FROM prospects WHERE id = ?').get(ids[0]), { status: 'interessado', prox_contato: null, etapa: 'explicou' });
+      assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM bianca_respostas WHERE feito = 0').get().n, q0 + 1);
+      assert.strictEqual(await B.responder(seg('10:00')), 0);                                                // ainda "digitando": sai 1 min depois
+      const antes = env.length; assert.strictEqual(await B.responder(seg('10:02')), 2); assert.ok(env[antes].text.includes('acrílico') && env[antes].delay > 1000 && env[antes + 1].text.includes('valor'));
+      // segue a conversa sozinha: preço → compra (avisa você) ; pergunta fora do roteiro vai para você sem resposta automática
+      const r6 = B.respondeu(ids[0], 'quanto custa?', null, seg('10:05'), { sorteio: () => 0 }); assert.deepStrictEqual([r6.intencao, r6.etapa], ['preco', 'preco']); await B.responder(seg('10:07')); assert.ok(env[env.length - 2].text.includes('R$ ') && env[env.length - 1].text.includes('azul ou'));
+      const r7 = B.respondeu(ids[0], 'quero a preta', null, seg('10:10'), { sorteio: () => 0 }); assert.deepStrictEqual([r7.intencao, r7.etapa, r7.responde], ['compra', 'fechamento', true]); await B.responder(seg('10:12')); assert.ok(env[env.length - 1].text.includes('link de pagamento'));
+      assert.strictEqual(db.prepare('SELECT status FROM prospects WHERE id = ?').get(ids[0]).status, 'orcamento');
+      const n8 = env.length, r8 = B.respondeu(ids[0], 'entregam em Salvador amanhã cedo?', null, seg('10:15')); assert.deepStrictEqual([r8.intencao, r8.responde, r8.etapa], ['', false, 'humano']); await B.responder(seg('10:20')); assert.strictEqual(env.length, n8);
+      const r9 = B.respondeu(ids[3], 'isso é um robô?', null, seg('10:30'), { sorteio: () => 0 }); assert.deepStrictEqual([r9.intencao, r9.responde, r9.etapa], ['robo', true, 'abertura']); await B.responder(seg('10:32')); assert.ok(env[env.length - 1].text.includes('assistente virtual'));
+      db.prepare("UPDATE prospects SET status = 'abordado', prox_contato = '2026-12-22', etapa = 'abertura', auto_n = 0, ultima_intencao = '' WHERE id = ?").run(ids[3]);
+      const mp = B.mapa(ids[0]); assert.strictEqual(mp.etapas.find(e => e.id === 'humano').empresas[0].id, ids[0]); assert.ok(mp.textos.abertura.includes('Auto 1') && mp.textos.preco.includes('R$'));
+      assert.strictEqual((await chamar('GET', '/api/predio/prospectora/mapa', { headers: H })).json.etapas.length, 10);
+      const li = (await chamar('GET', '/api/prospeccao', { headers: H })).json.find(x => x.id === ids[0]); assert.deepStrictEqual([li.etapa_id, li.etapa_nome], ['humano', 'Com você']);
+      assert.strictEqual(B.respondeu(ids[1], 'Não tenho interesse, obrigado', null, seg('10:40'), { sorteio: () => 0 }).parar, true); await B.responder(seg('10:42')); assert.ok(env[env.length - 1].text.includes('não escrevo mais')); const pp = db.prepare('SELECT status, prox_contato, motivo_perda FROM prospects WHERE id = ?').get(ids[1]); assert.deepStrictEqual([pp.status, pp.prox_contato], ['perdido', null]); assert.ok(pp.motivo_perda.includes('não receber'));
       // dia seguinte: só quem não respondeu recebe o retorno do dia 1
       setSetting('bianca_prox', '0'); setSetting('bianca_mapeou_n_2026-12-22', '9');
-      const d1 = await B.tick(Date.parse('2026-12-22T09:10:00-03:00'), { sorteio: () => 0 }); assert.ok(d1.enviado && d1.passo === 'd1' && d1.id === ids[3]); assert.ok(!env[3].text.includes('não escrevo mais'));
+      const d1 = await B.tick(Date.parse('2026-12-22T09:10:00-03:00'), { sorteio: () => 0 }); assert.ok(d1.enviado && d1.passo === 'd1' && d1.id === ids[3]); assert.ok(!env[env.length - 1].text.includes('não escrevo mais') && env[env.length - 1].text.includes('Auto 4'));
       assert.ok(!(await B.tick(Date.parse('2026-12-22T09:30:00-03:00'), { sorteio: () => 0 })).enviado);
-    } finally { global.fetch = fo; const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('EVOLUTION_URL', eu); v('EVOLUTION_API_KEY', ek); v('WA_GAP_MS', gap); setSetting('bianca_auto', '0'); db.prepare("DELETE FROM prospects WHERE origem = 'bianca'").run(); }
+    } finally { global.fetch = fo; const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('EVOLUTION_URL', eu); v('EVOLUTION_API_KEY', ek); v('WA_GAP_MS', gap); setSetting('bianca_auto', '0'); db.prepare("DELETE FROM prospects WHERE origem = 'bianca'").run(); db.prepare('DELETE FROM bianca_respostas').run(); }
     assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { bianca_meta: '99' }, headers: H })).status, 400);
     assert.strictEqual((await chamar('GET', '/api/predio/prospectora/auto', { headers: H })).json.ligada, false);
   });

@@ -51,24 +51,145 @@ async function mapear(t0 = Date.now()) {
   return { nicho: nicho.nome, fonte, encontradas: achados.length, novos, comCel };
 }
 
-const PARAR = /\b(n[aã]o (tenho|temos|h[aá]) interesse|sem interesse|n[aã]o quero|n[aã]o me (mande|envie|chame)|pare|para de|parar|me tir[ae]|remov|descadastr|stop|spam|bloque)/i;
-// A empresa respondeu: os retornos automáticos param. Pedido de parar encerra de vez; qualquer outra resposta vira "interessado" e avisa você.
-function respondeu(prospectId, texto, contato) {
+// ======================= V2: conversa autônoma e humanizada =======================
+// A Bianca acompanha cada empresa por etapa da conversa e responde sozinha o que é previsível (interesse, preço, compra, objeções comuns).
+// O que ela não reconhece vai para você: ela nunca chuta resposta. Se perguntarem, diz que é a assistente virtual da NexTap.
+{ const tem = c => db.prepare('PRAGMA table_info(prospects)').all().some(x => x.name === c);
+  for (const [c, def] of [['etapa', "TEXT NOT NULL DEFAULT ''"], ['etapa_em', 'INTEGER'], ['auto_n', 'INTEGER NOT NULL DEFAULT 0'], ['ultima_intencao', "TEXT NOT NULL DEFAULT ''"]]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`);
+  db.exec('CREATE TABLE IF NOT EXISTS bianca_respostas (id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER NOT NULL, textos TEXT NOT NULL, enviar_em INTEGER NOT NULL, feito INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL)'); }
+const ETAPAS = [['fila', 'Na fila', 'Mapeada, esperando a vez'], ['abertura', 'Abertura enviada', 'Primeira mensagem enviada, sem resposta ainda'], ['retorno', 'Em retorno', 'Retornos dos dias 1, 3 e 7, sem resposta'],
+  ['explicou', 'Explicação enviada', 'Respondeu com interesse e recebeu como funciona'], ['preco', 'Preço enviado', 'Perguntou o valor ou pediu para seguir'], ['objecao', 'Tratando objeção', 'Levantou uma objeção e recebeu a resposta'],
+  ['fechamento', 'Quer fechar', 'Disse que quer: falta você mandar o pagamento'], ['humano', 'Com você', 'Algo que eu não sei responder, ou pediu uma pessoa'], ['fechado', 'Fechado', 'Venda feita'], ['perdido', 'Encerrado', 'Não quis, pediu para parar ou não respondeu']];
+const etapaDe = p => (p.status === 'fechado' ? 'fechado' : p.status === 'perdido' ? 'perdido' : p.etapa || ({ novo: 'fila', abordado: 'abertura', interessado: 'humano', orcamento: 'preco' })[p.status] || 'fila');
+const setEtapa = (id, etapa, t0 = Date.now()) => db.prepare('UPDATE prospects SET etapa = ?, etapa_em = ? WHERE id = ?').run(etapa, t0, id);
+const conversa = () => getSetting('bianca_conversa') !== '0';
+const semAcento = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+
+// Intenção da resposta (ordem importa). Devolve '' quando não reconhece: aí é com você.
+const RX = {
+  parar: /(nao (tenho|temos|ha) interesse|sem interesse|nao me (mande|envie|chame|perturbe|escreva)|\bpare\b|para de|parar de|me tira|remov|descadastr|\bstop\b|\bspam\b|bloque|denunci)/,
+  robo: /(\brobo\b|\bbot\b|automatic|e uma pessoa|pessoa de verdade|humano mesmo|inteligencia artificial|\bia\b\??$)/,
+  origem: /((como|onde|quem).{0,25}(conseguiu|pegou|achou|passou|deu).{0,25}(numero|contato|telefone|whats|zap)|quem e voce|quem ta falando|de onde (voce|vc) (e|fala))/,
+  dono: /(nao sou (o|a) (dono|dona|responsavel|proprietari)|falar com (o|a) (dono|dona|gerente|responsavel|proprietari)|so (com )?(o|a) (dono|dona)|sou (so )?funcionari)/,
+  humano: /(falar com (alguem|uma pessoa|atendente|voce|vc)|me liga|pode (me )?ligar|ligar pra mim|atendente)/,
+  preco: /(quanto|\bvalor\b|preco|custa|custo|r\$|mensalidade|tem que pagar|e pago)/,
+  compra: /(quero (uma|duas|a |sim|fechar|comprar|pedir|essa)|vou querer|\bfechado\b|pode (separar|fazer o pedido)|como (faco|faz|eu faco) (pra|para) (comprar|pedir|pagar)|\bpix\b|\bazul\b|\bpreta\b|manda o link|link de pagamento|quero comprar)/,
+  caro: /(\bcaro\b|sem dinheiro|sem grana|apertad|nao tenho como pagar|desconto|mais barato)/,
+  pensar: /(vou pensar|vou ver|vou analisar|depois (eu )?(vejo|falo|te falo|respondo|te chamo)|mais tarde|outra hora|semana que vem|mes que vem|agora nao da)/,
+  ja_tenho: /(ja tenho|ja temos|ja uso|ja usamos|muitas? avaliac|bastante avaliac)/,
+  tempo: /(sem tempo|ocupad|correria|corrido|agora nao posso|to atendendo|estou atendendo)/,
+  positivo: /(^(sim|pode|claro|ok|okay|blz|beleza|manda|opa|oi|ola|oie|bom dia|boa tarde|boa noite|show|top|legal|interessante|pode sim|pode mandar|manda ai|tenho sim|\?+)\b|como funciona|me explica|quero (ver|saber|entender)|pode mandar|tenho interesse|interessad|o que e isso|do que se trata)/,
+  nao: /^(nao|n|nao obrigad\w*|nao preciso|nao quero|agora nao|obrigad\w*,? nao|nao,? obrigad\w*)\b/,
+};
+function intencao(texto, etapa) {
+  const t = semAcento(texto);
+  if (!t) return '';
+  for (const k of ['parar', 'robo', 'origem', 'dono', 'humano']) if (RX[k].test(t)) return k;
+  const inicio = ['fila', 'abertura', 'retorno'].includes(etapa);
+  if (inicio && RX.positivo.test(t) && !RX.preco.test(t)) return 'positivo';
+  for (const k of ['compra', 'preco', 'caro', 'pensar', 'ja_tenho', 'tempo']) if (RX[k].test(t)) return k;
+  if (RX.nao.test(t)) return 'nao';
+  if (RX.positivo.test(t)) return etapa === 'preco' && /^(sim|pode|claro|ok|blz|beleza|quero)\b/.test(t) ? 'compra' : 'positivo';
+  return '';
+}
+
+// Textos: 2 ou 3 jeitos de dizer a mesma coisa (cada empresa recebe sempre o mesmo jeito), saudação pela hora e nome do dono quando há.
+const precoBR = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return (v > 0 ? v : 80).toFixed(2).replace('.', ','); };
+function vars(p, t0 = Date.now()) {
+  const P = require('./predio.js'), h = local(t0).getUTCHours(), nome = String(p.contato || '').trim().split(' ')[0];
+  return { saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR(),
+    ver: String(getSetting('video_demo_url') || '').trim() || String(getSetting('site_url') || '').trim(), temVideo: !!String(getSetting('video_demo_url') || '').trim() };
+}
+const escolher = (l, p) => l[(Number(p.id) || 0) % l.length];
+const T = {
+  abertura: [
+    v => `${v.saud}${v.cnome}! Aqui é a ${v.eu}, assistente da NexTap, aqui de ${v.cidade}. 🙂\n\n${v.dado}\n\nPosso te mostrar em 15 segundos um jeito simples de aumentar isso?`,
+    v => `${v.saud}${v.cnome}, tudo bem? Sou a ${v.eu}, da NexTap (${v.cidade}).\n\n${v.dado}\n\nTenho uma ideia rápida pra isso. Posso te mostrar?`,
+    v => `${v.saud}${v.cnome}! ${v.eu} aqui, da NexTap. Estava olhando os negócios de ${v.cidade} no Google e parei no perfil de vocês.\n\n${v.dado}\n\nTe mando um vídeo de 15 segundinhos mostrando como melhorar?`],
+  aviso: () => 'Se não for do seu interesse, é só me dizer que eu não escrevo mais.',
+  d1: [v => `${v.saud}${v.cnome}! Passando só pra saber se você conseguiu ver a minha mensagem. 🙂\n\nÉ coisa rápida: mostro como cada cliente satisfeito avalia a ${v.empresa} em 5 segundos. Posso mandar?`,
+    v => `Oi${v.cnome}! Sei que o dia é corrido. Fica a pergunta: posso te mandar um vídeo curtinho mostrando como aumentar as avaliações da ${v.empresa}?`],
+  d3: [v => `${v.saud}${v.cnome}! Última tentativa por enquanto, pra não incomodar. 🙂\n\nSe fizer sentido ter mais avaliações no Google, me responde com um "pode" que eu te explico em 1 minuto.`,
+    v => `Oi${v.cnome}! Consigo deixar a placa da ${v.empresa} configurada ainda esta semana. Quer que eu te mostre como funciona?`],
+  d7: [v => `Oi${v.cnome}! Não vou mais te escrever por aqui. Quando quiser mais avaliações no Google para a ${v.empresa}, é só me chamar. Bom trabalho! 🙌`],
+  positivo: [v => [`Que bom! É bem simples: é uma plaquinha de acrílico que fica no balcão. O cliente aproxima o celular (ou aponta a câmera) e já cai direto na tela de avaliar a ${v.empresa} no Google. Sem aplicativo, leva uns 5 segundos.`, `${v.temVideo ? 'Olha funcionando' : 'Dá pra ver os modelos aqui'}: ${v.ver}\n\nQuer que eu te passe o valor?`],
+    v => [`Show! Funciona assim: uma placa de acrílico no balcão. O cliente encosta o celular nela e a tela de avaliação da ${v.empresa} abre na hora, sem baixar nada.`, `${v.temVideo ? 'Dá uma olhada' : 'Os modelos estão aqui'}: ${v.ver}\n\nPosso te dizer quanto custa?`]],
+  preco: [v => [`Ela sai por R$ ${v.preco}, valor único, sem mensalidade. Já vai configurada com o link da ${v.empresa}: chega pronta, é só colocar no balcão.`, 'Prefere a azul ou a preta?'],
+    v => [`É R$ ${v.preco} uma vez só, sem mensalidade, e eu já entrego configurada para a ${v.empresa}.`, 'Qual combina mais com o espaço de vocês: azul ou preta?']],
+  compra: [v => [`Perfeito! 🙌 Vou separar a sua.`, `Me confirma o nome que vai no pedido e o endereço de entrega? O ${v.dono} já te manda o link de pagamento por aqui.`]],
+  caro: [v => [`Entendo! Pensa assim: a placa trabalha todo dia, sem mensalidade, e uma única avaliação boa já pode trazer um cliente novo. É um valor único de R$ ${v.preco}.`, 'Quer começar com uma só, no balcão?']],
+  pensar: [v => ['Claro, sem pressa! 🙂 Só pra eu te ajudar: ficou alguma dúvida de como funciona, ou é mais a questão do valor?']],
+  ja_tenho: [v => [`Que ótimo, isso é raro! O ponto agora é manter o ritmo: o Google dá mais peso para avaliação recente, e a placa mantém isso no automático.`, 'Quer ver como ela fica no balcão?']],
+  tempo: [v => [`Tranquilo, sei como é! Deixo aqui pra você ver quando puder: ${v.ver}`, 'Qualquer coisa é só me chamar. 🙂']],
+  dono: [v => ['Sem problema! Qual o melhor horário pra falar com o responsável? Ou, se preferir, me passa o WhatsApp dele(a) que eu mando o vídeo direto.']],
+  humano: [v => [`Claro! Já avisei o ${v.dono}, ele te responde por aqui. 🙂`]],
+  robo: [v => [`Boa pergunta! 🙂 Sou a assistente virtual da NexTap e cuido do primeiro contato. Se preferir falar direto com o ${v.dono}, é só dizer que ele assume a conversa.`]],
+  origem: [v => [`Sou a ${v.eu}, assistente da NexTap, aqui de ${v.cidade}. Peguei o contato no perfil público da ${v.empresa} no Google.`, 'Se preferir que eu não escreva mais, é só me avisar, sem problema nenhum.']],
+  nao: [v => ['Sem problema, obrigada pela atenção! Se um dia quiser mais avaliações no Google, é só me chamar. Bom trabalho por aí! 🙌']],
+  parar: [v => ['Combinado, não escrevo mais. Desculpa o incômodo e bom trabalho!']],
+};
+const texto = (chave, p, t0) => { const r = escolher(T[chave], p)(vars(p, t0)); return Array.isArray(r) ? r : [r]; };
+// Mensagem de saída (abertura e retornos) da abordagem automática
+function saida(p, passo, t0 = Date.now()) { const [m] = texto(passo === 'd0' ? 'abertura' : passo, p, t0); return passo === 'd0' ? m + '\n\n' + T.aviso() : m; }
+
+const DEPOIS = { positivo: 'explicou', preco: 'preco', compra: 'fechamento', caro: 'objecao', pensar: 'objecao', ja_tenho: 'objecao', tempo: 'objecao', dono: 'humano', humano: 'humano', robo: null, origem: null, nao: 'perdido', parar: 'perdido' };
+const AVISAR = { compra: '🔥 quer fechar', dono: '👤 não é o dono (pediu contato do responsável)', humano: '🙋 pediu para falar com uma pessoa', '': '❓ mandou algo que eu não sei responder' };
+// A empresa respondeu. Retornos automáticos param sempre. Com a conversa autônoma ligada, a resposta entra na fila com atraso de gente (1 a 3 min).
+function respondeu(prospectId, textoIn, contato, t0 = Date.now(), { sorteio = Math.random } = {}) {
   const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(prospectId);
   if (!p || ['fechado', 'perdido'].includes(p.status)) return null;
-  const parar = PARAR.test(String(texto || ''));
-  db.prepare("UPDATE prospects SET status = ?, prox_contato = NULL, motivo_perda = ?, atualizado_em = datetime('now') WHERE id = ?").run(parar ? 'perdido' : (['novo', 'abordado'].includes(p.status) ? 'interessado' : p.status), parar ? 'Pediu para não receber mensagens' : '', p.id);
-  if (!parar && ligada()) {
-    const N = require('./predio.js').nomes();
-    require('./whatsapp.js').avisarDono(`🔥 *${N.prospectora}: ${p.nome} respondeu*\n\n"${String(texto).slice(0, 300)}"\n\nA conversa agora é sua: abra o WhatsApp do painel e use o roteiro (Meio e Fechamento) da ficha.`).catch(() => {});
+  const W = require('./whatsapp.js'), P = require('./predio.js'), etapa = etapaDe(p), k = intencao(textoIn, etapa);
+  const auto = ligada() && conversa();
+  // Você entrou na conversa (mensagem pelo painel ou pelo celular depois da última minha)? Então é sua.
+  const c = contato && contato.id ? contato : db.prepare('SELECT * FROM wa_contatos WHERE prospect_id = ? ORDER BY id DESC LIMIT 1').get(p.id);
+  const ultOut = c ? db.prepare("SELECT origem FROM wa_mensagens WHERE contato_id = ? AND direcao = 'out' ORDER BY id DESC LIMIT 1").get(c.id) : null;
+  const tua = !!(ultOut && ultOut.origem !== 'bianca') || etapa === 'humano' || etapa === 'fechamento';
+  const repetiu = k && k === p.ultima_intencao && !['positivo', 'preco'].includes(k), limite = p.auto_n >= 6;
+  const final = k === 'parar' || k === 'nao';
+  const responde = auto && k && (final || (!tua && !repetiu && !limite));
+  const nova = final ? 'perdido' : responde ? (DEPOIS[k] || etapa) : 'humano';
+  db.prepare("UPDATE prospects SET status = ?, prox_contato = ?, motivo_perda = ?, etapa = ?, etapa_em = ?, ultima_intencao = ?, auto_n = auto_n + ?, atualizado_em = datetime('now') WHERE id = ?")
+    .run(final ? 'perdido' : nova === 'preco' || nova === 'fechamento' ? 'orcamento' : (['novo', 'abordado'].includes(p.status) ? 'interessado' : p.status),
+      k === 'pensar' && responde ? dataStr(t0 + 2 * DIA) : null, k === 'parar' ? 'Pediu para não receber mensagens' : k === 'nao' ? 'Sem interesse agora' : '', nova, t0, k || '', responde ? 1 : 0, p.id);
+  db.prepare('UPDATE bianca_respostas SET feito = 2 WHERE prospect_id = ? AND feito = 0').run(p.id);   // resposta nova substitui a que ainda não saiu
+  if (responde) db.prepare('INSERT INTO bianca_respostas (prospect_id, textos, enviar_em, criado_em) VALUES (?, ?, ?, ?)').run(p.id, JSON.stringify(texto(k, p, t0)), t0 + Math.round((60 + sorteio() * 110) * 1000), t0);
+  const motivo = !responde || AVISAR[k] ? (responde ? AVISAR[k] : (k && AVISAR[k]) || (tua ? '💬 respondeu (a conversa já é sua)' : repetiu || limite ? '🔁 insistiu no mesmo ponto: melhor você assumir' : AVISAR[''])) : '';
+  if (motivo && !final) {
+    W.avisarDono(`*${P.nomes().prospectora}: ${p.nome}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`).catch(() => {});
+    P.registrar('prospectora', `Com você: ${p.nome}`, `${motivo} · "${String(textoIn).slice(0, 120)}"`, { id: p.id }, t0);
   }
-  return { parar };
+  return { parar: k === 'parar', intencao: k, etapa: nova, responde: !!responde };
+}
+// Envia as respostas que já "amadureceram" (uma empresa por vez). Entre 8h e 20h30; fora disso espera a manhã.
+async function responder(t0 = Date.now()) {
+  const W = require('./whatsapp.js'), m = local(t0).getUTCHours() * 60 + local(t0).getUTCMinutes();
+  if (!W.configurado() || m < 480 || m > 1230) return 0;
+  const r = db.prepare('SELECT * FROM bianca_respostas WHERE feito = 0 AND enviar_em <= ? ORDER BY enviar_em LIMIT 1').get(t0);
+  if (!r) return 0;
+  db.prepare('UPDATE bianca_respostas SET feito = 1 WHERE id = ?').run(r.id);
+  const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(r.prospect_id), num = p && W.normalizarNumero(p.telefone);
+  if (!num) return 0;
+  let n = 0;
+  for (const t of JSON.parse(r.textos)) { try { await W.enviarNumero(num, t, 'bianca', Math.min(7000, 1200 + t.length * 35)); n++; } catch (e) { require('./predio.js').registrar('prospectora', `Falhou: ${p.nome}`, String(e.message).slice(0, 200), { id: p.id }, t0); break; } }
+  return n;
+}
+// Mapa da conversa: quantas empresas em cada etapa e o texto de cada ponto do fluxo (com os dados da empresa escolhida, se houver)
+function mapa(id, t0 = Date.now()) {
+  const todas = db.prepare('SELECT id, nome, status, etapa, etapa_em FROM prospects').all();
+  const por = {}; for (const p of todas) (por[etapaDe(p)] = por[etapaDe(p)] || []).push({ id: p.id, nome: p.nome, desde: p.etapa_em || null });
+  const ex = (id && db.prepare('SELECT * FROM prospects WHERE id = ?').get(id)) || { id: 0, nome: 'a sua empresa', contato: '', nota: 4.3, avaliacoes: 18, raiox: '' };
+  const tx = k => texto(k, ex, t0).join('\n\n');
+  return { ligada: ligada(), conversa: conversa(), empresa: ex.id ? { id: ex.id, nome: ex.nome, etapa: etapaDe(ex) } : null,
+    etapas: ETAPAS.map(([eid, nome, desc]) => ({ id: eid, nome, desc, total: (por[eid] || []).length, empresas: (por[eid] || []).sort((a, b) => (b.desde || 0) - (a.desde || 0)).slice(0, 30) })),
+    textos: { abertura: saida(ex, 'd0', t0), d1: tx('d1'), d3: tx('d3'), d7: tx('d7'), positivo: tx('positivo'), preco: tx('preco'), compra: tx('compra'), caro: tx('caro'), pensar: tx('pensar'), ja_tenho: tx('ja_tenho'), tempo: tx('tempo'), dono: tx('dono'), humano: tx('humano'), robo: tx('robo'), origem: tx('origem'), nao: tx('nao'), parar: tx('parar') } };
 }
 
 let ocupada = false;
 // Roda a cada minuto. Um envio por vez, com intervalo sorteado de 5 a 14 minutos.
 async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
-  if (ocupada || !ligada()) return { enviado: false, motivo: 'desligada' };
+  if (ocupada) return { enviado: false, motivo: 'ocupada' };
+  if (ligada()) { ocupada = true; try { await responder(t0); } catch (e) { console.error('[BIANCA] resposta:', e.message); } finally { ocupada = false; } }
+  if (!ligada()) return { enviado: false, motivo: 'desligada' };
   const W = require('./whatsapp.js'), P = require('./predio.js');
   if (!W.configurado()) return { enviado: false, motivo: 'whatsapp' };
   ocupada = true;
@@ -101,14 +222,15 @@ async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
       db.prepare("UPDATE prospects SET obs = CASE WHEN obs LIKE '%sem WhatsApp%' THEN obs ELSE trim(obs || ' [sem WhatsApp]') END, status = CASE WHEN status = 'novo' THEN 'abordado' ELSE status END, prox_contato = NULL WHERE id = ?").run(p.id);
       return { enviado: false, motivo: 'sem whatsapp' };
     }
-    const texto = item.passo === 'd0' ? item.mensagem + '\n\n(Se não fizer sentido para vocês, é só me avisar que eu não escrevo mais.)' : item.mensagem;
-    try { await W.enviarNumero(num, texto, 'bianca'); }
+    const msg = saida(p, item.passo, t0);
+    try { await W.enviarNumero(num, msg, 'bianca', Math.min(7000, 1500 + msg.length * 20)); }
     catch (e) {
       if (e.limite) { setSetting('bianca_prox', String(t0 + 3 * 3600e3)); return { enviado: false, motivo: 'limite do whatsapp' }; }
       marcar({ pulado: 'erro no envio' }); P.registrar('prospectora', `Falhou: ${p.nome}`, String(e.message).slice(0, 300), { id: p.id }, t0);
       setSetting('bianca_prox', String(t0 + 10 * 60e3)); return { enviado: false, motivo: 'erro' };
     }
-    P.contatoFeito(p.id, t0);
+    P.contatoFeito(p.id, t0); setEtapa(p.id, item.passo === 'd0' ? 'abertura' : 'retorno', t0);
+    if (item.passo === 'd7') db.prepare("UPDATE prospects SET status = 'perdido', motivo_perda = 'Sem resposta depois de 4 contatos', etapa = 'perdido' WHERE id = ? AND status = 'abordado'").run(p.id);
     P.registrar('prospectora', `Enviado: ${p.nome}`, item.tipo === 'retorno' ? 'Retorno automático pelo WhatsApp.' : 'Primeira abordagem pelo WhatsApp.', { id: p.id, passo: item.passo }, t0);
     setSetting('bianca_prox', String(t0 + Math.round((5 + sorteio() * 9) * 60e3)));
     return { enviado: true, id: p.id, passo: item.passo };
@@ -121,7 +243,8 @@ function painel(t0 = Date.now()) {
     proximo: ligada() && naJanela(t0) && prox > t0 ? new Date(prox - FUSO).toISOString().slice(11, 16) : '',
     respostas_hoje: n("SELECT COUNT(*) AS n FROM prospect_hist WHERE tipo = 'whatsapp' AND texto LIKE 'Respondeu no WhatsApp:%' AND criado_em >= ?", new Date(ini).toISOString().replace('T', ' ').slice(0, 19)),
     mapeadas_hoje: db.prepare("SELECT COALESCE(SUM(json_extract(dados, '$.novos')), 0) AS n FROM agentes_log WHERE agente = 'prospectora' AND titulo LIKE 'Mapeamento:%' AND criado_em >= ?").get(ini).n,
+    conversa: conversa(), com_voce: n("SELECT COUNT(*) AS n FROM prospects WHERE etapa IN ('humano','fechamento') AND status NOT IN ('fechado','perdido')"),
     google: !!process.env.GOOGLE_PLACES_API_KEY };
 }
 
-module.exports = { tick, mapear, respondeu, painel, naJanela, celular, ligada, meta };
+module.exports = { tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
