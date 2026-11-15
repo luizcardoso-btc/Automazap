@@ -1055,6 +1055,18 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const r2 = (await chamar('GET', '/api/predio/conteudo', { headers: H })).json; assert.strictEqual(r2.itens.length, 5);
     assert.strictEqual(r2.itens.find(c => c.id === r.itens[0].id).legenda, 'Minha legenda');
   });
+  await t('Marketing: Davi escreve roteiros dos vídeos, Nina os textos e a Lia os comandos do ChatGPT (carrossel ou post do dia)', async () => {
+    const m = (await chamar('GET', '/api/predio/marketing', { headers: H })).json;
+    assert.ok(m.videos.length >= 2); for (const v of m.videos) { assert.strictEqual(v.ganchos.length, 3); assert.ok(v.cenas.length >= 2); assert.ok(/^Comente [A-Z]/.test(v.cta), v.cta); assert.strictEqual(v.cenas[v.cenas.length - 1].tela, v.cta); }
+    assert.ok(m.videos.every(v => v.formato !== 'Carrossel')); assert.ok(m.imagens.every(c => c.titulo));
+    const h = m.hoje; assert.ok(['carrossel', 'post'].includes(h.tipo)); assert.ok(h.slides.length >= 1 && h.mestre.includes('4:5'));
+    for (const x of h.slides) { assert.ok(x.prompt.includes('"' + x.texto + '"')); assert.ok(!/^[^\p{L}"“]/u.test(x.texto), x.texto); }
+    const P = require('./predio.js'), seg = Date.parse(m.semana + 'T15:00:00-03:00'), car = P.pautaImagem(seg);
+    if (db.prepare("SELECT 1 FROM conteudo WHERE dia = ? AND formato = 'Carrossel'").get(m.semana)) { assert.strictEqual(car.tipo, 'carrossel'); assert.ok(car.slides.length >= 3); assert.ok(/^(Comente |Chama no direct)/.test(car.slides[car.slides.length - 1].texto)); }
+    const n0 = db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('imagem','copy_imagem','copy_video')").get().n;
+    P.turnoMarketing(); assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('imagem','copy_imagem','copy_video')").get().n > n0);
+    const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.strictEqual(vis.nomes.imagem, 'Lia'); assert.ok(vis.marketing.hoje.imagens >= 1);
+  });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;

@@ -27,8 +27,8 @@ function registrar(agente, titulo, texto, dados = {}, t0 = Date.now()) {
 }
 const ultimo = agente => { const r = db.prepare('SELECT * FROM agentes_log WHERE agente = ? ORDER BY id DESC LIMIT 1').get(agente); return r && { ...r, dados: JSON.parse(r.dados || '{}') }; };
 
-const PAPEIS = { gerente: 'Gerente', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Conteúdo', financeiro: 'Controller', recepcao: 'Recepcionista' };
-const NOMES0 = { gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', financeiro: 'Otávio', recepcao: 'Clara' };
+const PAPEIS = { gerente: 'Gerente', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Editor de vídeo', copy_video: 'Copywriter de vídeo', imagem: 'Designer de imagem', copy_imagem: 'Copywriter de imagem', financeiro: 'Controller', recepcao: 'Recepcionista' };
+const NOMES0 = { gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', copy_video: 'Davi', imagem: 'Lia', copy_imagem: 'Nina', financeiro: 'Otávio', recepcao: 'Clara' };
 function nomes() { let o = {}; try { o = JSON.parse(getSetting('predio_nomes') || '{}') || {}; } catch (e) { /* padrão */ } const r = {}; for (const k in NOMES0) r[k] = String(o[k] || '').trim() || NOMES0[k]; return r; }
 const quem = k => `${nomes()[k]} (${PAPEIS[k]})`;
 
@@ -187,6 +187,74 @@ function gerarSemana(t0 = Date.now(), { forcar = false } = {}) {
   return { semana, criados };
 }
 
+
+// ======================= MARKETING (2º andar): Theo + Davi (copy de vídeo) · Lia (imagem) + Nina (copy de imagem) =======================
+// Tudo sai do calendário da semana do Theo. Davi escreve os roteiros dos vídeos; Nina escreve os textos das imagens;
+// Lia transforma os textos da Nina em comandos para o ChatGPT (grátis) e guarda as imagens no banco de artes do NexTap.
+const frases = t => String(t || '').split('\n\n#')[0].replace(/\s+/g, ' ').split(/(?<=[.!?…])\s+/).map(x => x.replace(/^[^\p{L}\p{N}"“]+/u, '').trim()).filter(x => x.length > 2);
+const ctaDe = t => { const m = /Comente ((?:[A-ZÇÃÕÉÊÍÓÚ]{2,}\s?){1,4})/.exec(String(t || '')); return m ? `Comente ${m[1].trim()}` : 'Chama no direct'; };
+const linhasRoteiro = r => String(r || '').split('\n').map(l => l.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+const curto = (t, n = 7) => { const w = String(t).replace(/["“”]/g, '').split(/\s+/); return w.length > n ? w.slice(0, n).join(' ') + '…' : w.join(' '); };
+const GANCHOS = {
+  'Como funciona': ['Seu cliente não avalia porque dá trabalho. Olha isso:', 'Avaliação no Google sem aplicativo? Assim:'],
+  'Quebra de objeção': ['Todo mundo me fala isso antes de comprar…', 'Eu também pensava assim. Até ver isto:'],
+  'Oferta': ['Quanto custa ter mais avaliações no Google?', 'Seu primeiro pedido é mais simples do que parece.'],
+  'Prova social': ['Olha o que aconteceu neste balcão:', 'Mais uma empresa da região usando isto:'],
+  'Revenda e lucro': ['Faça esta conta comigo:', 'Renda extra com uma placa de acrílico? Sim.'],
+};
+// Davi: roteiro completo de cada vídeo (3 ganchos para testar, cenas com fala e texto na tela, CTA e legenda)
+function copyVideo(c) {
+  const fala = frases(c.legenda).filter(x => !/^Comente /i.test(x)), cenas = linhasRoteiro(c.roteiro), cta = ctaDe(c.legenda);
+  const ganchos = [c.gancho, ...(GANCHOS[c.pilar] || ['Você precisa ver isto:', 'Pare de perder clientes no Google.'])].filter(Boolean).slice(0, 3);
+  return { id: c.id, dia: c.dia, formato: c.formato, pilar: c.pilar, titulo: c.titulo, status: c.status, ganchos, cta, legenda: c.legenda,
+    cenas: cenas.map((l, i) => { const m = /^([\d–-]+s):\s*(.*)$/.exec(l), acao = m ? m[2] : l, ult = i === cenas.length - 1;
+      const f = i === 0 ? c.gancho : ult ? cta + ' que eu te explico no direct.' : (fala[i - 1] || '');
+      return { tempo: m ? m[1] : `${i * 3}–${i * 3 + 3}s`, acao, fala: f || '(sem fala: só a imagem e a música)', tela: ult ? cta : curto(f || acao.replace(/^["“]|["”]$/g, ''), 6) }; }),
+    duracao_s: Math.max(9, cenas.length * 3) };
+}
+// Posts do feed para os dias sem carrossel (o Instagram recebe uma imagem todo dia)
+const POSTS = [
+  { titulo: 'Dica: onde colocar a placa', texto: 'Coloque a placa onde o cliente sai satisfeito', sub: 'Caixa, mesa ou recepção', visual: 'placa de acrílico NexTap no balcão do caixa de uma loja, cliente sorrindo pagando ao fundo' },
+  { titulo: 'Avaliação em 5 segundos', texto: 'Aproximou, avaliou.', sub: 'Sem aplicativo, em qualquer celular', visual: 'close de uma mão aproximando o celular de uma placa de acrílico sobre o balcão' },
+  { titulo: 'Estrelas vendem', texto: 'Cliente novo escolhe pelas estrelas', sub: 'Quantas avaliações você tem hoje?', visual: 'pessoa olhando o celular na rua escolhendo um restaurante, fachada de comércio local ao fundo' },
+  { titulo: 'NFC + QR Code', texto: 'Com NFC ou QR Code, ninguém fica de fora', sub: 'Funciona em qualquer celular', visual: 'dois celulares lado a lado diante de uma placa de acrílico, um aproximando e outro lendo com a câmera' },
+  { titulo: 'Revenda', texto: 'Renda extra vendendo para os negócios da sua cidade', sub: 'Comece com poucas placas', visual: 'pessoa empreendedora com uma caixa de placas de acrílico conversando com dono de barbearia' },
+  { titulo: 'Já chega pronta', texto: 'A placa já chega configurada', sub: 'É só colocar no balcão', visual: 'caixa sendo aberta com uma placa de acrílico dentro, sobre uma mesa de madeira clara' },
+  { titulo: 'Nota alta, casa cheia', texto: 'Mais avaliações, mais clientes novos', sub: 'Seu Google trabalhando por você', visual: 'restaurante movimentado à noite, placa de acrílico na mesa em primeiro plano' },
+];
+// Nina: textos de cada imagem (slide a slide) + legenda
+function copyImagem(t0 = Date.now()) {
+  const dia = dataStr(t0), c = db.prepare("SELECT * FROM conteudo WHERE dia = ? AND formato = 'Carrossel' ORDER BY id DESC LIMIT 1").get(dia);
+  if (c) {
+    const fr = frases(c.legenda).filter(x => !/^Comente /i.test(x)), vis = linhasRoteiro(c.roteiro), cta = ctaDe(c.legenda);
+    const meio = fr.slice(0, 4), slides = [{ texto: c.gancho, sub: 'Arraste para o lado →', visual: vis[0] || 'placa de acrílico NexTap no balcão' }];
+    meio.forEach((f, i) => slides.push({ texto: f, sub: '', visual: vis[i + 1] || vis[vis.length - 1] || 'cliente usando a placa no balcão' }));
+    slides.push({ texto: cta, sub: 'Responderemos no direct', visual: 'placa de acrílico NexTap em destaque sobre fundo escuro com detalhe verde-limão' });
+    return { dia, tipo: 'carrossel', conteudo_id: c.id, titulo: c.titulo, pilar: c.pilar, legenda: c.legenda, slides };
+  }
+  const p = POSTS[Math.floor(dia0(t0) / DIA) % POSTS.length];
+  return { dia, tipo: 'post', conteudo_id: null, titulo: p.titulo, pilar: 'Post do dia', slides: [{ texto: p.texto, sub: p.sub, visual: p.visual }],
+    legenda: `${p.texto}. ${p.sub}${/[.!?]$/.test(p.sub) ? '' : '.'} ✨\n\nQuer a sua placa? Comente COMO FUNCIONA que eu te explico no direct.\n\n${tags()}` };
+}
+// Lia: comando do ChatGPT para cada imagem (mesma identidade em toda a série)
+const MESTRE = 'Você é o designer da NexTap, marca brasileira de placas de acrílico com NFC e QR Code que fazem o cliente avaliar a empresa no Google. Todas as imagens desta série: formato vertical 4:5 (1080x1350), fotografia publicitária realista de comércio local brasileiro, luz natural suave, paleta escura (preto e grafite) com detalhes em verde-limão #C6F432, tipografia sem serifa bem grossa e legível. Nunca desenhe QR Code nem logotipos de outras marcas. Escreva SOMENTE o texto que eu pedir, em português, com os acentos corretos. Responda "pronto" e espere o primeiro pedido.';
+function pautaImagem(t0 = Date.now()) {
+  const c = copyImagem(t0), n = c.slides.length;
+  return { ...c, mestre: MESTRE, slides: c.slides.map((s, i) => ({ ...s, n: i + 1,
+    prompt: `${c.tipo === 'carrossel' ? `Imagem ${i + 1} de ${n} do carrossel "${c.titulo}"` : `Post do feed "${c.titulo}"`}. Cena: ${s.visual}. Deixe o terço ${i % 2 ? 'inferior' : 'superior'} limpo e escreva nele, grande, exatamente: "${s.texto}"${s.sub ? ` e, menor, logo abaixo: "${s.sub}"` : ''}. Nenhum outro texto na imagem.` })) };
+}
+function marketingSemana(t0 = Date.now()) {
+  const semana = semanaDe(t0), itens = db.prepare('SELECT * FROM conteudo WHERE semana = ? ORDER BY dia, id').all(semana);
+  return { semana, videos: itens.filter(c => c.formato !== 'Carrossel').map(copyVideo), imagens: itens.filter(c => c.formato === 'Carrossel').map(c => ({ id: c.id, dia: c.dia, titulo: c.titulo, status: c.status })), hoje: pautaImagem(t0) };
+}
+function turnoMarketing(t0 = Date.now()) {
+  const m = marketingSemana(t0), h = m.hoje, dd = h.dia.slice(8) + '/' + h.dia.slice(5, 7);
+  registrar('copy_imagem', `Textos de ${dd}`, `${h.tipo === 'carrossel' ? 'Carrossel' : 'Post'} "${h.titulo}": ${h.slides.length} imagem(ns) com texto e legenda.`, { dia: h.dia }, t0);
+  registrar('imagem', `Pauta de ${dd}`, `${h.slides.length} comando(s) prontos para o ChatGPT.`, { dia: h.dia }, t0);
+  if (!db.prepare("SELECT 1 FROM agentes_log WHERE agente = 'copy_video' AND titulo = ?").get('Roteiros da semana ' + m.semana.split('-').reverse().join('/')))
+    registrar('copy_video', 'Roteiros da semana ' + m.semana.split('-').reverse().join('/'), `${m.videos.length} roteiro(s) de vídeo para o ${nomes().conteudo}.`, { semana: m.semana }, t0);
+  return m;
+}
 // ======================= GERENTE =======================
 function resumo(t0 = Date.now(), { avisar = true } = {}) {
   const hoje0 = dia0(t0), ontem0 = hoje0 - DIA;
@@ -218,6 +286,7 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
   const naoEnt = n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova' AND ultimo_em >= ?", ontem0);
   if (lista && lista.itens.length) prioridades.push(`📋 ${quem('prospectora')}: ${lista.itens.filter(i => i.tipo === 'retorno').length} retorno(s) e ${lista.itens.filter(i => i.tipo === 'abordagem').length} empresa(s) nova(s) para hoje.`);
   if (hojeConteudo && hojeConteudo.status !== 'postado') prioridades.push(`🎬 ${quem('conteudo')}, conteúdo de hoje: ${hojeConteudo.formato} "${hojeConteudo.titulo}".`);
+  try { const ph = pautaImagem(t0); prioridades.push(`🖼 ${quem('imagem')}: ${ph.tipo === 'carrossel' ? 'carrossel' : 'post'} de hoje "${ph.titulo}" com ${ph.slides.length} imagem(ns) para gerar no ChatGPT.`); } catch (e) { /* sem pauta */ }
   if (naoEnt) prioridades.push(`🧠 ${quem('atendente')}: ${naoEnt} frase(s) nova(s) que o robô não entendeu. Ensine em Prédio → Atendente.`);
   const F = fin(), rf = resumoFin(F), finLinhas = [];
   if (rf) {
@@ -252,6 +321,7 @@ function tick(t0 = Date.now()) {
   setSetting('predio_dia', hoje);
   try { montarLista(t0); } catch (e) { console.error('[PRÉDIO] prospectora:', e.message); }
   try { gerarSemana(t0); } catch (e) { console.error('[PRÉDIO] conteúdo:', e.message); }
+  try { turnoMarketing(t0); } catch (e) { console.error('[PRÉDIO] marketing:', e.message); }
   try { resumo(t0); } catch (e) { console.error('[PRÉDIO] gerente:', e.message); }
   return true;
 }
@@ -283,6 +353,7 @@ router.get('/', (req, res) => {
       menus7: n("SELECT COUNT(*) AS n FROM messages m JOIN flows f ON f.id = m.flow_id WHERE f.event = 'nao_entendi' AND m.direction = 'out' AND m.created_at >= ?", s7),
       corrigidas7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'atendente' AND criado_em >= ?", s7) },
     prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length, proxima: proxima ? proxima.nome : null } : null,
+    marketing: (() => { try { const m = marketingSemana(); return { videos: m.videos.length, hoje: { tipo: m.hoje.tipo, titulo: m.hoje.titulo, imagens: m.hoje.slides.length } }; } catch (e) { return null; } })(),
     conteudo: { semana: sem, hoje: hojeC || null, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
   });
 });
@@ -346,6 +417,7 @@ router.get('/conteudo', (req, res) => {
   if (semana === semanaDe(Date.now())) gerarSemana();
   res.json({ semana, itens: db.prepare('SELECT * FROM conteudo WHERE semana = ? ORDER BY dia, id').all(semana) });
 });
+router.get('/marketing', (req, res) => { gerarSemana(); res.json(marketingSemana(Date.now())); });
 router.post('/conteudo/gerar', (req, res) => res.json(gerarSemana(Date.now(), { forcar: true })));
 router.put('/conteudo/:id', (req, res) => {
   const b = req.body || {}, c = db.prepare('SELECT * FROM conteudo WHERE id = ?').get(req.params.id);
@@ -356,4 +428,4 @@ router.put('/conteudo/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, tick, resumo, controller, resumoFin, nomes, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };
+module.exports = { router, tick, marketingSemana, copyVideo, pautaImagem, turnoMarketing, resumo, controller, resumoFin, nomes, montarLista, listaDeHoje, contatoFeito, gerarSemana, registrar, dataStr, semanaDe, MSG };
