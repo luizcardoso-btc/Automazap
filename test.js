@@ -1140,6 +1140,40 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     try { const r = await W.avisarDono('Resumo de hoje'); assert.ok(r.ok); assert.ok(env[0][0].includes('/message/sendText/')); assert.deepStrictEqual(env[0][1], { number: '5575988209055', text: 'Resumo de hoje' }); }
     finally { global.fetch = fo; if (eu === undefined) delete process.env.EVOLUTION_URL; else process.env.EVOLUTION_URL = eu; if (ek === undefined) delete process.env.EVOLUTION_API_KEY; else process.env.EVOLUTION_API_KEY = ek; setSetting('ceo_whatsapp', ''); }
   });
+  await t('Treino da Bianca: Raio-X do Google (vizinhos, posição, avaliações), dono pelo CNPJ (sócio e MEI) e roteiro em 3 fases com os dados reais', async () => {
+    const hoje = Date.now(), iso = d => new Date(hoje - d * 86400e3).toISOString();
+    const srv = http.createServer((rq, rs) => { let b = ''; rq.on('data', d => b += d); rq.on('end', () => { rs.setHeader('content-type', 'application/json');
+      if (rq.url.startsWith('/cnpj/11222333000181')) return rs.end(JSON.stringify({ razao_social: 'BARBEARIA NAVALHA LTDA', data_inicio_atividade: '2019-03-01', porte: 'MICRO EMPRESA', descricao_situacao_cadastral: 'ATIVA', ddd_telefone_1: '7532210000', email: 'CONTATO@NAVALHA.COM', qsa: [{ nome_socio: 'MARIA DE SOUZA LIMA', qualificacao_socio: 'Sócio' }, { nome_socio: 'CARLOS EDUARDO DA SILVA', qualificacao_socio: 'Sócio-Administrador' }] }));
+      if (rq.url.startsWith('/cnpj/44555666000199')) return rs.end(JSON.stringify({ razao_social: '12.345.678 JOAO PEDRO DOS SANTOS', qsa: [] }));
+      if (rq.url.startsWith('/cnpj/')) { rs.statusCode = 404; return rs.end('{}'); }
+      if (rq.url.includes('searchNearby')) return rs.end(JSON.stringify({ places: [{ id: 'eu', displayName: { text: 'Barbearia Navalha' }, rating: 4.2, userRatingCount: 12 }, { id: 'v1', displayName: { text: 'Barbearia do Rei' }, rating: 4.8, userRatingCount: 180 }, { id: 'v2', displayName: { text: 'Corte Fino' }, rating: 4.5, userRatingCount: 40 }, { id: 'v3', displayName: { text: 'Barba Feita' }, rating: 4.9, userRatingCount: 6 }] }));
+      if (rq.url.includes('searchText')) return rs.end(JSON.stringify({ places: [{ id: 'eu' }] }));
+      rs.end(JSON.stringify({ id: 'eu', displayName: { text: 'Barbearia Navalha' }, rating: 4.2, userRatingCount: 12, primaryType: 'barber_shop', primaryTypeDisplayName: { text: 'Barbearia' }, location: { latitude: -12.25, longitude: -38.95 }, nationalPhoneNumber: '(75) 3221-0000', googleMapsUri: 'https://maps.google.com/?cid=1',
+        reviews: [{ rating: 5, text: { text: 'Ótimo corte' }, relativePublishTimeDescription: 'há 4 meses', publishTime: iso(120) }, { rating: 2, text: { text: 'Demorou demais para atender' }, relativePublishTimeDescription: 'há 8 meses', publishTime: iso(240) }] })); }); });
+    await new Promise(r => srv.listen(0, r));
+    const gb = process.env.GOOGLE_PLACES_BASE, gk = process.env.GOOGLE_PLACES_API_KEY, cb = process.env.CNPJ_API_BASE, base = 'http://localhost:' + srv.address().port;
+    process.env.GOOGLE_PLACES_BASE = base; process.env.CNPJ_API_BASE = base + '/cnpj'; delete process.env.GOOGLE_PLACES_API_KEY;
+    try {
+      const p = (await chamar('POST', '/api/prospeccao', { corpo: { nome: 'Barbearia Navalha', segmento: 'Barbearia', bairro: 'Centro' }, headers: H })).json;
+      assert.strictEqual((await chamar('POST', `/api/prospeccao/${p.id}/raiox`, { headers: H })).status, 400);   // sem chave do Google
+      process.env.GOOGLE_PLACES_API_KEY = 'boa';
+      const f = (await chamar('POST', `/api/prospeccao/${p.id}/raiox`, { headers: H })).json, x = f.raiox;
+      assert.deepStrictEqual([f.nota, f.avaliacoes, x.posicao, x.total_ramo, x.lider.nome, x.negativas], [4.2, 12, 3, 4, 'Barbearia do Rei', 1]); assert.ok(x.ultima_dias >= 119 && x.ultima_dias <= 121);
+      assert.ok(x.pontos[0].includes('Barbearia do Rei') && x.pontos[0].includes('180')); assert.ok(x.pontos.some(t => t.includes('3º lugar'))); assert.ok(x.pontos.some(t => t.includes('4 meses'))); assert.ok(x.pontos.some(t => t.includes('Demorou demais')));
+      assert.ok(f.telefone.includes('3221'));
+      const c = (await chamar('POST', `/api/prospeccao/${p.id}/cnpj`, { corpo: { cnpj: '11.222.333/0001-81' }, headers: H })).json;
+      assert.deepStrictEqual([c.contato, c.email, c.cnpj], ['Carlos Eduardo da Silva', 'contato@navalha.com', '11222333000181']); assert.strictEqual(c.cnpj_info.socios.length, 2); assert.ok(c.historico[0].texto.includes('Carlos Eduardo da Silva'));
+      const r = c.roteiro; assert.deepStrictEqual(r.fases.map(z => z.fase), ['Início', 'Meio', 'Fechamento']);
+      assert.ok(r.fases[0].passos[0].texto.startsWith('Oi, Carlos!') && r.fases[0].passos[0].texto.includes('12 avaliações') && r.fases[0].passos[0].texto.includes('Barbearia do Rei'));
+      assert.ok(r.fases[1].passos[0].texto.includes('4 meses atrás')); assert.ok(r.fases[2].passos[0].texto.includes('R$ ') && r.fases[2].passos[0].texto.includes('azul ou a preta'));
+      const mei = (await chamar('POST', '/api/prospeccao', { corpo: { nome: 'Lanche do João' }, headers: H })).json;
+      assert.strictEqual((await chamar('POST', `/api/prospeccao/${mei.id}/cnpj`, { corpo: { cnpj: '44555666000199' }, headers: H })).json.contato, 'Joao Pedro dos Santos');
+      assert.strictEqual((await chamar('POST', `/api/prospeccao/${mei.id}/cnpj`, { corpo: { cnpj: '123' }, headers: H })).status, 400);
+      assert.strictEqual((await chamar('POST', `/api/prospeccao/${mei.id}/cnpj`, { corpo: { cnpj: '00000000000000' }, headers: H })).status, 404);
+      assert.ok((await chamar('GET', `/api/prospeccao/${mei.id}/roteiro`, { headers: H })).json.fases[0].passos[0].texto.includes('quase não achei avaliações'));
+      await chamar('DELETE', `/api/prospeccao/${p.id}`, { headers: H }); await chamar('DELETE', `/api/prospeccao/${mei.id}`, { headers: H });
+    } finally { srv.close(); const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('GOOGLE_PLACES_BASE', gb); v('GOOGLE_PLACES_API_KEY', gk); v('CNPJ_API_BASE', cb); }
+  });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;

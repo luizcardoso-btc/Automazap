@@ -1,7 +1,7 @@
 // Prospecção de empresas locais — busca no Google (Places API) por região, funil de vendas e histórico de contatos.
 // Montado dentro de routes-api.js (herda o login do painel): /api/prospeccao/...
 const express = require('express');
-const { db } = require('./db.js');
+const { db, getSetting } = require('./db.js');
 
 const router = express.Router();
 const STATUS = ['novo', 'abordado', 'interessado', 'orcamento', 'fechado', 'perdido'];
@@ -298,12 +298,7 @@ router.post('/importar', (req, res) => {
   res.json({ novos, repetidos });
 });
 
-router.get('/:id', (req, res) => {
-  const p = db.prepare(LISTA + ' WHERE p.id = ?').get(req.params.id);
-  if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' });
-  p.historico = db.prepare('SELECT id, tipo, texto, criado_em FROM prospect_hist WHERE prospect_id = ? ORDER BY id DESC LIMIT 200').all(p.id);
-  res.json(p);
-});
+router.get('/:id', (req, res) => { const p = ficha(req.params.id); if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' }); res.json(p); });
 
 router.put('/:id', (req, res) => {
   const v = campos(req.body); if (v.erro) return res.status(400).json({ error: v.erro });
@@ -317,6 +312,119 @@ router.delete('/:id', (req, res) => {
   db.transaction(() => { db.prepare('DELETE FROM prospect_hist WHERE prospect_id = ?').run(req.params.id); db.prepare('DELETE FROM prospects WHERE id = ?').run(req.params.id); })();
   res.json({ ok: true });
 });
+
+// ======================= TREINO DA PROSPECTORA: Raio-X do Google, dono pelo CNPJ e roteiro em 3 fases =======================
+{ const tem = c => db.prepare('PRAGMA table_info(prospects)').all().some(x => x.name === c);
+  for (const [c, def] of [['cnpj', "TEXT NOT NULL DEFAULT ''"], ['email', "TEXT NOT NULL DEFAULT ''"], ['raiox', "TEXT NOT NULL DEFAULT ''"], ['raiox_em', 'TEXT']]) if (!tem(c)) db.exec(`ALTER TABLE prospects ADD COLUMN ${c} ${def}`); }
+const fmtN = v => (v == null ? '—' : String(v).replace('.', ','));
+const DET = 'id,displayName,rating,userRatingCount,reviews,regularOpeningHours.weekdayDescriptions,websiteUri,nationalPhoneNumber,primaryType,primaryTypeDisplayName,location,photos,googleMapsUri';
+async function google(caminho, { metodo = 'GET', mascara, corpo } = {}) {
+  const chave = process.env.GOOGLE_PLACES_API_KEY;
+  if (!chave) { const e = new Error('Falta a chave do Google. No Railway, crie a variável GOOGLE_PLACES_API_KEY (Places API ativada no Google Cloud).'); e.status = 400; throw e; }
+  let r; try { r = await fetch(BASE() + caminho, { method: metodo, headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': chave, 'X-Goog-FieldMask': mascara }, body: corpo ? JSON.stringify(corpo) : undefined, signal: AbortSignal.timeout(15000) }); }
+  catch (e) { const x = new Error('Não consegui falar com o Google: ' + e.message); x.status = 502; throw x; }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const x = new Error('O Google recusou: ' + ((j.error && j.error.message) || 'erro ' + r.status)); x.status = 502; throw x; }
+  return j;
+}
+// Raio-X: o que o perfil da empresa no Google mostra hoje e como ela está diante dos vizinhos do mesmo ramo (até 1,5 km).
+async function raioX(p, hoje = Date.now()) {
+  let pid = p.place_id;
+  if (!pid || pid.startsWith('osm:')) {   // empresa veio do mapa livre ou foi digitada: acha o perfil no Google pelo nome
+    const j = await google('/v1/places:searchText', { metodo: 'POST', mascara: 'places.id', corpo: { textQuery: [p.nome, p.bairro, getSetting('cidade') || ''].filter(Boolean).join(', '), languageCode: 'pt-BR', regionCode: 'BR', pageSize: 1 } });
+    pid = j.places && j.places[0] && j.places[0].id;
+    if (!pid) { const e = new Error('Não achei esta empresa no Google. Confira o nome e o bairro na ficha.'); e.status = 404; throw e; }
+  }
+  const g = await google('/v1/places/' + encodeURIComponent(pid) + '?languageCode=pt-BR', { mascara: DET });
+  const revs = (g.reviews || []).map(r => ({ nota: r.rating, texto: txt((r.text || r.originalText || {}).text, 280), quando: r.relativePublishTimeDescription || '', em: r.publishTime || '', autor: txt((r.authorAttribution || {}).displayName, 40) }))
+    .sort((a, b) => String(b.em).localeCompare(String(a.em)));
+  const ult = revs[0] && revs[0].em ? Math.floor((hoje - Date.parse(revs[0].em)) / 86400e3) : null;
+  let viz = [];
+  if (g.location && g.primaryType) {
+    try {
+      const n = await google('/v1/places:searchNearby', { metodo: 'POST', mascara: 'places.id,places.displayName,places.rating,places.userRatingCount', corpo: { includedPrimaryTypes: [g.primaryType], maxResultCount: 20, rankPreference: 'POPULARITY', languageCode: 'pt-BR',
+        locationRestriction: { circle: { center: { latitude: g.location.latitude, longitude: g.location.longitude }, radius: 1500 } } } });
+      viz = (n.places || []).filter(x => x.id !== pid).map(x => ({ nome: txt((x.displayName || {}).text, 60), nota: num(x.rating), avaliacoes: num(x.userRatingCount) || 0 })).sort((a, b) => b.avaliacoes - a.avaliacoes);
+    } catch (e) { /* sem vizinhos: o Raio-X segue só com o perfil */ }
+  }
+  const av = num(g.userRatingCount) || 0, nota = num(g.rating), lider = viz[0] || null, pos = viz.filter(x => x.avaliacoes > av).length + 1;
+  const media = viz.length ? Math.round(viz.reduce((a, x) => a + x.avaliacoes, 0) / viz.length) : null;
+  const neg = revs.filter(r => r.nota && r.nota <= 3);
+  const pontos = [];
+  if (lider && lider.avaliacoes > av) pontos.push(`${lider.nome}, do mesmo ramo e a menos de 1,5 km, tem ${lider.avaliacoes} avaliações (nota ${fmtN(lider.nota)}). A ${p.nome} tem ${av}.`);
+  if (viz.length) pontos.push(`Entre ${viz.length + 1} negócios do ramo na região, está em ${pos}º lugar em número de avaliações${media != null ? ` (média dos vizinhos: ${media})` : ''}.`);
+  if (ult != null && ult > 30) pontos.push(`A avaliação mais recente que o Google mostra foi há ${ult > 60 ? Math.round(ult / 30) + ' meses' : ult + ' dias'}: perfil parado perde posição.`);
+  if (ult != null && ult <= 30) pontos.push('Recebeu avaliação no último mês: o perfil está vivo, a placa mantém o ritmo.');
+  if (neg.length) pontos.push(`${neg.length} das avaliações em destaque têm nota 3 ou menos${neg[0].texto ? `: "${neg[0].texto.slice(0, 90)}${neg[0].texto.length > 90 ? '…' : ''}"` : ''}. Mais avaliações boas empurram essas para baixo.`);
+  if (nota != null && nota < 4.5) pontos.push(`Nota ${fmtN(nota)}: abaixo de 4,5 muita gente escolhe o concorrente.`);
+  if (!g.websiteUri) pontos.push('Sem site no perfil: o Google é a vitrine principal dela.');
+  if (!(g.photos || []).length) pontos.push('Sem fotos no perfil.');
+  return { place_id: pid, nota, avaliacoes: av, tipo: txt((g.primaryTypeDisplayName || {}).text, 60), telefone: txt(g.nationalPhoneNumber, 25), site: txt(g.websiteUri, 200), maps_url: txt(g.googleMapsUri, 300), fotos: (g.photos || []).length,
+    horario: (g.regularOpeningHours && g.regularOpeningHours.weekdayDescriptions) || [], ultima_dias: ult, recentes: revs.slice(0, 5), negativas: neg.length, vizinhos: viz.slice(0, 6), posicao: viz.length ? pos : null, total_ramo: viz.length ? viz.length + 1 : null, media_vizinhos: media, lider, pontos };
+}
+router.post('/:id/raiox', async (req, res) => {
+  const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' });
+  try {
+    const x = await raioX(p);
+    db.prepare("UPDATE prospects SET raiox = ?, raiox_em = datetime('now'), nota = ?, avaliacoes = ?, place_id = ?, telefone = CASE WHEN telefone = '' THEN ? ELSE telefone END, site = CASE WHEN site = '' THEN ? ELSE site END, maps_url = CASE WHEN maps_url = '' THEN ? ELSE maps_url END, atualizado_em = datetime('now') WHERE id = ?")
+      .run(JSON.stringify(x), x.nota, x.avaliacoes, x.place_id, x.telefone, x.site, x.maps_url, p.id);
+    res.json(ficha(p.id));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+});
+
+// Dono pelo CNPJ (dados públicos da Receita, via BrasilAPI: grátis). No MEI o nome do dono vem na própria razão social.
+const CNPJ_BASE = () => (process.env.CNPJ_API_BASE || 'https://brasilapi.com.br/api/cnpj/v1').replace(/\/+$/, '');
+const nomeProprio = s => txt(s, 80).toLowerCase().replace(/(^|\s)(\p{L})/gu, (m, a, b) => a + b.toUpperCase()).replace(/\s(De|Da|Do|Das|Dos|E)\s/g, m => m.toLowerCase());
+router.post('/:id/cnpj', async (req, res) => {
+  const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' });
+  const c = digitos((req.body || {}).cnpj);
+  if (c.length !== 14) return res.status(400).json({ error: 'CNPJ precisa ter 14 números.' });
+  let j; try { const r = await fetch(CNPJ_BASE() + '/' + c, { signal: AbortSignal.timeout(15000) }); j = await r.json().catch(() => ({})); if (!r.ok) return res.status(r.status === 404 ? 404 : 502).json({ error: r.status === 404 ? 'CNPJ não encontrado na Receita.' : 'A consulta de CNPJ está fora do ar. Tente de novo em instantes.' }); }
+  catch (e) { return res.status(502).json({ error: 'Não consegui consultar o CNPJ: ' + e.message }); }
+  const socios = (j.qsa || []).map(q => ({ nome: nomeProprio(q.nome_socio), papel: txt(q.qualificacao_socio, 40) }));
+  const adm = socios.find(q => /administrador|titular|empres[aá]rio/i.test(q.papel)) || socios[0];
+  const mei = !socios.length && digitos(j.razao_social).length >= 8 ? nomeProprio(String(j.razao_social).replace(/[\d.\-/]+/g, ' ')) : '';
+  const dono = adm ? adm.nome : mei || '';
+  const tel = digitos(j.ddd_telefone_1), email = txt(j.email, 80).toLowerCase();
+  const info = [`CNPJ ${c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}`, j.razao_social && `Razão social: ${txt(j.razao_social, 100)}`, j.data_inicio_atividade && `Aberta em ${String(j.data_inicio_atividade).split('-').reverse().join('/')}`,
+    j.porte && `Porte: ${txt(j.porte, 30)}`, j.descricao_situacao_cadastral && `Situação: ${txt(j.descricao_situacao_cadastral, 20)}`, socios.length > 1 && `Sócios: ${socios.map(q => q.nome).join(', ')}`].filter(Boolean).join(' · ');
+  db.prepare("UPDATE prospects SET cnpj = ?, email = CASE WHEN ? <> '' THEN ? ELSE email END, contato = CASE WHEN contato = '' AND ? <> '' THEN ? ELSE contato END, telefone = CASE WHEN telefone = '' AND ? <> '' THEN ? ELSE telefone END, atualizado_em = datetime('now') WHERE id = ?")
+    .run(c, email, email, dono, dono, tel, tel, p.id);
+  db.prepare('INSERT INTO prospect_hist (prospect_id, tipo, texto, criado_em) VALUES (?, ?, ?, ?)').run(p.id, 'nota', `Dados do CNPJ: ${dono ? 'dono(a) ' + dono + ' · ' : ''}${info}${tel ? ' · telefone do cadastro ' + tel : ''}${email ? ' · ' + email : ''}`.slice(0, 800), agora());
+  res.json({ ...ficha(p.id), cnpj_info: { dono, socios, telefone: tel, email, resumo: info } });
+});
+
+// Roteiro em 3 fases (início, meio e fechamento) com os dados reais da empresa. Uma pergunta por mensagem; fechar com escolha.
+function roteiro(p) {
+  const x = p.raiox && typeof p.raiox === 'object' ? p.raiox : null, eu = getSetting('vendedor_nome') || 'Luiz', cid = getSetting('cidade') || 'aqui da região';
+  const quem = (p.contato || '').split(' ')[0], oi = quem ? `Oi, ${quem}!` : 'Oi, tudo bem?', av = p.avaliacoes || 0, nota = p.nota;
+  const lider = x && x.lider && x.lider.avaliacoes > av ? x.lider : null;
+  const dado = lider ? `Vi no Google que a ${p.nome} tem ${av} avaliações${nota != null ? ` (nota ${fmtN(nota)})` : ''} e que a ${lider.nome}, aqui perto, já passou de ${lider.avaliacoes}.`
+    : av ? `Vi que a ${p.nome} tem ${av} avaliações no Google${nota != null ? `, com nota ${fmtN(nota)}` : ''}.` : `Procurei a ${p.nome} no Google e quase não achei avaliações.`;
+  const dor = x && x.ultima_dias != null && x.ultima_dias > 60 ? `A última avaliação que aparece é de ${Math.round(x.ultima_dias / 30)} meses atrás.` : x && x.negativas ? 'E as avaliações que mais aparecem hoje não mostram o melhor de vocês.' : 'Quem procura pelo ramo no Google costuma ir em quem tem mais estrelas.';
+  const preco = (() => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return v > 0 ? v.toFixed(2).replace('.', ',') : '80,00'; })();
+  return {
+    resumo: x ? x.pontos : [], dono: p.contato || '', fases: [
+      { fase: 'Início', objetivo: 'Mostrar que você olhou a empresa e ganhar permissão para explicar.', passos: [
+        { titulo: 'WhatsApp · abertura', texto: `${oi} Aqui é o ${eu}, da NexTap, de ${cid}. ${dado} Posso te mostrar em 15 segundos como aumentar isso sem dar trabalho pra equipe?` },
+        { titulo: 'Visita · abertura', texto: `Boa tarde! Sou o ${eu}, da NexTap. ${quem ? `O(a) ${quem} está?` : 'Você é o(a) responsável?'} Posso tomar 1 minuto? ${dado} Vocês pedem avaliação para os clientes hoje?` },
+        { titulo: 'Ligação · abertura', texto: `Oi${quem ? ', ' + quem : ''}? Aqui é o ${eu}, da NexTap. ${dado} Posso te mandar um vídeo de 15 segundos nesse WhatsApp?` },
+        { titulo: 'Se não for o dono', texto: 'Sem problema! Quando o responsável costuma estar? Posso mandar um vídeo de 15 segundos no WhatsApp dele(a)? Qual o número?' } ] },
+      { fase: 'Meio', objetivo: 'Fazer a pessoa enxergar o problema e ver a placa funcionando.', passos: [
+        { titulo: 'Diagnóstico (uma pergunta por vez)', texto: `1) Hoje, como vocês pedem avaliação para o cliente?\n2) De cada 10 clientes satisfeitos, quantos avaliam?\n3) ${dor} Isso já fez falta em algum momento?` },
+        { titulo: 'Demonstração', texto: `Pega o seu celular e aproxima da placa.\n\n(Deixe a pessoa fazer. A tela de avaliação da ${p.nome} abre.)\n\nPronto: sem aplicativo e sem procurar a empresa. Cada cliente satisfeito vira uma avaliação em 5 segundos, na hora em que ele está feliz com o atendimento.` },
+        { titulo: 'Prova com o vizinho', texto: lider ? `A ${lider.nome} está com ${lider.avaliacoes} avaliações. Com a placa no balcão, 2 ou 3 avaliações por dia já colocam a ${p.nome} na frente em poucos meses.` : `Negócio que recebe avaliação toda semana aparece na frente de quem parou. A placa mantém esse ritmo sozinha.` },
+        { titulo: 'Objeção mais provável', texto: av >= 100 ? '"Já tenho muitas avaliações" → Parabéns, isso é raro! O ponto agora é manter o ritmo: o Google dá mais peso para avaliação recente. A placa mantém isso automático.' : '"Vou pensar" → Claro! Só pra eu entender: ficou alguma dúvida sobre como funciona ou é mais a questão do valor?' } ] },
+      { fase: 'Fechamento', objetivo: 'Fechar com uma escolha e tirar o risco.', passos: [
+        { titulo: 'Preço + escolha', texto: `Ela sai por R$ ${preco} e eu já entrego configurada com o link da ${p.nome}. Prefere a azul ou a preta?` },
+        { titulo: 'Se hesitar', texto: 'Faz assim: deixo uma configurada e você vê funcionando esta semana. Uma no balcão resolve, ou já deixo outra no caixa?' },
+        { titulo: 'Confirmar o pedido', texto: `Fechado! Me confirma o nome que vai no pedido e o melhor WhatsApp. Te mando o link de pagamento agora e a placa chega pronta pra usar.` },
+        { titulo: 'Depois de fechar', texto: 'Você conhece outro dono de negócio aqui perto que também ia querer mais avaliações? Se me passar o contato, eu falo com ele(a) citando você.' } ] } ] };
+}
+const ficha = id => { const p = db.prepare(LISTA + ' WHERE p.id = ?').get(id); if (!p) return null; try { p.raiox = p.raiox ? JSON.parse(p.raiox) : null; } catch (e) { p.raiox = null; } p.roteiro = roteiro(p); p.historico = db.prepare('SELECT id, tipo, texto, criado_em FROM prospect_hist WHERE prospect_id = ? ORDER BY id DESC LIMIT 200').all(p.id); return p; };
+router.get('/:id/roteiro', (req, res) => { const p = ficha(req.params.id); if (!p) return res.status(404).json({ error: 'Empresa não encontrada.' }); res.json(p.roteiro); });
 
 router.post('/:id/contato', (req, res) => {
   const p = db.prepare('SELECT * FROM prospects WHERE id = ?').get(req.params.id);
@@ -337,4 +445,4 @@ router.post('/:id/contato', (req, res) => {
 });
 
 module.exports = router;
-module.exports._t = { bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS };
+module.exports._t = { bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS, raioX, roteiro };

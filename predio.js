@@ -62,6 +62,8 @@ const cidade = () => getSetting('cidade') || 'Feira de Santana';
 const vendedor = () => getSetting('vendedor_nome') || 'Luiz';
 const notaBR = v => Number(v).toFixed(1).replace('.', ',');
 function abertura(p) {
+  // Com o Raio-X feito, a abertura compara com o vizinho do mesmo ramo: é o argumento mais forte.
+  try { const x = p.raiox && JSON.parse(p.raiox); if (x && x.lider && x.lider.avaliacoes > (p.avaliacoes || 0) * 1.3 && x.lider.avaliacoes >= 20) return `Vi no Google que ${p.nome} tem ${p.avaliacoes || 0} avaliações e que ${x.lider.nome}, aqui perto, já tem ${x.lider.avaliacoes}. Quem procura pelo ramo costuma ir em quem tem mais estrelas.`; } catch (e) { /* sem Raio-X */ }
   const nome = p.nome, av = p.avaliacoes || 0, r = p.nota;
   if (r == null && !av) return `Encontrei ${nome} no Google e queria te mostrar uma coisa rápida.`;
   if (av < 10) return `Encontrei ${nome} no Google e reparei que tem poucas avaliações${av ? ` (só ${av})` : ''}. Para um negócio que atende gente todo dia, dá para ter muito mais.`;
