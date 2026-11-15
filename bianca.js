@@ -179,12 +179,12 @@ function intencao(texto, etapa) {
 }
 
 // Textos: 2 ou 3 jeitos de dizer a mesma coisa (cada empresa recebe sempre o mesmo jeito), saudação pela hora e nome do dono quando há.
-const precoBR = () => { const v = parseFloat(String(getSetting('preco_revenda') || '').replace(/\./g, '').replace(',', '.')); return (v > 0 ? v : 80).toFixed(2).replace('.', ','); };
+const precoBR = () => require('./bianca-balcao.js').precos();   // varejo na cidade: 1 placa e 2 placas
 function vars(p, t0 = Date.now()) {
   const P = require('./predio.js'), h = local(t0).getUTCHours(), nome = String(p.contato || '').trim().split(' ')[0];
   const av = Number(p.avaliacoes) || 0, nt = Number(p.nota) > 0 ? String(p.nota).replace('.', ',') : '';
   const numeros = av && nt ? `Vi que vocês estão com nota ${nt} e ${av} avaliações.` : av ? `Vi que vocês têm ${av} avaliações por lá.` : 'Vi que vocês ainda têm poucas avaliações por lá.';
-  return { numeros, saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR(),
+  return { numeros, saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR().um, preco2: precoBR().dois, cada: precoBR().cada,
     ver: String(getSetting('video_demo_url') || '').trim() || String(getSetting('site_url') || '').trim(), temVideo: !!String(getSetting('video_demo_url') || '').trim() };
 }
 const escolher = (l, p) => l[(Number(p.id) || 0) % l.length];
@@ -197,10 +197,10 @@ const T = {
   d7: [v => `Oi${v.cnome}! Não vou mais te escrever por aqui. Quando quiser mais avaliações no Google para a ${v.empresa}, é só me chamar. Bom trabalho! 🙌`],
   positivo: [v => [`Que bom! É bem simples: é uma plaquinha de acrílico que fica no balcão. O cliente aproxima o celular (ou aponta a câmera) e já cai direto na tela de avaliar a ${v.empresa} no Google. Sem aplicativo, leva uns 5 segundos.`, `${v.temVideo ? 'Olha funcionando' : 'Dá pra ver os modelos aqui'}: ${v.ver}\n\nQuer que eu te passe o valor?`],
     v => [`Show! Funciona assim: uma placa de acrílico no balcão. O cliente encosta o celular nela e a tela de avaliação da ${v.empresa} abre na hora, sem baixar nada.`, `${v.temVideo ? 'Dá uma olhada' : 'Os modelos estão aqui'}: ${v.ver}\n\nPosso te dizer quanto custa?`]],
-  preco: [v => [`Ela sai por R$ ${v.preco}, valor único, sem mensalidade. Já vai configurada com o link da ${v.empresa}: chega pronta, é só colocar no balcão.`, 'Prefere a azul ou a preta?'],
-    v => [`É R$ ${v.preco} uma vez só, sem mensalidade, e eu já entrego configurada para a ${v.empresa}.`, 'Qual combina mais com o espaço de vocês: azul ou preta?']],
+  preco: [v => [`Aqui em ${v.cidade}:\n• *1 placa:* R$ ${v.preco}\n• *2 placas:* R$ ${v.preco2} (sai R$ ${v.cada} cada)\n\nValor único, sem mensalidade. Já vai configurada com o link da ${v.empresa}: chega pronta, é só colocar no balcão.`, 'Vai querer 1 ou 2? E prefere azul ou preta?'],
+    v => [`É valor único, sem mensalidade: *1 placa R$ ${v.preco}* ou *2 placas R$ ${v.preco2}* (R$ ${v.cada} cada). Eu entrego configurada para a ${v.empresa}.`, 'Quantas vão ser, 1 ou 2? E a cor: azul ou preta?']],
   compra: [v => [`Perfeito! 🙌 Vou separar a sua.`, `Me confirma o nome que vai no pedido e o endereço de entrega? O ${v.dono} já te manda o link de pagamento por aqui.`]],
-  caro: [v => [`Entendo! Pensa assim: a placa trabalha todo dia, sem mensalidade, e uma única avaliação boa já pode trazer um cliente novo. É um valor único de R$ ${v.preco}.`, 'Quer começar com uma só, no balcão?']],
+  caro: [v => [`Entendo! Pensa assim: a placa trabalha todo dia, sem mensalidade, e uma única avaliação boa já pode trazer um cliente novo. É valor único: R$ ${v.preco} uma, ou R$ ${v.preco2} as duas (R$ ${v.cada} cada).`, 'Quer começar com uma só, no balcão?']],
   pensar: [v => ['Claro, sem pressa! 🙂 Só pra eu te ajudar: ficou alguma dúvida de como funciona, ou é mais a questão do valor?']],
   ja_tenho: [v => [`Que ótimo, isso é raro! O ponto agora é manter o ritmo: o Google dá mais peso para avaliação recente, e a placa mantém isso no automático.`, 'Quer ver como ela fica no balcão?']],
   tempo: [v => [`Tranquilo, sei como é! Deixo aqui pra você ver quando puder: ${v.ver}`, 'Qualquer coisa é só me chamar. 🙂']],

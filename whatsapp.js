@@ -413,7 +413,7 @@ async function avisarDono(texto) {
 router.post('/avisar-dono/teste', async (req, res) => { const r = await avisarDono('✅ Teste do Automazap: é aqui que o resumo diário da Gerente geral vai chegar.'); res.status(r.ok ? 200 : 400).json(r.ok ? r : { error: r.motivo }); });
 
 
-// ---------- Robô de atendimento no WhatsApp (mesmos fluxos do Instagram) ----------
+// ---------- Atendimento no WhatsApp: a Bianca (bianca-balcao.js) responde quem escreve para o número ----------
 // Botões viram opções numeradas ("1) ...") e o cliente responde com o número. Links vão no texto.
 const roboLigado = () => getSetting('wa_robo') === '1';
 const opcoes = new Map();   // número → [{ payload }] da última pergunta com opções
@@ -449,10 +449,9 @@ async function atenderComRobo(c, texto, mid, nome) {
   // Você respondeu pelo celular ou pelo painel há menos de 2 horas: a conversa é sua, o robô fica quieto
   const voce = db.prepare("SELECT MAX(criado_em) AS t FROM wa_mensagens WHERE contato_id = ? AND direcao = 'out' AND origem IN ('celular','painel')").get(c.id).t || 0;
   if (agora() - voce < 2 * 3600e3) return { acao: 'ignorada', motivo: 'conversa com você' };
-  const payload = payloadDe(numero, texto);
-  if (payload) opcoes.delete(numero);
-  const r = await require('./engine.js').processarMensagem({ canal: 'whatsapp', extId: numero, username: txt(nome, 60) || null, texto, payload, mid: 'wa:' + mid }, senderWa);
-  try { require('./eventos.js').registrar('whatsapp', r.acao, r.fluxo || r.motivo || ''); } catch (e) { /* opcional */ }
+  // Quem atende no WhatsApp é a Bianca (varejo e atacado). A Sofia fica só no Instagram.
+  const r = await require('./bianca-balcao.js').atender(c, texto, txt(nome, 60));
+  try { require('./eventos.js').registrar('whatsapp', r.acao, r.etapa || ''); } catch (e) { /* opcional */ }
   return r;
 }
 router.get('/robo', (req, res) => res.json({ ligado: roboLigado(), conectado: configurado() }));
@@ -471,4 +470,4 @@ async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   return c;
 }
 
-module.exports = { formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { enviarContato: enviar, formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

@@ -707,26 +707,45 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(!l.some(c => c.jid.endsWith('@g.us')));
     const c = l.find(x => x.jid === '5575977776666@s.whatsapp.net'); assert.ok(c); assert.strictEqual(c.ultima_direcao, 'out');
   });
-  await t('robô no WhatsApp: cliente que escreve é atendido pelos fluxos, botões viram opções numeradas, o número escolhe o fluxo; desligado ou com você na conversa, fica quieto', async () => {
+  await t('Bianca no WhatsApp: quem escreve escolhe varejo ou atacado; varejo R$ 80 / R$ 140, anota pedido e chama você; desligada ou com você na conversa, fica quieta', async () => {
     const ev = data => chamar('POST', '/webhook/whatsapp/' + wa.tokenWebhook(), { corpo: { event: 'messages.upsert', data } });
-    const n0 = () => enviosEvo().length, espera = () => new Promise(r => setTimeout(r, 120)), gap = process.env.WA_GAP_MS; process.env.WA_GAP_MS = '0';
+    const n0 = () => enviosEvo().length, espera = () => new Promise(r => setTimeout(r, 150)), gap = process.env.WA_GAP_MS; process.env.WA_GAP_MS = '0';
+    const msg = (jid, id, texto, extra) => ev({ key: { remoteJid: jid + '@s.whatsapp.net', fromMe: false, id }, pushName: 'Ana Souza', message: { conversation: texto }, ...extra });
+    const saiu = a => enviosEvo().slice(a).map(x => x.corpo.text || '').join('\n---\n');
     try {
-      setSetting('wa_robo', '0'); let a = n0();
-      await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R0' }, pushName: 'Ana', message: { conversation: 'qual o preço?' } }); await espera();
-      assert.strictEqual(n0(), a);                                                                    // desligado: não responde
+      setSetting('wa_robo', '0'); setSetting('ceo_whatsapp', ''); let a = n0();
+      await msg('5575966660001', 'R0', 'qual o preço?'); await espera(); assert.strictEqual(n0(), a);           // desligada: não responde
       assert.deepStrictEqual((await chamar('PUT', '/api/whatsapp/robo', { corpo: { ligado: true }, headers: H })).json, { ligado: true });
-      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R1' }, pushName: 'Ana', message: { conversation: 'qual o preço?' } }); await espera();
-      const env1 = enviosEvo().slice(a); assert.strictEqual(env1.length, 1); const tx = env1[0].corpo.text;
-      assert.ok(/\*1\* .*REVENDER/.test(tx) && /\*2\* .*MEU NEG/.test(tx) && tx.includes('Responda com o número'), tx); assert.ok(env1[0].corpo.delay > 0);
-      assert.strictEqual(db.prepare("SELECT channel FROM contacts WHERE ext_id = '5575966660001'").get().channel, 'whatsapp');
-      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R2' }, message: { conversation: '2' } }); await espera();
-      const env2 = enviosEvo().slice(a).map(x => x.corpo.text || x.corpo.caption || '').join(' '); assert.ok(env2.length > 10 && !/\*1\* .*REVENDER/.test(env2), env2);
-      assert.ok(db.prepare("SELECT COUNT(*) AS n FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.jid = '5575966660001@s.whatsapp.net' AND m.origem = 'robo'").get().n >= 2);
-      // você respondeu pelo celular: o robô fica quieto nessa conversa
-      await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: true, id: 'R3' }, message: { conversation: 'Oi Ana, aqui é o Luiz!' } }); await espera();
-      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R4' }, message: { conversation: 'qual o preço?' } }); await espera(); assert.strictEqual(n0(), a);
-      assert.strictEqual(wa.emTextoWa({ type: 'button', text: 'Faça o pedido', buttons: [{ title: 'Pedir', url: 'https://x.com/p' }] }), 'Faça o pedido\n\n👉 Pedir: https://x.com/p');
-    } finally { setSetting('wa_robo', '0'); if (gap === undefined) delete process.env.WA_GAP_MS; else process.env.WA_GAP_MS = gap; }
+      a = n0(); await msg('5575966660001', 'R1', 'qual o preço?'); await espera();
+      let tx = saiu(a); assert.ok(tx.includes('Ana') && tx.includes('Bianca') && /\*1\* Para o meu estabelecimento/.test(tx) && /\*2\* Quero revender/.test(tx), tx);
+      assert.strictEqual(db.prepare("SELECT COUNT(*) AS n FROM contacts WHERE ext_id = '5575966660001'").get().n, 0);   // a Sofia (fluxos do Instagram) não entra
+      a = n0(); await msg('5575966660001', 'R2', '1'); await espera(); tx = saiu(a);
+      assert.ok(tx.includes('*1 placa:* R$ 80') && tx.includes('*2 placas:* R$ 140') && tx.includes('R$ 70 cada'), tx);
+      a = n0(); await msg('5575966660001', 'R3', 'quero duas, preta'); await espera(); tx = saiu(a);
+      assert.ok(tx.includes('2 placas por R$ 140') && tx.includes('(preta)') && tx.includes('endereço'), tx);
+      a = n0(); await msg('5575966660001', 'R4', 'Barbearia da Ana, Rua X 10, Centro'); await espera(); tx = saiu(a); assert.ok(tx.includes('pagamento'), tx);
+      assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE '%Bianca%'").get().n >= 2);
+      a = n0(); await msg('5575966660001', 'R5', 'obrigada'); await espera(); assert.strictEqual(n0(), a);   // agora é com você
+      // atacado
+      a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('revenda') && tx.includes('quantas placas'), tx);
+      a = n0(); await msg('5575966660002', 'A2', '50 placas, sou de Salvador'); await espera(); tx = saiu(a); assert.ok(tx.includes('Já passei'), tx);
+      // você respondeu pelo celular: ela fica quieta
+      await ev({ key: { remoteJid: '5575966660003@s.whatsapp.net', fromMe: true, id: 'C3' }, message: { conversation: 'Oi, aqui é o Luiz!' } }); await espera();
+      a = n0(); await msg('5575966660003', 'C4', 'qual o preço?'); await espera(); assert.strictEqual(n0(), a);
+      // preços editáveis
+      setSetting('preco_varejo_1', '85'); setSetting('preco_varejo_2', '150'); assert.deepStrictEqual(require('./bianca-balcao.js').precos(), { um: '85', dois: '150', cada: '75' });
+    } finally { setSetting('wa_robo', '0'); setSetting('preco_varejo_1', '80'); setSetting('preco_varejo_2', '140'); if (gap === undefined) delete process.env.WA_GAP_MS; else process.env.WA_GAP_MS = gap; }
+  });
+  await t('Bianca no balcão: decide sem enviar (menu, varejo, 3+ placas, pedir humano, parar)', () => {
+    const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
+    assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
+    const m = d({ etapa: 'menu', dados: {}, tentativas: 0 }, 'hã?'); assert.strictEqual(m.etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {}, tentativas: 1 }, 'hã?').etapa, 'humano');
+    const tres = d({ etapa: 'varejo', dados: {} }, 'quero 4'); assert.strictEqual(tres.etapa, 'humano'); assert.ok(tres.avisar.includes('4 placas'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'tá caro').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {} }, 'tá caro').textos[0].includes('R$ 70'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quero falar com o dono').etapa, 'humano');
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pare de mandar').etapa, 'parado'); assert.strictEqual(d({ etapa: 'parado' }, 'oi').textos.length, 0);
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'xyz abc').etapa, 'humano');
+    assert.strictEqual(B.qtdDe('vou querer uma'), 1); assert.strictEqual(B.qtdDe('duas'), 2);
   });
   await t('limite diário de primeiras mensagens protege o número (conversas respondidas não contam)', async () => {
     setSetting('wa_max_novos_dia', '1');
