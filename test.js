@@ -721,9 +721,11 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.strictEqual(db.prepare("SELECT COUNT(*) AS n FROM contacts WHERE ext_id = '5575966660001'").get().n, 0);   // a Sofia (fluxos do Instagram) não entra
       a = n0(); await msg('5575966660001', 'R2', '1'); await espera(); tx = saiu(a);
       assert.ok(tx.includes('*1 placa:* R$ 80') && tx.includes('*2 placas:* R$ 140') && tx.includes('R$ 70 cada'), tx);
-      a = n0(); await msg('5575966660001', 'R3', 'quero duas, preta'); await espera(); tx = saiu(a);
-      assert.ok(tx.includes('2 placas por R$ 140') && tx.includes('(preta)') && tx.includes('endereço'), tx);
-      a = n0(); await msg('5575966660001', 'R4', 'Barbearia da Ana, Rua X 10, Centro'); await espera(); tx = saiu(a); assert.ok(tx.includes('pagamento'), tx);
+      assert.ok(tx.includes('sem taxa de entrega') && tx.includes('*Pix*') && tx.includes('*Redes sociais*') && tx.includes('pagamento é feito na entrega'), tx);
+      a = n0(); await msg('5575966660001', 'R3', 'quero duas, uma do google e uma do instagram'); await espera(); tx = saiu(a);
+      assert.ok(tx.includes('2 placas por R$ 140') && tx.includes('(Google + Instagram)') && tx.includes('dia e horário') && !tx.includes('Qual modelo'), tx);
+      a = n0(); await msg('5575966660001', 'R4', 'Barbearia da Ana, Rua X 10, Centro, amanhã 10h'); await espera(); tx = saiu(a); assert.ok(tx.includes('pagamento é na hora'), tx);
+      assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE titulo LIKE 'Cliente no WhatsApp:%' AND texto LIKE '%PEDIDO VAREJO: 2 placa(s) (Google, Instagram)%'").get().n === 1);
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE '%Bianca%'").get().n >= 2);
       a = n0(); await msg('5575966660001', 'R5', 'obrigada'); await espera(); assert.strictEqual(n0(), a);   // agora é com você
       // atacado
@@ -741,6 +743,10 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
     const m = d({ etapa: 'menu', dados: {}, tentativas: 0 }, 'hã?'); assert.strictEqual(m.etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {}, tentativas: 1 }, 'hã?').etapa, 'humano');
     const tres = d({ etapa: 'varejo', dados: {} }, 'quero 4'); assert.strictEqual(tres.etapa, 'humano'); assert.ok(tres.avisar.includes('4 placas'));
+    assert.ok(tres.textos[0].includes('preço especial') && !/atacado/i.test(tres.textos[0]) && tres.avisar.includes('não é atacado'));
+    const um = d({ etapa: 'varejo', dados: {} }, 'uma'); assert.strictEqual(um.etapa, 'dados'); assert.ok(um.textos[1].includes('Qual modelo'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].includes('*WhatsApp*'), true);
+    assert.deepStrictEqual(B.modelosDe('pix e zap'), ['WhatsApp', 'Pix']);
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'tá caro').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {} }, 'tá caro').textos[0].includes('R$ 70'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quero falar com o dono').etapa, 'humano');
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pare de mandar').etapa, 'parado'); assert.strictEqual(d({ etapa: 'parado' }, 'oi').textos.length, 0);
@@ -1298,8 +1304,8 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.strictEqual(await B.responder(seg('10:00')), 0);                                                // ainda "digitando": sai 1 min depois
       const antes = env.length; assert.strictEqual(await B.responder(seg('10:02')), 2); assert.ok(env[antes].text.includes('acrílico') && env[antes].delay > 1000 && /valor|custa/.test(env[antes + 1].text));
       // segue a conversa sozinha: preço → compra (avisa você) ; pergunta fora do roteiro vai para você sem resposta automática
-      const r6 = B.respondeu(ids[0], 'quanto custa?', null, seg('10:05'), { sorteio: () => 0 }); assert.deepStrictEqual([r6.intencao, r6.etapa], ['preco', 'preco']); await B.responder(seg('10:07')); assert.ok(env[env.length - 2].text.includes('R$ ') && env[env.length - 1].text.includes('azul ou'));
-      const r7 = B.respondeu(ids[0], 'quero a preta', null, seg('10:10'), { sorteio: () => 0 }); assert.deepStrictEqual([r7.intencao, r7.etapa, r7.responde], ['compra', 'fechamento', true]); await B.responder(seg('10:12')); assert.ok(env[env.length - 1].text.includes('link de pagamento'));
+      const r6 = B.respondeu(ids[0], 'quanto custa?', null, seg('10:05'), { sorteio: () => 0 }); assert.deepStrictEqual([r6.intencao, r6.etapa], ['preco', 'preco']); await B.responder(seg('10:07')); assert.ok(env[env.length - 2].text.includes('R$ ') && env[env.length - 1].text.includes('Instagram'));
+      const r7 = B.respondeu(ids[0], 'quero a preta', null, seg('10:10'), { sorteio: () => 0 }); assert.deepStrictEqual([r7.intencao, r7.etapa, r7.responde], ['compra', 'fechamento', true]); await B.responder(seg('10:12')); assert.ok(env[env.length - 1].text.includes('pagamento é na hora'));
       assert.strictEqual(db.prepare('SELECT status FROM prospects WHERE id = ?').get(ids[0]).status, 'orcamento');
       const n8 = env.length, r8 = B.respondeu(ids[0], 'entregam em Salvador amanhã cedo?', null, seg('10:15')); assert.deepStrictEqual([r8.intencao, r8.responde, r8.etapa], ['', false, 'humano']); await B.responder(seg('10:20')); assert.strictEqual(env.length, n8);
       const r9 = B.respondeu(ids[3], 'isso é um robô?', null, seg('10:30'), { sorteio: () => 0 }); assert.deepStrictEqual([r9.intencao, r9.responde, r9.etapa], ['robo', true, 'abertura']); await B.responder(seg('10:32')); assert.ok(env[env.length - 1].text.includes('assistente virtual'));
