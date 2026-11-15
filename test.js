@@ -735,13 +735,19 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.ok((await chamar('POST', '/api/whatsapp/bianca/reiniciar', { headers: H })).json.reiniciadas >= 1);
       // atacado
       setSetting('site_url', 'https://www.nextapbrasil.com.br');
-      a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('painel do revendedor') && tx.includes('Quantas placas'), tx);
-      a = n0(); await msg('5575966660002', 'A2', '3'); await espera(); tx = saiu(a); assert.ok(tx.includes('mínimo é de *5 placas*'), tx);
+      setSetting('foto_modelos_url', 'https://x.com/modelos.jpg');
+      a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a);
+      assert.ok(tx.includes('*painel do revendedor*:\n\n• Preço especial') && tx.includes('Quais modelos você quer revender?') && !tx.includes('R$'), tx);
+      const foto = enviosEvo().slice(a).find(x => x.corpo.mediatype === 'image'); assert.ok(foto && foto.corpo.media === 'https://x.com/modelos.jpg' && foto.corpo.caption.includes('*Pix*'));
+      a = n0(); await msg('5575966660002', 'A2', 'google e pix'); await espera(); tx = saiu(a); assert.ok(tx.includes('Modelos: *Google* e *Pix*.') && tx.includes('Quantas placas'), tx);
+      a = n0(); await msg('5575966660002', 'A2b', '3'); await espera(); tx = saiu(a); assert.ok(tx.includes('mínimo é de *5 placas*'), tx);
       a = n0(); await msg('5575966660002', 'A3', 'São Paulo, quero 15 placas'); await espera(); tx = saiu(a);
-      assert.ok(tx.includes('simulação com *15 placas*') && tx.includes('https://www.nextapbrasil.com.br/revendedor/?tab=registro&qtd=15&utm_source=whatsapp') && !tx.includes('R$') && !/black|promo/i.test(tx), tx);
+      assert.ok(tx.includes('• *15 placas*') && tx.includes('• Modelos: *Google* e *Pix*') && tx.includes('https://www.nextapbrasil.com.br/revendedor/?tab=registro&qtd=15&utm_source=whatsapp') && !tx.includes('R$') && !/black|promo/i.test(tx), tx);
       assert.ok(!db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND texto LIKE '%ATACADO%'").get().n);   // não chama você
       a = n0(); await msg('5575966660002', 'A4', 'qual o valor?'); await espera(); tx = saiu(a); assert.ok(tx.includes('aparece no painel') && !tx.includes('R$'), tx);
-      assert.strictEqual(require('./bianca-balcao.js').decidir(null, 'quero revender 30 placas', '').etapa, 'atacado_link');
+      setSetting('foto_modelos_url', '');
+      assert.strictEqual(require('./bianca-balcao.js').decidir(null, 'quero revender 30 placas', '').etapa, 'atacado');
+      assert.strictEqual(require('./bianca-balcao.js').decidir({ etapa: 'atacado', dados: { qtd: 30 } }, 'todos', '').etapa, 'atacado_link');
       // sumiu 3h no meio da conversa: um lembrete só (e só em horário bom)
       const B2 = require('./bianca-balcao.js'), cid = db.prepare("SELECT id FROM wa_contatos WHERE jid = '5575966660004@s.whatsapp.net'").get;
       await msg('5575966660004', 'L1', 'oi'); await espera(); a = n0(); await msg('5575966660004', 'L2', '1'); await espera();

@@ -44,11 +44,13 @@ const beneficios = mods => [...new Set(mods)].map(m => BENEFICIO[m]).filter(Bool
 // Revenda: mínimo e link do painel do revendedor com o pedido montado (?qtd=N). Sem preço e sem promoção na conversa.
 const minimoAtacado = () => { try { return require('./nextap.js').minimo(); } catch (e) { return 5; } };
 function linkAtacado(q) { let u = ''; try { u = require('./nextap.js').urlPedido(q); } catch (e) { /* sem site */ } return u.replace('&lead=__LEAD__', '').replace('utm_source=instagram&utm_medium=dm', 'utm_source=whatsapp&utm_medium=bianca'); }
+const listaE = mods => { const m = mods.map(x => `*${x}*`); return m.length > 1 ? m.slice(0, -1).join(', ') + ' e ' + m[m.length - 1] : m.join(''); };
 const ehVideo = u => /^https?:\/\/\S+\.(mp4|mov)(\?\S*)?$/i.test(u);
 
 function textos() {
   const P = require('./predio.js'), p = precos(), eu = P.nomes().prospectora, dono = P.vendedor(), cidade = P.cidade();
   const video = String(getSetting('video_demo_url') || '').trim();
+  const foto = String(getSetting('foto_modelos_url') || '').trim(), comFoto = txt => (/^https:\/\/\S+$/.test(foto) ? { midia: foto, texto: txt } : txt);   // foto com todos os modelos
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
     return {
     menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n1️⃣ Para o meu estabelecimento\n2️⃣ Quero revender (atacado)\n\n_Responda com o número._`,
@@ -70,11 +72,16 @@ function textos() {
     modelos: () => [`Temos estes modelos:\n${LISTA_MODELOS}\n\nO ${dono} leva todos pra você ver na hora da entrega. Você prefere a do *Google* ou outro?`],
     dadosOk: () => [`Anotado! ✅ O ${dono} vai te confirmar por aqui o dia e o horário. Ele leva a placa já configurada, sem taxa de entrega, e você só paga na hora, depois de ver funcionando. Obrigada pela confiança! 💙`],
     // Atacado: simulação direto no painel do revendedor (sem preço nem promoção na conversa)
-    atacado: () => ['Que legal! 🙌 Pra revenda você compra direto pelo *painel do revendedor*: preço por quantidade, entrega pra todo o Brasil e as placas chegam prontas pra você configurar pros seus clientes.', 'Quantas placas você quer na primeira compra? Eu já monto a sua simulação.'],
-    atacadoQtd: () => ['Me diz só o número: quantas placas você quer na primeira compra? (ex.: 10, 20, 50)'],
-    atacadoMin: (min) => [`Pra revenda o pedido mínimo é de *${min} placas*. Quer que eu monte a simulação com ${min}?`],
-    atacadoLink: (q, url) => [`Pronto! ✅ Montei a sua simulação com *${q} placas*.`, `É só criar a sua conta grátis no painel do revendedor: o pedido já abre com as ${q} placas, você vê o valor por quantidade, o frete pelo seu CEP e finaliza no Pix ou cartão.\n\n👉 ${url}`, 'Qualquer dúvida no cadastro, me chama aqui. 🙂'],
-    atacadoPreco: () => ['O valor por quantidade aparece no painel assim que você cria a conta (leva 1 minuto) e já calcula o frete pro seu CEP. 🙂'],
+    atacado: () => ['Que legal! 🙌\n\nPra revenda, você compra direto pelo *painel do revendedor*:\n\n• Preço especial por quantidade\n• Entrega para todo o Brasil\n• Placas prontas para você configurar para os seus clientes',
+      comFoto(`Estes são os modelos disponíveis:\n\n${LISTA_MODELOS}\n\nQuais modelos você quer revender? Pode escolher mais de um. 🙂`)],
+    atacadoModDeNovo: () => [`Só pra eu montar certinho: quais modelos você quer?\n\n${LISTA_MODELOS}\n\nSe quiser todos, é só responder *todos*. 🙂`],
+    atacadoQtd: (mods) => [`Ótima escolha! ✅\n\nModelos: ${listaE(mods)}.\n\nQuantas placas você quer na primeira compra?\n\n_Exemplo: 10, 20 ou 50._`],
+    atacadoQtdDeNovo: () => ['Me diz só o número, por favor: quantas placas você quer na primeira compra?\n\n_Exemplo: 10, 20 ou 50._'],
+    atacadoMin: (min) => [`Para revenda, o pedido mínimo é de *${min} placas*.\n\nQuer que eu monte a simulação com ${min}?`],
+    atacadoLink: (q, url, mods) => [`Pronto! ✅\n\nMontei a sua simulação:\n\n• *${q} placas*${mods && mods.length ? `\n• Modelos: ${listaE(mods)}` : ''}`,
+      `Agora é só criar a sua conta grátis no *painel do revendedor*.\n\nO pedido já abre com as ${q} placas e, lá, você:\n\n• Vê o valor por quantidade\n• Calcula o frete pelo seu CEP\n• Finaliza no Pix ou no cartão\n\n👉 ${url}`,
+      'Qualquer dúvida no cadastro, é só me chamar aqui. 🙂'],
+    atacadoPreco: () => ['O valor por quantidade aparece no painel assim que você cria a sua conta (leva 1 minuto).\n\nLá também já calcula o frete para o seu CEP. 🙂'],
     humano: () => [`Claro! Já avisei o ${dono}, ele te responde por aqui. 🙂`],
     nao: () => ['Sem problema! Se um dia quiser mais avaliações no Google, é só me chamar. 🙌'],
     parar: () => ['Combinado, não escrevo mais. Bom trabalho!'],
@@ -86,7 +93,8 @@ function textos() {
       qtd: () => 'Oi! 🙂 Só falta me dizer: vai querer *1* ou *2* placas?',
       segundo: () => 'Oi! 🙂 Só falta me dizer o modelo da segunda placa: o mesmo ou outro?',
       dados: () => `Oi! 🙂 Pra o ${dono} levar a sua placa, só preciso do nome da empresa, do endereço e do melhor dia e horário.`,
-      atacado: () => 'Oi! 🙂 Me diz quantas placas você quer na primeira compra que eu já monto a sua simulação no painel do revendedor.',
+      atacado: () => 'Oi! 🙂\n\nMe diz quais modelos você quer revender (*Google*, *Instagram*, *WhatsApp* ou *Pix*), que eu já monto a sua simulação.',
+      atacado_qtd: () => 'Oi! 🙂\n\nSó falta me dizer quantas placas você quer na primeira compra, que eu já monto a sua simulação.',
     },
   };
 }
@@ -123,26 +131,36 @@ function decidir(e, textoIn, nome) {
   if (RX.humano.test(t)) return R(T.humano(), 'humano', tipo, d, '🙋 pediu para falar com uma pessoa');
   const atac = RX.atacado.test(t) || (etapa === 'menu' && /^\s*2\b/.test(t)), varj = RX.varejo.test(t) || (etapa === 'menu' && /^\s*1\b/.test(t));
   if (!etapa || etapa === 'menu') {
-    if (atac && !varj && qtdDe(t) >= minimoAtacado()) return { ...R(T.atacadoLink(qtdDe(t), linkAtacado(qtdDe(t))), 'atacado_link', 'atacado', { qtd: qtdDe(t) }), log: `📦 Atacado: simulação de ${qtdDe(t)} placas enviada (painel do revendedor)` };
-    if (atac && !varj) return R(T.atacado(), 'atacado', 'atacado');
+    if (atac && !varj) return R(T.atacado(), 'atacado', 'atacado', qtdDe(t) ? { qtd: qtdDe(t) } : {});   // primeiro os modelos (com a foto), depois a quantidade
     if (varj) return R(T.varejo(), 'varejo', 'varejo');
     if (!etapa) return R(T.menu(nome), 'menu', '');
     if ((e.tentativas || 0) >= 1) return R(T.humano(), 'humano', '', d, '❓ não disse se é varejo ou atacado');
     return { ...R(T.menuDeNovo(), 'menu', ''), tentativas: 1 };
   }
-  if (etapa === 'atacado' || etapa === 'atacado_min') {
-    const min = minimoAtacado(), q = etapa === 'atacado_min' && RX.sim.test(t) && !qtdDe(t) ? min : qtdDe(t);
-    if (q >= min) { const url = linkAtacado(q); return { ...R(T.atacadoLink(q, url), 'atacado_link', 'atacado', { ...d, qtd: q }), log: `📦 Atacado: simulação de ${q} placas enviada (painel do revendedor)` }; }
+  const modsAt = /\b(todos|todas|tudo|os 4|as 4|os quatro|as quatro)\b/.test(t) ? MODELOS.map(m => m[0]) : modelosDe(t);
+  const simular = (q, mods, dd) => ({ ...R(T.atacadoLink(q, linkAtacado(q), mods), 'atacado_link', 'atacado', { ...dd, qtd: q, modelos: mods }), log: `📦 Atacado: simulação de ${q} placas${mods.length ? ' (' + mods.join(', ') + ')' : ''} enviada (painel do revendedor)` });
+  // Atacado 1: quais modelos?
+  if (etapa === 'atacado') {
+    const q = qtdDe(t) || d.qtd || 0, min = minimoAtacado();
+    if (modsAt.length) { if (q >= min) return simular(q, modsAt, d); return R(T.atacadoQtd(modsAt), 'atacado_qtd', 'atacado', { ...d, modelos: modsAt }); }
+    if (RX.preco.test(t)) return R([...T.atacadoPreco(), ...T.atacadoModDeNovo()], etapa);
+    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'atacado', d, '❓ revenda: não entendi os modelos');
+    return { ...R(T.atacadoModDeNovo(), etapa, 'atacado', qtdDe(t) ? { ...d, qtd: qtdDe(t) } : d), tentativas: 1 };
+  }
+  // Atacado 2: quantas?
+  if (etapa === 'atacado_qtd' || etapa === 'atacado_min') {
+    const min = minimoAtacado(), q = etapa === 'atacado_min' && RX.sim.test(t) && !qtdDe(t) ? min : qtdDe(t), mods = modsAt.length ? modsAt : (d.modelos || []);
+    if (q >= min) return simular(q, mods, d);
     if (q > 0) return R(T.atacadoMin(min), 'atacado_min', 'atacado', { ...d, qtd: q });
-    if (RX.preco.test(t)) return R([...T.atacadoPreco(), ...T.atacadoQtd()], etapa);
+    if (RX.preco.test(t)) return R([...T.atacadoPreco(), ...T.atacadoQtdDeNovo()], etapa);
     if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'atacado', d, '❓ revenda: não entendi a quantidade');
-    return { ...R(T.atacadoQtd(), etapa), tentativas: 1 };
+    return { ...R(T.atacadoQtdDeNovo(), etapa), tentativas: 1 };
   }
   if (etapa === 'atacado_link') {
     const q = qtdDe(t);
-    if (q >= minimoAtacado() && q !== d.qtd) return { ...R(T.atacadoLink(q, linkAtacado(q)), 'atacado_link', 'atacado', { ...d, qtd: q }), log: `📦 Atacado: simulação refeita com ${q} placas` };
+    if (q >= minimoAtacado() && q !== d.qtd) return simular(q, modsAt.length ? modsAt : (d.modelos || []), d);
     if (RX.preco.test(t)) return R(T.atacadoPreco(), 'atacado_link');
-    if (RX.sim.test(t) || /obrigad|valeu|blz|beleza|ok|certo|show/.test(t)) return R(['Por nada! 🙌 Qualquer coisa, é só me chamar.'], 'atacado_link');
+    if (RX.sim.test(t) || /obrigad|valeu|blz|beleza|ok|certo|show/.test(t)) return R(['Por nada! 🙌\n\nQualquer coisa, é só me chamar.'], 'atacado_link');
     return R(null, 'humano', 'atacado', d, `❓ revenda (${d.qtd} placas): mandou algo que eu não sei responder depois da simulação`);
   }
   const mods = [...new Set([...(d.modelos || []), ...modelosDe(t)])];
@@ -215,7 +233,7 @@ async function lembrar(t0 = Date.now()) {
   const W = require('./whatsapp.js'), d = new Date(t0 - 3 * 3600e3), m = d.getUTCHours() * 60 + d.getUTCMinutes();
   if (getSetting('wa_robo') !== '1' || !W.configurado() || m < 480 || m > 1230) return 0;
   const T = textos().lembrete;
-  const L = db.prepare("SELECT * FROM bianca_balcao WHERE lembrado = 0 AND etapa IN ('menu','varejo','modelo','qtd','segundo','dados','atacado') AND em <= ? AND em > ? ORDER BY em LIMIT 5").all(t0 - 3 * 3600e3, t0 - DIA);
+  const L = db.prepare("SELECT * FROM bianca_balcao WHERE lembrado = 0 AND etapa IN ('menu','varejo','modelo','qtd','segundo','dados','atacado','atacado_qtd') AND em <= ? AND em > ? ORDER BY em LIMIT 5").all(t0 - 3 * 3600e3, t0 - DIA);
   let n = 0;
   for (const b of L) {
     db.prepare('UPDATE bianca_balcao SET lembrado = 1 WHERE contato_id = ?').run(b.contato_id);

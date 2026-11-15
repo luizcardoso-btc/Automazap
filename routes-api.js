@@ -292,6 +292,7 @@ const REGRAS = {
   site_url: v => /^https?:\/\/\S+$/.test(v) && v.length <= 200,
   telefone: v => v.length <= 40,
   public_url: v => v === '' || (/^https:\/\/\S+$/.test(v) && v.length <= 200),
+  foto_modelos_url: v => v === '' || (/^https:\/\/\S+$/.test(v) && v.length <= 400),
   video_demo_url: v => v === '' || (/^https:\/\/\S+$/.test(v) && v.length <= 400),
   followups_enabled: v => v === '0' || v === '1',
   fallback_enabled: v => v === '0' || v === '1',
