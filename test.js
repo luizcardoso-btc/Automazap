@@ -734,8 +734,14 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       a = n0(); await msg('5575966660001', 'R6', '#teste'); await espera(); assert.ok(saiu(a).includes('1️⃣ Para o meu estabelecimento'));   // recomeça do zero no mesmo número
       assert.ok((await chamar('POST', '/api/whatsapp/bianca/reiniciar', { headers: H })).json.reiniciadas >= 1);
       // atacado
-      a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('revenda') && tx.includes('quantas placas'), tx);
-      a = n0(); await msg('5575966660002', 'A2', '50 placas, sou de Salvador'); await espera(); tx = saiu(a); assert.ok(tx.includes('Já passei'), tx);
+      setSetting('site_url', 'https://www.nextapbrasil.com.br');
+      a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('painel do revendedor') && tx.includes('Quantas placas'), tx);
+      a = n0(); await msg('5575966660002', 'A2', '3'); await espera(); tx = saiu(a); assert.ok(tx.includes('mínimo é de *5 placas*'), tx);
+      a = n0(); await msg('5575966660002', 'A3', 'São Paulo, quero 15 placas'); await espera(); tx = saiu(a);
+      assert.ok(tx.includes('simulação com *15 placas*') && tx.includes('https://www.nextapbrasil.com.br/revendedor/?tab=registro&qtd=15&utm_source=whatsapp') && !tx.includes('R$') && !/black|promo/i.test(tx), tx);
+      assert.ok(!db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND texto LIKE '%ATACADO%'").get().n);   // não chama você
+      a = n0(); await msg('5575966660002', 'A4', 'qual o valor?'); await espera(); tx = saiu(a); assert.ok(tx.includes('aparece no painel') && !tx.includes('R$'), tx);
+      assert.strictEqual(require('./bianca-balcao.js').decidir(null, 'quero revender 30 placas', '').etapa, 'atacado_link');
       // sumiu 3h no meio da conversa: um lembrete só (e só em horário bom)
       const B2 = require('./bianca-balcao.js'), cid = db.prepare("SELECT id FROM wa_contatos WHERE jid = '5575966660004@s.whatsapp.net'").get;
       await msg('5575966660004', 'L1', 'oi'); await espera(); a = n0(); await msg('5575966660004', 'L2', '1'); await espera();
