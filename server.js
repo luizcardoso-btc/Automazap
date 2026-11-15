@@ -106,7 +106,8 @@ app.post('/integracao/parear', express.json({ limit: '10kb' }), (req, res) => {
 });
 
 // ---------- Painel e API ----------
-app.use('/api/predio/artes', express.json({ limit: '15mb' }));   // imagens do Theo para o banco de artes do NexTap
+app.use('/api/predio/artes', express.json({ limit: '15mb' }));
+app.use('/api/predio/marketing/pecas', express.json({ limit: '15mb' }));   // imagens que o CEO envia para o Renan publicar   // imagens do Theo para o banco de artes do NexTap
 app.use(express.json({ limit: '1mb' }));
 const marca = require('./marca.js');
 app.use('/media', (req, res, next) => {
@@ -161,6 +162,7 @@ if (require.main === module) {
   // Prédio: lista da Prospectora, conteúdo da semana e resumo da Gerente (todo dia, na hora configurada)
   setTimeout(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 15e3).unref();   // agentes começam logo que o servidor sobe
   setInterval(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 60e3).unref();
+  setInterval(() => { require('./social.js').tick().catch(e => console.error('[SOCIAL]', e.message)); }, 60e3).unref();   // Renan publica o que está programado
   // Disparos programados do WhatsApp
   setInterval(() => { wa.tick().catch(e => console.error('[WHATSAPP]', e.message)); }, 20000).unref();
   setTimeout(() => ig.renovarSeNecessario().catch(() => {}), 30000).unref();

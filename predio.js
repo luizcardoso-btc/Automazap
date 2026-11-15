@@ -27,8 +27,8 @@ function registrar(agente, titulo, texto, dados = {}, t0 = Date.now()) {
 }
 const ultimo = agente => { const r = db.prepare('SELECT * FROM agentes_log WHERE agente = ? ORDER BY id DESC LIMIT 1').get(agente); return r && { ...r, dados: JSON.parse(r.dados || '{}') }; };
 
-const PAPEIS = { cto: 'CTO · Gestor de marketing', gerente: 'Gerente geral', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Editor de vídeo', copy_video: 'Copywriter de vídeo', imagem: 'Designer de imagem', copy_imagem: 'Copywriter de imagem', financeiro: 'CFO', recepcao: 'Recepcionista' };
-const NOMES0 = { cto: 'Rafael', gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', copy_video: 'Davi', imagem: 'Lia', copy_imagem: 'Nina', financeiro: 'Otávio', recepcao: 'Clara' };
+const PAPEIS = { cto: 'CTO · Gestor de marketing', gerente: 'Gerente geral', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Editor de vídeo', copy_video: 'Copywriter de vídeo', imagem: 'Designer de imagem', copy_imagem: 'Copywriter de imagem', social: 'Social media', financeiro: 'CFO', recepcao: 'Recepcionista' };
+const NOMES0 = { cto: 'Rafael', gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', copy_video: 'Davi', imagem: 'Lia', copy_imagem: 'Nina', social: 'Renan', financeiro: 'Otávio', recepcao: 'Clara' };
 function nomes() { let o = {}; try { o = JSON.parse(getSetting('predio_nomes') || '{}') || {}; } catch (e) { /* padrão */ } const r = {}; for (const k in NOMES0) r[k] = String(o[k] || '').trim() || NOMES0[k]; return r; }
 const quem = k => `${nomes()[k]} (${PAPEIS[k]})`;
 
@@ -279,38 +279,40 @@ const POSTS = [
   ['Primeira impressão', 'Antes de entrar, o cliente olha a sua nota', 'Cuide dela todos os dias', 'pessoa em frente a uma vitrine consultando o celular antes de entrar', 'COMO FUNCIONA'],
   ['Simples de usar', 'Seu cliente não precisa baixar nada', 'É só aproximar o celular', 'senhora de meia-idade aproximando o celular de uma placa de acrílico, sorrindo', 'COMO FUNCIONA'],
 ];
+// Stories publicados pela API não aceitam figurinha (enquete, caixinha, quiz): a interação é pedir uma resposta ao story, que cai no direct.
 const STORIES = [
-  ['Enquete', 'Você pede avaliação para os seus clientes?', 'Enquete: Sempre / Quase nunca', 'balcão de loja com uma placa de acrílico, visto de frente', 'enquete'],
-  ['Caixinha', 'Qual é a sua maior dúvida sobre a placa?', 'Responda na caixinha', 'placa de acrílico NexTap segurada por uma mão, fundo desfocado', 'caixinha de perguntas'],
-  ['Bastidores', 'Pedidos de hoje saindo', 'Embalando com carinho', 'mesa de expedição com caixas e placas de acrílico sendo embaladas', 'nenhuma'],
-  ['Dica rápida', 'Dica de 5 segundos', 'Coloque a placa perto do caixa', 'placa de acrílico ao lado da maquininha de cartão', 'nenhuma'],
-  ['Quiz', 'NFC funciona sem internet?', 'Quiz: Sim / Não (a resposta: o celular precisa de internet para abrir o link)', 'celular encostando em uma placa de acrílico', 'quiz'],
-  ['Chamada', 'Quer ver a placa funcionando?', 'Responda EU QUERO', 'close de celular abrindo a tela de avaliação ao se aproximar da placa', 'resposta rápida'],
-  ['Revenda', 'Já pensou em revender?', 'Enquete: Quero saber mais / Agora não', 'pessoa segurando várias placas de acrílico, sorrindo', 'enquete'],
-  ['Antes da visita', 'Você olha a nota antes de ir a um lugar novo?', 'Enquete: Sempre / Às vezes', 'pessoa consultando o celular na calçada, comércio ao fundo', 'enquete'],
-  ['Novo post', 'Post novo no feed', 'Toque para ver', 'celular mostrando um feed de rede social genérico sobre uma mesa, placa de acrílico ao lado', 'figurinha de link para o post'],
-  ['Contagem', 'Quantas avaliações você recebeu esta semana?', 'Controle deslizante de 0 a 10+', 'cinco estrelas douradas de acrílico sobre um balcão escuro', 'controle deslizante'],
+  ['Pergunta', 'Você pede avaliação para os seus clientes?', 'Responda SIM ou NÃO aqui', 'balcão de loja com uma placa de acrílico, visto de frente'],
+  ['Dúvidas', 'Qual é a sua maior dúvida sobre a placa?', 'Responda este story que eu explico', 'placa de acrílico NexTap segurada por uma mão, fundo desfocado'],
+  ['Bastidores', 'Pedidos de hoje saindo', 'Embalados um a um', 'mesa de expedição com caixas e placas de acrílico sendo embaladas'],
+  ['Dica rápida', 'Coloque a placa perto do caixa', 'Dica de 5 segundos', 'placa de acrílico ao lado da maquininha de cartão'],
+  ['Você sabia?', 'O cliente não precisa baixar nenhum aplicativo', 'É só aproximar o celular', 'celular encostando em uma placa de acrílico'],
+  ['Chamada', 'Quer ver a placa funcionando?', 'Responda EU QUERO', 'close de celular abrindo uma tela de avaliação ao se aproximar da placa'],
+  ['Revenda', 'Já pensou em revender?', 'Responda REVENDER que eu te explico', 'pessoa segurando várias placas de acrílico, sorrindo'],
+  ['Antes da visita', 'Você olha a nota antes de ir a um lugar novo?', 'Seu cliente também', 'pessoa consultando o celular na calçada, comércio ao fundo'],
+  ['Novo post', 'Tem post novo no feed', 'Corre lá no perfil', 'celular sobre uma mesa mostrando um feed de rede social genérico, placa de acrílico ao lado'],
+  ['Estrelas', 'Quantas avaliações você recebeu esta semana?', 'Responda com o número', 'cinco estrelas douradas de acrílico sobre um balcão escuro'],
 ];
 db.exec(`CREATE TABLE IF NOT EXISTS mkt_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, dia TEXT NOT NULL, slot TEXT NOT NULL, canal TEXT NOT NULL, tipo TEXT NOT NULL,
   titulo TEXT NOT NULL, pilar TEXT NOT NULL DEFAULT '', slides TEXT NOT NULL DEFAULT '[]', legenda TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'aguardando',
-  revisao TEXT NOT NULL DEFAULT '{}', versao INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL, UNIQUE(dia, slot))`);   // status: aguardando | aprovado | ajustar | postado
+  revisao TEXT NOT NULL DEFAULT '{}', versao INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL, UNIQUE(dia, slot))`);   // status: aguardando | ajustar | aprovado (texto ok) | programado (CEO aprovou as imagens) | postado | erro
+const social = require('./social.js');   // Renan: imagens, fila de publicação e métricas (acrescenta as colunas dele em mkt_pecas)
 
 // Cronograma: posts do feed por dia da semana (0 = domingo) e stories por dia. O CTO ajusta na sala dele.
 const CRON0 = { feed: [0, 2, 1, 2, 1, 2, 2], stories: 2 };
-function cronograma() { try { const o = JSON.parse(getSetting('mkt_cronograma') || 'null'); if (o && Array.isArray(o.feed) && o.feed.length === 7) return { feed: o.feed.map(x => Math.max(0, Math.min(3, x | 0))), stories: Math.max(0, Math.min(4, o.stories | 0)) }; } catch (e) { /* padrão */ } return CRON0; }
+function cronograma() { try { const o = JSON.parse(getSetting('mkt_cronograma') || 'null'); if (o && Array.isArray(o.feed) && o.feed.length === 7) return { feed: o.feed.map(x => Math.max(0, Math.min(3, x | 0))), stories: Math.max(0, Math.min(6, o.stories | 0)) }; } catch (e) { /* padrão */ } return CRON0; }
 // Guia de estilo da Lia (o CTO treina e ajusta). É o comando-mestre colado uma vez em cada chat do ChatGPT.
 const ESTILO0 = 'Você é o designer da NexTap, marca brasileira de placas de acrílico com NFC e QR Code que fazem o cliente avaliar a empresa no Google com um toque. Regras para TODAS as imagens deste chat: fotografia publicitária realista de comércio local brasileiro (pessoas e ambientes naturais, nada com cara de banco de imagens), luz natural suave, paleta escura (preto e grafite) com detalhes em verde-limão #C6F432, tipografia sem serifa bem grossa, branca, com uma palavra-chave em verde-limão. A placa NexTap é de acrílico, com área reservada para o QR Code: nunca desenhe um QR Code de verdade nem logotipos de outras marcas. Escreva SOMENTE o texto que eu pedir, em português do Brasil, com os acentos corretos, grande e legível no celular. Mantenha a mesma identidade em todas as imagens. Responda "pronto" e espere o primeiro pedido.';
 const estilo = () => String(getSetting('mkt_estilo') || '').trim() || ESTILO0;
 const FORMATO = { feed: 'formato vertical 4:5 (1080x1350)', stories: 'formato vertical 9:16 (1080x1920), deixando livres os 14% de cima e os 20% de baixo (área dos botões do Instagram)' };
 function comando(p, s, i, n) {
   const onde = p.canal === 'stories' ? 'no centro da imagem' : `no terço ${i % 2 ? 'inferior' : 'superior'}`;
-  return `${p.tipo === 'carrossel' ? `Imagem ${i + 1} de ${n} do carrossel "${p.titulo}"` : p.canal === 'stories' ? `Story "${p.titulo}"` : `Post do feed "${p.titulo}"`}, ${FORMATO[p.canal]}. Cena: ${s.visual}. Deixe uma área limpa ${onde} e escreva nela, grande, exatamente: "${s.texto}"${s.sub && p.canal !== 'stories' ? ` e, menor, logo abaixo: "${s.sub}"` : ''}. Nenhum outro texto na imagem.${p.tipo === 'carrossel' && i ? ' Mesma paleta, mesma tipografia e mesma luz da imagem anterior.' : ''}`;
+  return `${p.tipo === 'carrossel' ? `Imagem ${i + 1} de ${n} do carrossel "${p.titulo}"` : p.canal === 'stories' ? `Story "${p.titulo}"` : `Post do feed "${p.titulo}"`}, ${FORMATO[p.canal]}. Cena: ${s.visual}. Deixe uma área limpa ${onde} e escreva nela, grande, exatamente: "${s.texto}"${s.sub ? ` e, menor, logo abaixo: "${s.sub}"` : ''}. Mantenha o texto e tudo que é importante longe das bordas (margem de 12% em cada lado): a imagem será cortada na proporção do Instagram. Nenhum outro texto na imagem.${p.tipo === 'carrossel' && i ? ' Mesma paleta, mesma tipografia e mesma luz da imagem anterior.' : ''}`;
 }
 // Monta uma peça (Nina: textos e legenda · Lia: comandos). "v" troca o modelo quando o CTO pede outra versão.
 function montarPeca(t0, slot, v = 0) {
   const dia = dataStr(t0), k = Math.floor(dia0(t0) / DIA) + v * 5, canal = slot.startsWith('story') ? 'stories' : 'feed', idx = Number(slot.slice(-1)) - 1;
   let p;
-  if (canal === 'stories') { const s = STORIES[(k * 2 + idx * 3) % STORIES.length]; p = { tipo: 'story', titulo: s[0], pilar: 'Stories', slides: [{ texto: s[1], sub: s[2], visual: s[3] }], legenda: s[4] === 'nenhuma' ? 'Sem figurinha: só a imagem.' : `Depois de subir a imagem, adicione a figurinha: ${s[4]}. ${s[2]}` }; }
+  if (canal === 'stories') { const s = STORIES[(k * 2 + idx * 3) % STORIES.length]; p = { tipo: 'story', titulo: s[0], pilar: 'Stories', slides: [{ texto: s[1], sub: s[2], visual: s[3] }], legenda: 'Story sem legenda: as respostas chegam no direct e o robô atende.' }; }
   else {
     const doisPosts = cronograma().feed[new Date(dia0(t0) - FUSO + 12 * 3600e3).getUTCDay()] >= 2;
     const cal = idx === 0 && !v ? db.prepare("SELECT * FROM conteudo WHERE dia = ? AND formato = 'Carrossel' ORDER BY id DESC LIMIT 1").get(dia) : null;
@@ -320,7 +322,10 @@ function montarPeca(t0, slot, v = 0) {
       fr.slice(0, 4).forEach((f, i) => sl.push({ texto: f, sub: '', visual: vis[i + 1] || vis[vis.length - 1] || 'cliente usando a placa no balcão' }));
       sl.push({ texto: cta, sub: 'Respondemos no direct', visual: 'placa de acrílico NexTap em destaque sobre fundo escuro com luz verde-limão' });
       p = { tipo: 'carrossel', titulo: cal.titulo, pilar: cal.pilar, slides: sl, legenda: cal.legenda };
-    } else if (idx === 0 && doisPosts) { const c = CARROSSEIS[k % CARROSSEIS.length]; p = { tipo: 'carrossel', titulo: c.titulo, pilar: c.pilar, slides: c.slides.map(x => ({ texto: x[0], sub: x[1], visual: x[2] })), legenda: c.legenda + '\n\n' + tags() }; }
+    } else if (idx === 0 && doisPosts) {
+      // Os temas que mais renderam (métricas do Renan) entram primeiro no rodízio
+      const rk = social.desempenho(t0).ranking.map(x => x.pilar), ordem = rk.length >= 2 ? CARROSSEIS.slice().sort((a, b) => (rk.indexOf(a.pilar) + 1 || 99) - (rk.indexOf(b.pilar) + 1 || 99)) : CARROSSEIS;
+      const c = ordem[k % ordem.length]; p = { tipo: 'carrossel', titulo: c.titulo, pilar: c.pilar, slides: c.slides.map(x => ({ texto: x[0], sub: x[1], visual: x[2] })), legenda: c.legenda + '\n\n' + tags() }; }
     else { const o = POSTS[(k + idx * 5) % POSTS.length]; p = { tipo: 'post', titulo: o[0], pilar: 'Post do dia', slides: [{ texto: o[1], sub: o[2], visual: o[3] }], legenda: `${o[1]}${/[.!?]$/.test(o[1]) ? '' : '.'} ${o[2]}${/[.!?]$/.test(o[2]) ? '' : '.'} ✨\n\nComente ${o[4]} que eu te explico no direct.\n\n${tags()}` }; }
   }
   p = { ...p, dia, slot, canal, versao: v };
@@ -339,9 +344,9 @@ function revisar(p) {
   return { ok: !notas.length, notas, em: Date.now() };
 }
 const SLOTS = t0 => { const c = cronograma(), f = c.feed[new Date(dia0(t0) - FUSO + 12 * 3600e3).getUTCDay()]; return [...Array.from({ length: f }, (_, i) => 'feed' + (i + 1)), ...Array.from({ length: c.stories }, (_, i) => 'story' + (i + 1))]; };
-const lerPeca = r => r && { ...r, slides: JSON.parse(r.slides || '[]'), revisao: JSON.parse(r.revisao || '{}') };
+const lerPeca = r => social.ler(r);
 const gravar = db.prepare(`INSERT INTO mkt_pecas (dia, slot, canal, tipo, titulo, pilar, slides, legenda, status, revisao, versao, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(dia, slot) DO UPDATE SET tipo = excluded.tipo, titulo = excluded.titulo, pilar = excluded.pilar, slides = excluded.slides, legenda = excluded.legenda, status = excluded.status, revisao = excluded.revisao, versao = excluded.versao`);
+  ON CONFLICT(dia, slot) DO UPDATE SET tipo = excluded.tipo, titulo = excluded.titulo, pilar = excluded.pilar, slides = excluded.slides, legenda = excluded.legenda, status = excluded.status, revisao = excluded.revisao, versao = excluded.versao, imagens = '[]', horario = '', erro = ''`);
 // A Lia propõe; se o CTO reprovar, ela tenta outra versão (até 3). O que continuar reprovado fica em "ajustar" para você decidir.
 function proporPeca(t0, slot, v0 = 0) {
   let p, r;
@@ -352,7 +357,8 @@ function proporPeca(t0, slot, v0 = 0) {
 function pecasDoDia(t0 = Date.now()) {
   const dia = dataStr(t0), slots = SLOTS(t0);
   for (const s of slots) if (!db.prepare('SELECT 1 FROM mkt_pecas WHERE dia = ? AND slot = ?').get(dia, s)) proporPeca(t0, s);
-  return db.prepare('SELECT * FROM mkt_pecas WHERE dia = ? ORDER BY canal, slot').all(dia).filter(r => slots.includes(r.slot) || r.status === 'postado').map(lerPeca);
+  return db.prepare('SELECT * FROM mkt_pecas WHERE dia = ? ORDER BY canal, slot').all(dia).filter(r => slots.includes(r.slot) || r.status === 'postado' || r.status === 'programado').map(lerPeca)
+    .map(p => ({ ...p, horario: p.horario || social.horarioDe(p.slot, slots.filter(x => x.startsWith(p.canal === 'feed' ? 'feed' : 'story')).length), completa: social.completa(p) }));
 }
 function refazerPeca(id) {
   const r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(id);
@@ -376,13 +382,15 @@ function metricasMkt(t0 = Date.now()) {
   if (leads7 >= 1 && leads > leads7 * 1.5) rec.push(`Leads acima da média (${leads} ontem): repita o tema de ontem em outro formato nesta semana.`);
   if (vidT && !vid && new Date(hoje0 - FUSO + 12 * 3600e3).getUTCDay() >= 4) rec.push(`Nenhum vídeo postado nesta semana (${vidT} roteiro(s) prontos com ${nomes().copy_video}).`);
   if (!rec.length) rec.push('Cronograma em dia. Mantendo o plano.');
-  return { ontem: { planejadas: plan, postadas: post, leads, cliques }, semana: { planejadas: plan7, postadas: post7, leads_media: Math.round(leads7 * 10) / 10, videos: `${vid}/${vidT}` }, recomendacoes: rec };
+  const des = social.desempenho(t0);
+  if (des.melhor) rec.push(`Melhor post dos últimos 14 dias: "${des.melhor.titulo}" (${des.melhor.alcance} de alcance). ${des.ranking[0] ? `O tema "${des.ranking[0].pilar}" é o que mais engaja: ${nomes().copy_imagem} e ${nomes().imagem} vão puxar mais dele.` : ''}`);
+  return { desempenho: des, ontem: { planejadas: plan, postadas: post, leads, cliques }, semana: { planejadas: plan7, postadas: post7, leads_media: Math.round(leads7 * 10) / 10, videos: `${vid}/${vidT}` }, recomendacoes: rec };
 }
 function marketingSemana(t0 = Date.now()) {
   const semana = semanaDe(t0), itens = db.prepare('SELECT * FROM conteudo WHERE semana = ? ORDER BY dia, id').all(semana);
   const m = ultimo('cto');
   return { semana, videos: itens.filter(c => c.formato !== 'Carrossel').map(copyVideo), imagens: itens.filter(c => c.formato === 'Carrossel').map(c => ({ id: c.id, dia: c.dia, titulo: c.titulo, status: c.status })),
-    pecas: pecasDoDia(t0), estilo: estilo(), estilo_padrao: !String(getSetting('mkt_estilo') || '').trim(), cronograma: cronograma(), metricas: metricasMkt(t0),
+    pecas: pecasDoDia(t0), social: social.painel(t0), estilo: estilo(), estilo_padrao: !String(getSetting('mkt_estilo') || '').trim(), cronograma: cronograma(), metricas: metricasMkt(t0),
     relatorio: m ? { titulo: m.titulo, texto: m.texto, em: m.criado_em } : null };
 }
 function turnoMarketing(t0 = Date.now(), { avisar = true } = {}) {
@@ -394,6 +402,7 @@ function turnoMarketing(t0 = Date.now(), { avisar = true } = {}) {
     registrar('copy_video', 'Roteiros da semana ' + semana.split('-').reverse().join('/'), `${n("SELECT COUNT(*) AS n FROM conteudo WHERE semana = ? AND formato <> 'Carrossel'", semana)} roteiro(s) de vídeo para o ${N.conteudo}.`, { semana }, t0);
   const texto = [`✅ Pauta de hoje: ${ok} peça(s) aprovada(s)${aj ? ` e ${aj} para ajustar` : ''} (${feed} no feed, ${st} nos stories).`,
     `📊 Ontem: ${mt.ontem.postadas} de ${mt.ontem.planejadas} peça(s) postada(s), ${mt.ontem.leads} lead(s) pelo Instagram, ${mt.ontem.cliques} clique(s) no pedido.`,
+    ...(mt.desempenho.com_dados ? [`👀 Alcance de ontem no feed: ${mt.desempenho.ontem.alcance} pessoa(s), ${mt.desempenho.ontem.engajamento} ponto(s) de engajamento (curtidas, comentários, salvamentos e envios).`] : []),
     `📅 Últimos 7 dias: ${mt.semana.postadas} de ${mt.semana.planejadas} peça(s) postada(s), média de ${String(mt.semana.leads_media).replace('.', ',')} lead(s) por dia, vídeos da semana ${mt.semana.videos}.`,
     '', 'Recomendações:', ...mt.recomendacoes.map(x => '• ' + x)].join('\n');
   registrar('cto', `Métricas e aprovações de ${dd}`, texto, { dia: dataStr(t0), aprovadas: ok, ajustar: aj, ...mt.ontem }, t0);
@@ -500,7 +509,7 @@ router.get('/', (req, res) => {
       menus7: n("SELECT COUNT(*) AS n FROM messages m JOIN flows f ON f.id = m.flow_id WHERE f.event = 'nao_entendi' AND m.direction = 'out' AND m.created_at >= ?", s7),
       corrigidas7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'atendente' AND criado_em >= ?", s7) },
     prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length, proxima: proxima ? proxima.nome : null } : null,
-    marketing: (() => { try { const pc = pecasDoDia(); return { videos: n("SELECT COUNT(*) AS n FROM conteudo WHERE semana = ? AND formato <> 'Carrossel'", sem), hoje: { pecas: pc.length, imagens: pc.reduce((a, p) => a + p.slides.length, 0), aprovadas: pc.filter(p => p.status === 'aprovado').length, ajustar: pc.filter(p => p.status === 'ajustar').length, postadas: pc.filter(p => p.status === 'postado').length, feed: pc.filter(p => p.canal === 'feed').length } }; } catch (e) { return null; } })(),
+    marketing: (() => { try { const pc = pecasDoDia(); return { videos: n("SELECT COUNT(*) AS n FROM conteudo WHERE semana = ? AND formato <> 'Carrossel'", sem), hoje: { pecas: pc.length, imagens: pc.reduce((a, p) => a + p.slides.length, 0), aprovadas: pc.filter(p => p.status === 'aprovado').length, programadas: pc.filter(p => p.status === 'programado').length, erros: pc.filter(p => p.status === 'erro').length, proxima: (pc.filter(p => p.status === 'programado').sort((a, b) => a.horario.localeCompare(b.horario))[0] || {}).horario || '', ajustar: pc.filter(p => p.status === 'ajustar').length, postadas: pc.filter(p => p.status === 'postado').length, feed: pc.filter(p => p.canal === 'feed').length } }; } catch (e) { return null; } })(),
     conteudo: { semana: sem, hoje: hojeC || null, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
   });
 });
@@ -567,7 +576,7 @@ router.get('/conteudo', (req, res) => {
 router.get('/marketing', (req, res) => { gerarSemana(); res.json(marketingSemana(Date.now())); });
 router.put('/marketing/config', (req, res) => {
   const b = req.body || {};
-  if (b.cronograma) { const c = b.cronograma; if (!Array.isArray(c.feed) || c.feed.length !== 7 || c.feed.some(x => !Number.isInteger(x) || x < 0 || x > 3) || !Number.isInteger(c.stories) || c.stories < 0 || c.stories > 4) return res.status(400).json({ error: 'Cronograma inválido: até 3 posts por dia e até 4 stories.' }); setSetting('mkt_cronograma', JSON.stringify({ feed: c.feed, stories: c.stories })); }
+  if (b.cronograma) { const c = b.cronograma; if (!Array.isArray(c.feed) || c.feed.length !== 7 || c.feed.some(x => !Number.isInteger(x) || x < 0 || x > 3) || !Number.isInteger(c.stories) || c.stories < 0 || c.stories > 6) return res.status(400).json({ error: 'Cronograma inválido: até 3 posts por dia e até 6 stories.' }); setSetting('mkt_cronograma', JSON.stringify({ feed: c.feed, stories: c.stories })); }
   if (typeof b.estilo === 'string') { if (b.estilo.length > 4000) return res.status(400).json({ error: 'Guia de estilo muito longo (máximo 4.000 caracteres).' }); setSetting('mkt_estilo', b.estilo.trim()); registrar('cto', 'Guia de estilo atualizado', 'Os próximos comandos já usam o novo guia.', {}); }
   res.json(marketingSemana(Date.now()));
 });
@@ -576,10 +585,17 @@ router.put('/marketing/pecas/:id', (req, res) => {
   const b = req.body || {}, r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ error: 'Peça não encontrada.' });
   const status = ['aprovado', 'postado', 'ajustar'].includes(b.status) ? b.status : r.status;
+  if (typeof b.horario === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.horario)) db.prepare('UPDATE mkt_pecas SET horario = ? WHERE id = ?').run(b.horario, r.id);
   db.prepare('UPDATE mkt_pecas SET status = ?, legenda = ? WHERE id = ?').run(status, typeof b.legenda === 'string' ? b.legenda.slice(0, 2200) : r.legenda, r.id);
+  if (status === 'postado' && r.status !== 'postado') db.prepare('UPDATE mkt_pecas SET postado_em = ? WHERE id = ?').run(Date.now(), r.id);
   if (status === 'postado' && r.status !== 'postado') registrar('imagem', `Postado: ${r.titulo}`, r.canal === 'feed' ? 'No feed.' : 'Nos stories.', {});
   res.json(lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(r.id)));
 });
+const tratarMk = fn => async (req, res) => { try { res.json(await fn(req)); } catch (e) { if (!e.status) console.error('[MARKETING]', e); res.status(e.status || 500).json({ error: e.status ? e.message : 'Falha no marketing.' }); } };
+router.post('/marketing/pecas/:id/imagem', tratarMk(req => social.anexar(Number(req.params.id), Number((req.body || {}).i), (req.body || {}).data)));
+router.post('/marketing/pecas/:id/aprovar', tratarMk(req => social.aprovar(Number(req.params.id), req.body || {})));
+router.post('/marketing/pecas/:id/publicar', tratarMk(async req => { const p = await social.publicarPeca(Number(req.params.id)); if (p.status === 'erro') { const e = new Error(p.erro); e.status = 502; throw e; } return p; }));
+router.put('/marketing/horarios', tratarMk(req => { social.salvarHorarios(req.body || {}); return marketingSemana(Date.now()); }));
 router.post('/marketing/relatorio', (req, res) => res.json(turnoMarketing(Date.now(), { avisar: false })));
 router.post('/conteudo/gerar', (req, res) => res.json(gerarSemana(Date.now(), { forcar: true })));
 router.put('/conteudo/:id', (req, res) => {

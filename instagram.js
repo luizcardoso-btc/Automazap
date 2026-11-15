@@ -174,4 +174,41 @@ async function renovarSeNecessario() {
   catch (e) { console.error('[IG] falha ao renovar token:', e.message); require('./db.js').setSetting('ig_token_erro', e.message.slice(0, 200)); return null; }
 }
 
-module.exports = { ehMeu, conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, renovarSeNecessario, montarMensagem };
+
+// ---------- Publicação de conteúdo (social media do Prédio) ----------
+// Exige as permissões instagram_business_content_publish (publicar) e instagram_business_manage_insights (métricas) no token.
+// A Meta baixa as imagens pelo link: precisam ser públicas, em https e JPEG (feed entre 4:5 e 1.91:1; stories 9:16).
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+async function containerPronto(id, tentativas = 20) {
+  for (let i = 0; i < tentativas; i++) {
+    const r = await chamar(`${id}?fields=status_code`, null, 'GET');
+    if (!r.status_code || r.status_code === 'FINISHED') return true;
+    if (r.status_code === 'ERROR' || r.status_code === 'EXPIRED') throw new Error('O Instagram não conseguiu processar a imagem (' + r.status_code + ').');
+    await esperar(Number(process.env.IG_ESPERA_MS || 3000));
+  }
+  throw new Error('O Instagram demorou demais para processar a imagem.');
+}
+// tipo: 'post' | 'carrossel' | 'story' · urls: links públicos das imagens, na ordem
+async function publicar({ tipo, urls, legenda = '' }) {
+  if (!Array.isArray(urls) || !urls.length) throw new Error('Nenhuma imagem para publicar.');
+  let container;
+  if (tipo === 'story') container = (await chamar(`${quem()}/media`, { image_url: urls[0], media_type: 'STORIES' })).id;
+  else if (tipo === 'carrossel' && urls.length > 1) {
+    const filhos = [];
+    for (const u of urls.slice(0, 10)) { const c = (await chamar(`${quem()}/media`, { image_url: u, is_carousel_item: true })).id; await containerPronto(c); filhos.push(c); }
+    container = (await chamar(`${quem()}/media`, { media_type: 'CAROUSEL', children: filhos.join(','), caption: corta(legenda, 2200) })).id;
+  } else container = (await chamar(`${quem()}/media`, { image_url: urls[0], caption: corta(legenda, 2200) })).id;
+  if (!container) throw new Error('O Instagram não devolveu o rascunho da publicação.');
+  await containerPronto(container);
+  const id = (await chamar(`${quem()}/media_publish`, { creation_id: container })).id;
+  if (!id) throw new Error('O Instagram não confirmou a publicação.');
+  let permalink = ''; try { permalink = (await chamar(`${id}?fields=permalink`, null, 'GET')).permalink || ''; } catch (e) { /* stories podem não ter link */ }
+  return { id: String(id), permalink };
+}
+async function insights(mediaId, story) {
+  const r = await chamar(`${mediaId}/insights?metric=${story ? 'reach,replies' : 'reach,likes,comments,saved,shares'}`, null, 'GET');
+  const o = {}; for (const m of r.data || []) o[m.name] = (m.values && m.values[0] && m.values[0].value) || m.total_value && m.total_value.value || 0;
+  return o;
+}
+
+module.exports = { publicar, insights, ehMeu, conta, ativarWebhook, configurado, assinaturaValida, lerWebhook, sender, renovarToken, renovarSeNecessario, montarMensagem };

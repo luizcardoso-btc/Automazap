@@ -1081,6 +1081,54 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'cto'").get().n > n0);
     const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.strictEqual(vis.nomes.cto, 'Rafael'); assert.strictEqual(vis.nomes.imagem, 'Lia'); assert.ok(vis.marketing.hoje.pecas >= 2); assert.ok(vis.ceo);
   });
+  await t('Renan (social media): imagens cortadas em JPEG 4:5 e 9:16, CEO aprova, fila publica na hora marcada (carrossel, post e story), erro de permissão e métricas', async () => {
+    const P = require('./predio.js'), S = require('./social.js'), ig = require('./instagram.js'), sharp = require('sharp'), fs = require('fs'), path = require('path');
+    const t0 = Date.parse('2026-12-14T07:00:00-03:00'), pecas = P.pecasDoDia(t0);   // segunda: 2 no feed + 2 stories
+    assert.deepStrictEqual(pecas.map(p => p.slot + '@' + p.horario).sort(), ['feed1@11:30', 'feed2@18:00', 'story1@08:30', 'story2@21:00']);
+    const png = 'data:image/png;base64,' + (await sharp({ create: { width: 1024, height: 1536, channels: 3, background: '#208040' } }).png({ compressionLevel: 0 }).toBuffer()).toString('base64');
+    const car = pecas.find(p => p.slot === 'feed1'), st = pecas.find(p => p.slot === 'story1'), post = pecas.find(p => p.slot === 'feed2');
+    assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/aprovar`, { corpo: {}, headers: H })).status, 400);   // sem imagens não aprova
+    assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/imagem`, { corpo: { i: 0, data: 'data:text/plain;base64,QUJD' }, headers: H })).status, 400);
+    for (let i = 0; i < car.slides.length; i++) assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/imagem`, { corpo: { i, data: png }, headers: H })).status, 200);
+    const c2 = S.ler(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(car.id)); assert.ok(S.completa(c2));
+    const m1 = await sharp(path.join(S.pasta, c2.imagens[0].arquivo)).metadata(); assert.deepStrictEqual([m1.format, m1.width, m1.height], ['jpeg', 1080, 1350]);
+    await S.anexar(st.id, 0, png); const m2 = await sharp(path.join(S.pasta, S.ler(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(st.id)).imagens[0].arquivo)).metadata(); assert.deepStrictEqual([m2.width, m2.height], [1080, 1920]);
+    await S.anexar(post.id, 0, png);
+    const ap = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/aprovar`, { corpo: { legenda: 'Legenda final. Comente COMO FUNCIONA #nextap' }, headers: H })).json; assert.deepStrictEqual([ap.status, ap.horario], ['programado', '11:30']);
+    S.aprovar(st.id, {}, t0); S.aprovar(post.id, { horario: '11:40' }, t0);
+    const chamadas = [], pubO = ig.publicar, insO = ig.insights; setSetting('public_url', 'https://automazap.teste');
+    ig.publicar = async o => { chamadas.push(o); return { id: 'ig' + chamadas.length, permalink: 'https://instagram.com/p/x' + chamadas.length }; };
+    ig.insights = async (id, story) => (story ? { reach: 50, replies: 1 } : { reach: 400, likes: 30, comments: 4, saved: 6, shares: 2 });
+    try {
+      assert.strictEqual(await S.tick(t0), 0);                                                   // 07:00: ainda não é hora
+      assert.strictEqual(await S.tick(Date.parse('2026-12-14T08:31:00-03:00')), 1);              // story das 08:30
+      assert.deepStrictEqual([chamadas[0].tipo, chamadas[0].urls.length, chamadas[0].legenda], ['story', 1, '']); assert.ok(/^https:\/\/automazap\.teste\/media\/mkt\/p\d+-1-[0-9a-f]+\.jpg$/.test(chamadas[0].urls[0]));
+      assert.strictEqual(await S.tick(Date.parse('2026-12-14T11:31:00-03:00')), 1);              // carrossel das 11:30
+      assert.deepStrictEqual([chamadas[1].tipo, chamadas[1].urls.length], ['carrossel', car.slides.length]); assert.ok(chamadas[1].legenda.startsWith('Legenda final'));
+      assert.strictEqual(await S.tick(Date.parse('2026-12-14T11:41:00-03:00')), 0);              // 2º post do feed espera 20 min do anterior
+      assert.strictEqual(await S.tick(Date.parse('2026-12-14T11:52:00-03:00')), 1); assert.strictEqual(chamadas[2].tipo, 'post');
+      const fim = S.ler(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(car.id)); assert.deepStrictEqual([fim.status, fim.ig_id], ['postado', 'ig2']); assert.ok(fim.insights.reach === 400);
+      assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/aprovar`, { corpo: {}, headers: H })).status, 400);   // já publicada
+      assert.ok(await S.coletarInsights(Date.parse('2026-12-14T13:00:00-03:00')) >= 3);
+      const d = S.desempenho(Date.parse('2026-12-15T08:00:00-03:00')); assert.ok(d.melhor && d.ranking.length >= 1 && d.ontem.alcance === 800);
+      // sem permissão no token: fica em erro com a instrução, sem publicar
+      const s2 = pecas.find(p => p.slot === 'story2'); await S.anexar(s2.id, 0, png); S.aprovar(s2.id, {}, t0);
+      ig.publicar = async () => { throw new Error('Instagram respondeu 400: (#10) Application does not have permission for this action'); };
+      await S.tick(Date.parse('2026-12-14T21:01:00-03:00'));
+      const er = S.ler(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(s2.id)); assert.strictEqual(er.status, 'erro'); assert.ok(er.erro.includes('instagram_business_content_publish'));
+      assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${s2.id}/publicar`, { headers: H })).status, 502);
+    } finally { ig.publicar = pubO; ig.insights = insO; }
+    const mk = (await chamar('PUT', '/api/predio/marketing/horarios', { corpo: { feed: '12:00, 19:00', stories: ['09:00', '20:00'] }, headers: H })).json; assert.deepStrictEqual(mk.social.horarios.feed, ['12:00', '19:00']);
+    assert.strictEqual((await chamar('PUT', '/api/predio/marketing/horarios', { corpo: { feed: '25:00', stories: '09:00' }, headers: H })).status, 400);
+    await chamar('PUT', '/api/predio/marketing/horarios', { corpo: { feed: ['11:30', '18:00', '20:00'], stories: ['08:30', '10:00', '12:00', '16:00', '19:00', '21:00'] }, headers: H });
+    // API da Meta: carrossel = um rascunho por imagem + rascunho pai + publicar
+    const fo = global.fetch, tk = process.env.IG_ACCESS_TOKEN, esp = process.env.IG_ESPERA_MS, urls = []; process.env.IG_ACCESS_TOKEN = 'token-de-teste-123456'; process.env.IG_ESPERA_MS = '1';
+    global.fetch = async (u, o) => { urls.push((o.method || 'GET') + ' ' + String(u).replace(/^https?:\/\/[^/]+\/v[\d.]+\//, '') + (o.body ? ' ' + o.body : '')); const j = /media_publish/.test(u) ? { id: '999' } : /status_code/.test(u) ? { status_code: 'FINISHED' } : /permalink/.test(u) ? { permalink: 'https://instagram.com/p/abc' } : { id: 'c' + urls.length }; return { ok: true, status: 200, text: async () => JSON.stringify(j) }; };
+    try { const r = await ig.publicar({ tipo: 'carrossel', urls: ['https://a/1.jpg', 'https://a/2.jpg'], legenda: 'Oi' }); assert.deepStrictEqual(r, { id: '999', permalink: 'https://instagram.com/p/abc' });
+      assert.strictEqual(urls.filter(x => x.includes('"is_carousel_item":true')).length, 2); assert.ok(urls.some(x => x.includes('"media_type":"CAROUSEL"') && x.includes('"caption":"Oi"'))); assert.ok(urls.some(x => x.startsWith('POST me/media_publish')));
+      urls.length = 0; await ig.publicar({ tipo: 'story', urls: ['https://a/s.jpg'] }); assert.ok(urls[0].includes('"media_type":"STORIES"'));
+    } finally { global.fetch = fo; if (tk === undefined) delete process.env.IG_ACCESS_TOKEN; else process.env.IG_ACCESS_TOKEN = tk; if (esp === undefined) delete process.env.IG_ESPERA_MS; else process.env.IG_ESPERA_MS = esp; }
+  });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;

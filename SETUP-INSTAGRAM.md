@@ -58,3 +58,12 @@ Além disso, o código precisaria virar multi-cliente: cada cliente com sua cont
 
 ## Conferir a conexão pelo painel
 Aba **Instagram** do painel: mostra quais variáveis faltam, testa o token (mostra o @ da conta), tem o botão "Ativar eventos desta conta" e lista os últimos eventos recebidos (inclusive os recusados, com o motivo). Para trocar logo, nome e cor: aba Configurações → Identidade visual.
+
+## Publicar posts sozinho (Renan, social media do Prédio)
+
+Para o Renan publicar feed, carrossel e stories e ler as métricas, o token precisa de mais duas permissões além das de mensagem:
+
+- `instagram_business_content_publish` (publicar)
+- `instagram_business_manage_insights` (alcance, curtidas, salvamentos)
+
+No app da Meta, marque as duas, **gere um token novo** e troque `IG_ACCESS_TOKEN` no Railway. Sem elas, a peça fica com o aviso "não publicou" na sala do Renan e nada mais é afetado (o robô de mensagens continua normal).
