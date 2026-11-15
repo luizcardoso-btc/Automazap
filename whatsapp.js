@@ -187,6 +187,7 @@ function processarWebhook(corpo) {
     if (!registrar(c.id, 'in', 'cliente', texto, { waId: d.key.id, em })) continue;   // repetido
     db.prepare('UPDATE wa_contatos SET ultimo_in = ?, nao_lidas = nao_lidas + 1 WHERE id = ?').run(em, c.id);
     anotarProspect(c.prospect_id, 'Respondeu no WhatsApp: ' + texto);
+    if (c.prospect_id) { try { require('./bianca.js').respondeu(c.prospect_id, texto, c); } catch (e) { console.error('[BIANCA] resposta:', e.message); } }
     require('./notificacoes.js').notificar({ tipo: 'wa_msg', titulo: '💬 ' + (c.nome || '+' + numeroDoJid(jid)), texto: texto.slice(0, 140), url: '/#wa=' + c.id, chave: 'wa' + c.id }).catch(() => {});
     salvas++;
   }
@@ -406,4 +407,17 @@ async function avisarDono(texto) {
 }
 router.post('/avisar-dono/teste', async (req, res) => { const r = await avisarDono('✅ Teste do Automazap: é aqui que o resumo diário da Gerente geral vai chegar.'); res.status(r.ok ? 200 : 400).json(r.ok ? r : { error: r.motivo }); });
 
-module.exports = { avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+// ---------- usados pela Prospectora automática ----------
+// O número tem WhatsApp? (celular brasileiro costuma ter; fixo só se for WhatsApp Business). null = não deu para conferir.
+async function temWhatsapp(numero) {
+  try { const r = await evo('POST', '/chat/whatsappNumbers/{i}', { numbers: [numero] }); const x = Array.isArray(r) ? r[0] : r; return x && typeof x.exists === 'boolean' ? { existe: x.exists, jid: x.jid || '' } : null; }
+  catch (e) { return null; }
+}
+async function enviarNumero(numero, texto, origem = 'bianca') {
+  const c = contatoPorJid(jidDe(numero), {});
+  if (ehNovo(c) && novosHoje() >= limiteNovos()) { const e = new Error('Limite diário de primeiras mensagens do WhatsApp atingido.'); e.limite = true; throw e; }
+  await enviar(c, { texto }, origem);
+  return c;
+}
+
+module.exports = { temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

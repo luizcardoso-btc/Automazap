@@ -1174,6 +1174,43 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       await chamar('DELETE', `/api/prospeccao/${p.id}`, { headers: H }); await chamar('DELETE', `/api/prospeccao/${mei.id}`, { headers: H });
     } finally { srv.close(); const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('GOOGLE_PLACES_BASE', gb); v('GOOGLE_PLACES_API_KEY', gk); v('CNPJ_API_BASE', cb); }
   });
+  await t('Bianca automática: só ligada e em horário comercial, intervalo entre envios, pula número sem WhatsApp, meta do dia, resposta para os retornos e pedido de parar encerra', async () => {
+    const B = require('./bianca.js'), P = require('./predio.js'), W = require('./whatsapp.js');
+    db.prepare("UPDATE prospects SET status = 'perdido' WHERE status IN ('novo','abordado','interessado','orcamento')").run();   // zera o funil dos outros testes
+    const ins = db.prepare("INSERT INTO prospects (place_id, nome, segmento, telefone, nota, avaliacoes, origem) VALUES (?, ?, 'Barbearia', ?, 4.1, ?, 'bianca')");
+    const ids = ['(75) 98811-0001', '(75) 98811-0002', '(75) 3221-0003', '(75) 98811-0004'].map((tel, i) => ins.run('auto' + i, 'Auto ' + (i + 1), tel, 5 + i).lastInsertRowid);
+    const seg = h => Date.parse(`2026-12-21T${h}:00-03:00`), env = [], fo = global.fetch, eu = process.env.EVOLUTION_URL, ek = process.env.EVOLUTION_API_KEY, gap = process.env.WA_GAP_MS;
+    process.env.WA_GAP_MS = '0'; setSetting('bianca_prox', '0'); setSetting('bianca_meta', '2'); setSetting('bianca_auto', '0'); setSetting('ceo_whatsapp', '');
+    global.fetch = async (u, o) => { const b = JSON.parse(o.body || '{}'); if (String(u).includes('whatsappNumbers')) return { ok: true, status: 200, text: async () => JSON.stringify([{ exists: !b.numbers[0].endsWith('32210003'), jid: b.numbers[0] + '@s.whatsapp.net' }]) }; env.push(b); return { ok: true, status: 200, text: async () => '{"key":{"id":"m' + env.length + '"}}' }; };
+    try {
+      assert.strictEqual((await B.tick(seg('10:00'))).motivo, 'desligada');
+      setSetting('bianca_auto', '1'); delete process.env.EVOLUTION_URL; assert.strictEqual((await B.tick(seg('10:00'))).motivo, 'whatsapp');
+      process.env.EVOLUTION_URL = 'https://evo.teste'; process.env.EVOLUTION_API_KEY = 'k';
+      setSetting('bianca_mapeou_n_2026-12-20', '9'); setSetting('bianca_mapeou_n_2026-12-21', '9');   // sem mapeamento na rede durante o teste
+      assert.strictEqual((await B.tick(Date.parse('2026-12-20T10:00:00-03:00'))).motivo, 'fora do horário');   // domingo
+      assert.strictEqual((await B.tick(seg('08:10'))).motivo, 'fora do horário'); assert.ok(B.naJanela(seg('09:00')) && !B.naJanela(seg('17:30')) && B.naJanela(Date.parse('2026-12-19T11:00:00-03:00')) && !B.naJanela(Date.parse('2026-12-19T12:30:00-03:00')));
+      const r1 = await B.tick(seg('09:05'), { sorteio: () => 0 }); assert.ok(r1.enviado && r1.passo === 'd0'); assert.strictEqual(env.length, 1);
+      assert.ok(env[0].number.startsWith('55759881100') && env[0].text.includes('Auto ') && env[0].text.includes('é só me avisar que eu não escrevo mais'));
+      assert.strictEqual((await B.tick(seg('09:07'))).motivo, 'intervalo');                                   // 5 min mínimos
+      const r2 = await B.tick(seg('09:11'), { sorteio: () => 0 }); assert.ok(r2.enviado); assert.strictEqual(env.length, 2);
+      const r3 = await B.tick(seg('09:30'), { sorteio: () => 0 }); assert.ok(!r3.enviado); assert.strictEqual(env.length, 2);   // meta de 2 novas atingida
+      setSetting('bianca_meta', '5');
+      const r4 = await B.tick(seg('09:40'), { sorteio: () => 0 }), r5 = await B.tick(seg('09:50'), { sorteio: () => 0 });
+      assert.deepStrictEqual([r4, r5].map(x => x.motivo || 'ok').sort(), ['ok', 'sem whatsapp']); assert.strictEqual(env.length, 3);   // o fixo sem WhatsApp foi pulado e anotado
+      assert.ok(db.prepare('SELECT obs FROM prospects WHERE id = ?').get(ids[2]).obs.includes('sem WhatsApp'));
+      const ab = db.prepare("SELECT id, status, prox_contato FROM prospects WHERE id IN (?, ?, ?) ORDER BY id").all(ids[0], ids[1], ids[3]); assert.ok(ab.every(x => x.status === 'abordado' && x.prox_contato === '2026-12-22'));
+      const pa = B.painel(seg('10:00')); assert.deepStrictEqual([pa.ligada, pa.novos_hoje, pa.enviados_hoje], [true, 3, 3]);
+      // respostas
+      assert.deepStrictEqual(B.respondeu(ids[0], 'Oi, pode mandar o vídeo'), { parar: false }); assert.deepStrictEqual(db.prepare('SELECT status, prox_contato FROM prospects WHERE id = ?').get(ids[0]), { status: 'interessado', prox_contato: null });
+      assert.deepStrictEqual(B.respondeu(ids[1], 'Não tenho interesse, obrigado'), { parar: true }); const pp = db.prepare('SELECT status, prox_contato, motivo_perda FROM prospects WHERE id = ?').get(ids[1]); assert.deepStrictEqual([pp.status, pp.prox_contato], ['perdido', null]); assert.ok(pp.motivo_perda.includes('não receber'));
+      // dia seguinte: só quem não respondeu recebe o retorno do dia 1
+      setSetting('bianca_prox', '0'); setSetting('bianca_mapeou_n_2026-12-22', '9');
+      const d1 = await B.tick(Date.parse('2026-12-22T09:10:00-03:00'), { sorteio: () => 0 }); assert.ok(d1.enviado && d1.passo === 'd1' && d1.id === ids[3]); assert.ok(!env[3].text.includes('não escrevo mais'));
+      assert.ok(!(await B.tick(Date.parse('2026-12-22T09:30:00-03:00'), { sorteio: () => 0 })).enviado);
+    } finally { global.fetch = fo; const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('EVOLUTION_URL', eu); v('EVOLUTION_API_KEY', ek); v('WA_GAP_MS', gap); setSetting('bianca_auto', '0'); db.prepare("DELETE FROM prospects WHERE origem = 'bianca'").run(); }
+    assert.strictEqual((await chamar('PUT', '/api/settings', { corpo: { bianca_meta: '99' }, headers: H })).status, 400);
+    assert.strictEqual((await chamar('GET', '/api/predio/prospectora/auto', { headers: H })).json.ligada, false);
+  });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;

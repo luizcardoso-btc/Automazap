@@ -445,4 +445,4 @@ router.post('/:id/contato', (req, res) => {
 });
 
 module.exports = router;
-module.exports._t = { bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS, raioX, roteiro };
+module.exports._t = { bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS, raioX, roteiro, geocodificar, acharNicho, normalizar, google, CAMPOS };

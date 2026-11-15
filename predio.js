@@ -588,6 +588,8 @@ router.put('/artes/:id', nxArtes(req => require('./nextap.js').artes('PUT', '/' 
 router.delete('/artes/:id', nxArtes(async req => { const r = await require('./nextap.js').artes('DELETE', '/' + Number(req.params.id)); registrar('conteudo', `Arte #${Number(req.params.id)} excluída do banco`, '', {}); return r; }));
 router.get('/prospectora', (req, res) => res.json(listaDeHoje() || montarLista()));
 router.post('/prospectora/montar', (req, res) => res.json(montarLista()));
+router.get('/prospectora/auto', (req, res) => res.json(require('./bianca.js').painel()));
+router.post('/prospectora/mapear', async (req, res) => { try { const r = await require('./bianca.js').mapear(); montarLista(); res.json({ ...r, painel: require('./bianca.js').painel() }); } catch (e) { res.status(502).json({ error: 'Não consegui mapear agora: ' + e.message }); } });
 router.post('/prospectora/feito', (req, res) => {
   const r = contatoFeito(Number((req.body || {}).prospect_id));
   if (!r) return res.status(404).json({ error: 'Empresa não encontrada.' });

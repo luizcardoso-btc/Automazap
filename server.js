@@ -162,6 +162,7 @@ if (require.main === module) {
   // Prédio: lista da Prospectora, conteúdo da semana e resumo da Gerente (todo dia, na hora configurada)
   setTimeout(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 15e3).unref();   // agentes começam logo que o servidor sobe
   setInterval(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 60e3).unref();
+  setInterval(() => { require('./bianca.js').tick().catch(e => console.error('[BIANCA]', e.message)); }, 60e3).unref();   // Bianca mapeia e aborda sozinha (se ligada)
   setInterval(() => { require('./social.js').tick().catch(e => console.error('[SOCIAL]', e.message)); }, 60e3).unref();   // Renan publica o que está programado
   // Disparos programados do WhatsApp
   setInterval(() => { wa.tick().catch(e => console.error('[WHATSAPP]', e.message)); }, 20000).unref();
