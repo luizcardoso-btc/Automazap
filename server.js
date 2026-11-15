@@ -97,7 +97,8 @@ app.post('/integracao/parear', express.json({ limit: '10kb' }), (req, res) => {
   const cod = Buffer.from(String(b.codigo || '')), ok = p && p.exp > Date.now() && cod.length === Buffer.from(p.codigo).length && require('crypto').timingSafeEqual(cod, Buffer.from(p.codigo));
   if (!ok) return res.status(400).json({ error: 'Código vencido ou inválido. Toque de novo em "Conectar ao NexTap" no Automazap.' });
   let base; try { const u = new URL(String(b.base || '')); if (u.protocol !== 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(u.hostname)) throw new Error(); base = u.origin; } catch (e) { return res.status(400).json({ error: 'Endereço do NexTap inválido.' }); }
-  if (!/^[\w-]{16,200}$/.test(String(b.segredo || ''))) return res.status(400).json({ error: 'Segredo inválido.' });
+  // Qualquer segredo de 16 a 200 caracteres visíveis (sem espaço) serve: o do NexTap pode vir da variável NEXTAP_WEBHOOK_SECRET com + / = etc.
+  if (!/^[\x21-\x7e]{16,200}$/.test(String(b.segredo || ''))) return res.status(400).json({ error: 'Segredo inválido: precisa ter de 16 a 200 caracteres, sem espaços nem acentos. Confira a variável NEXTAP_WEBHOOK_SECRET no NexTap.' });
   s('nextap_parear', ''); s('nextap_segredo', b.segredo); s('nextap_base', base); s('nextap_fin_erro', '');
   eventos.registrar('nextap', 'conectado', base);
   nextap.atualizarFinanceiro().catch(() => {}); nextap.atualizarPrecos().catch(() => {});
