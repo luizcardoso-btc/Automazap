@@ -327,11 +327,13 @@ router.post('/nextap/conectar', (req, res) => {
   res.json({ url: `${base}/admin/conectar-automazap?volta=${encodeURIComponent(volta)}&codigo=${codigo}`, conectado: nx.conectado(), base });
 });
 router.get('/nextap/status', (req, res) => { const nx = require('./nextap.js'); res.json({ conectado: nx.conectado(), base: nx.baseNx(), por_variavel: !!process.env.NEXTAP_WEBHOOK_SECRET }); });
-router.get('/artes', nxArtes(req => require('./nextap.js').artes('GET', '?destino=' + encodeURIComponent(req.query.destino || '') + '&limite=40')));
+router.get('/artes', nxArtes(req => require('./nextap.js').artes('GET', '?destino=' + encodeURIComponent(req.query.destino || '') + '&pedido=' + encodeURIComponent(req.query.pedido || '') + '&limite=60')));
 router.post('/artes/prompt', nxArtes(req => require('./nextap.js').artes('POST', '/prompt', req.body || {})));
 router.post('/artes', nxArtes(async req => { const a = await require('./nextap.js').artes('POST', '', req.body || {}); registrar('conteudo', `Arte enviada ao banco: ${a.titulo}`, a.destino, {}); return a; }));
 router.post('/artes/gerar', nxArtes(async req => { const a = await require('./nextap.js').artes('POST', '/gerar', req.body || {}); registrar('conteudo', `Arte gerada pela API: ${a.titulo}`, a.destino, {}); return a; }));
+router.put('/artes/limite', nxArtes(req => require('./nextap.js').artes('PUT', '/limite', req.body || {})));
 router.put('/artes/:id', nxArtes(req => require('./nextap.js').artes('PUT', '/' + Number(req.params.id), req.body || {})));
+router.delete('/artes/:id', nxArtes(async req => { const r = await require('./nextap.js').artes('DELETE', '/' + Number(req.params.id)); registrar('conteudo', `Arte #${Number(req.params.id)} excluída do banco`, '', {}); return r; }));
 router.get('/prospectora', (req, res) => res.json(listaDeHoje() || montarLista()));
 router.post('/prospectora/montar', (req, res) => res.json(montarLista()));
 router.post('/prospectora/feito', (req, res) => {
