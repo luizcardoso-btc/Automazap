@@ -705,6 +705,27 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(!l.some(c => c.jid.endsWith('@g.us')));
     const c = l.find(x => x.jid === '5575977776666@s.whatsapp.net'); assert.ok(c); assert.strictEqual(c.ultima_direcao, 'out');
   });
+  await t('robô no WhatsApp: cliente que escreve é atendido pelos fluxos, botões viram opções numeradas, o número escolhe o fluxo; desligado ou com você na conversa, fica quieto', async () => {
+    const ev = data => chamar('POST', '/webhook/whatsapp/' + wa.tokenWebhook(), { corpo: { event: 'messages.upsert', data } });
+    const n0 = () => enviosEvo().length, espera = () => new Promise(r => setTimeout(r, 120)), gap = process.env.WA_GAP_MS; process.env.WA_GAP_MS = '0';
+    try {
+      setSetting('wa_robo', '0'); let a = n0();
+      await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R0' }, pushName: 'Ana', message: { conversation: 'qual o preço?' } }); await espera();
+      assert.strictEqual(n0(), a);                                                                    // desligado: não responde
+      assert.deepStrictEqual((await chamar('PUT', '/api/whatsapp/robo', { corpo: { ligado: true }, headers: H })).json, { ligado: true });
+      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R1' }, pushName: 'Ana', message: { conversation: 'qual o preço?' } }); await espera();
+      const env1 = enviosEvo().slice(a); assert.strictEqual(env1.length, 1); const tx = env1[0].corpo.text;
+      assert.ok(/\*1\* .*REVENDER/.test(tx) && /\*2\* .*MEU NEG/.test(tx) && tx.includes('Responda com o número'), tx); assert.ok(env1[0].corpo.delay > 0);
+      assert.strictEqual(db.prepare("SELECT channel FROM contacts WHERE ext_id = '5575966660001'").get().channel, 'whatsapp');
+      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R2' }, message: { conversation: '2' } }); await espera();
+      const env2 = enviosEvo().slice(a).map(x => x.corpo.text || x.corpo.caption || '').join(' '); assert.ok(env2.length > 10 && !/\*1\* .*REVENDER/.test(env2), env2);
+      assert.ok(db.prepare("SELECT COUNT(*) AS n FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.jid = '5575966660001@s.whatsapp.net' AND m.origem = 'robo'").get().n >= 2);
+      // você respondeu pelo celular: o robô fica quieto nessa conversa
+      await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: true, id: 'R3' }, message: { conversation: 'Oi Ana, aqui é o Luiz!' } }); await espera();
+      a = n0(); await ev({ key: { remoteJid: '5575966660001@s.whatsapp.net', fromMe: false, id: 'R4' }, message: { conversation: 'qual o preço?' } }); await espera(); assert.strictEqual(n0(), a);
+      assert.strictEqual(wa.emTextoWa({ type: 'button', text: 'Faça o pedido', buttons: [{ title: 'Pedir', url: 'https://x.com/p' }] }), 'Faça o pedido\n\n👉 Pedir: https://x.com/p');
+    } finally { setSetting('wa_robo', '0'); if (gap === undefined) delete process.env.WA_GAP_MS; else process.env.WA_GAP_MS = gap; }
+  });
   await t('limite diário de primeiras mensagens protege o número (conversas respondidas não contam)', async () => {
     setSetting('wa_max_novos_dia', '1');
     const a = (await chamar('POST', '/api/whatsapp/conversas', { corpo: { numero: '75 91111-0001' }, headers: H })).json;

@@ -5,7 +5,7 @@
 // Não há robô respondendo no WhatsApp: as conversas com empresas são feitas por uma pessoa, com os roteiros do painel.
 const express = require('express');
 const crypto = require('crypto');
-const { db, getSetting } = require('./db.js');
+const { db, getSetting, setSetting } = require('./db.js');
 
 const router = express.Router();
 const agora = () => Date.now();
@@ -187,6 +187,8 @@ function processarWebhook(corpo) {
     if (!registrar(c.id, 'in', 'cliente', texto, { waId: d.key.id, em })) continue;   // repetido
     db.prepare('UPDATE wa_contatos SET ultimo_in = ?, nao_lidas = nao_lidas + 1 WHERE id = ?').run(em, c.id);
     anotarProspect(c.prospect_id, 'Respondeu no WhatsApp: ' + texto);
+    // Quem não é empresa da prospecção é cliente: o robô atende com os mesmos fluxos do Instagram (se estiver ligado)
+    if (!c.prospect_id && roboLigado()) atenderComRobo(c, texto, d.key.id, d.pushName).catch(e => console.error('[WA-ROBÔ]', e.message));
     if (c.prospect_id) { try { require('./bianca.js').respondeu(c.prospect_id, texto, c); } catch (e) { console.error('[BIANCA] resposta:', e.message); } }
     require('./notificacoes.js').notificar({ tipo: 'wa_msg', titulo: '💬 ' + (c.nome || '+' + numeroDoJid(jid)), texto: texto.slice(0, 140), url: '/#wa=' + c.id, chave: 'wa' + c.id }).catch(() => {});
     salvas++;
@@ -407,6 +409,52 @@ async function avisarDono(texto) {
 }
 router.post('/avisar-dono/teste', async (req, res) => { const r = await avisarDono('✅ Teste do Automazap: é aqui que o resumo diário da Gerente geral vai chegar.'); res.status(r.ok ? 200 : 400).json(r.ok ? r : { error: r.motivo }); });
 
+
+// ---------- Robô de atendimento no WhatsApp (mesmos fluxos do Instagram) ----------
+// Botões viram opções numeradas ("1) ...") e o cliente responde com o número. Links vão no texto.
+const roboLigado = () => getSetting('wa_robo') === '1';
+const opcoes = new Map();   // número → [{ payload }] da última pergunta com opções
+function emTextoWa(passo) {
+  if (passo.type === 'video' || passo.type === 'image') return passo.url || '';
+  let t = passo.text || '';
+  if (passo.type === 'button') (passo.buttons || []).forEach(b => { t += `\n\n👉 ${b.title}: ${b.url}`; });
+  if (passo.type === 'quick') t += '\n\n' + (passo.replies || []).slice(0, 9).map((r, i) => `*${i + 1}* ${r.title}`).join('\n') + '\n\n_Responda com o número._';
+  return t.trim();
+}
+const senderWa = {
+  async send(contato, passo) {
+    const numero = String(contato.ext_id), c = contatoPorJid(jidDe(numero), {});
+    if (passo.type === 'quick') opcoes.set(numero, (passo.replies || []).slice(0, 9).map(r => ({ payload: `FLOW:${r.flow_id}`, titulo: semAcentoWa(r.title) })));
+    const midia = (passo.type === 'video' || passo.type === 'image') && passo.url ? passo.url : null;
+    const texto = midia ? '' : emTextoWa(passo);
+    if (!midia && !texto) return {};
+    return enviar(c, midia ? { midia, texto: '' } : { texto, digitando: Math.min(5000, 900 + texto.length * 25) }, 'robo');
+  },
+  async perfil() { return null; },
+};
+const semAcentoWa = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w ]/g, ' ').replace(/\s+/g, ' ').trim();
+// Cliente escolheu uma opção: pelo número ("2") ou escrevendo o nome dela ("preço")
+function payloadDe(numero, texto) {
+  const l = opcoes.get(numero); if (!l) return null;
+  const n = /^\s*(\d)\s*[).!]?\s*$/.exec(texto); if (n && l[Number(n[1]) - 1]) return l[Number(n[1]) - 1].payload;
+  const t = semAcentoWa(texto), x = t && l.find(o => o.titulo && (o.titulo === t || (t.length >= 4 && o.titulo.includes(t))));
+  return x ? x.payload : null;
+}
+async function atenderComRobo(c, texto, mid, nome) {
+  const numero = normalizarNumero(String(c.jid || '').split('@')[0]);
+  if (!numero) return null;
+  // Você respondeu pelo celular ou pelo painel há menos de 2 horas: a conversa é sua, o robô fica quieto
+  const voce = db.prepare("SELECT MAX(criado_em) AS t FROM wa_mensagens WHERE contato_id = ? AND direcao = 'out' AND origem IN ('celular','painel')").get(c.id).t || 0;
+  if (agora() - voce < 2 * 3600e3) return { acao: 'ignorada', motivo: 'conversa com você' };
+  const payload = payloadDe(numero, texto);
+  if (payload) opcoes.delete(numero);
+  const r = await require('./engine.js').processarMensagem({ canal: 'whatsapp', extId: numero, username: txt(nome, 60) || null, texto, payload, mid: 'wa:' + mid }, senderWa);
+  try { require('./eventos.js').registrar('whatsapp', r.acao, r.fluxo || r.motivo || ''); } catch (e) { /* opcional */ }
+  return r;
+}
+router.get('/robo', (req, res) => res.json({ ligado: roboLigado(), conectado: configurado() }));
+router.put('/robo', (req, res) => { setSetting('wa_robo', (req.body || {}).ligado ? '1' : '0'); res.json({ ligado: roboLigado() }); });
+
 // ---------- usados pela Prospectora automática ----------
 // O número tem WhatsApp? (celular brasileiro costuma ter; fixo só se for WhatsApp Business). null = não deu para conferir.
 async function temWhatsapp(numero) {
@@ -420,4 +468,4 @@ async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   return c;
 }
 
-module.exports = { temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

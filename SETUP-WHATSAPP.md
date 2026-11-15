@@ -26,6 +26,9 @@ No serviço **Automazap** → Variables:
 2. No celular do número que vai ser usado: **WhatsApp → Aparelhos conectados → Conectar um aparelho** e leia o QR Code.
 3. O painel configura sozinho o recebimento das mensagens (webhook). Se as respostas não aparecerem, use **Reconfigurar recebimento de mensagens**.
 
+## 4. Ligar o robô de atendimento
+Painel → **WhatsApp → Conexão → Ligar o robô no WhatsApp**. Quem escrever para o número passa a ser atendido pelos mesmos fluxos do Instagram (aba Fluxos). Botões viram opções numeradas e o cliente responde com o número. Empresas da prospecção continuam com a Bianca. Se você responder pelo celular ou pelo painel, o robô fica quieto naquela conversa por 2 horas.
+
 ## Regras que o painel já segue
 - Nada é enviado sozinho para empresas: cada mensagem é revisada e enviada por você.
 - **Limite diário de primeiras mensagens** (padrão 30) para números que nunca responderam. Conversas respondidas e grupos não contam.
