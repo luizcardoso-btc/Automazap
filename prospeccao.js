@@ -56,8 +56,8 @@ const UA = 'Automazap-Prospeccao/1.0 (uso interno)';
 // Catálogo de nichos → etiquetas do OpenStreetMap. Cada "alternativa" é um conjunto de condições (E); as alternativas são "OU".
 const C = (k, v) => [k, v];
 const NICHOS = [
-  { id: 'barbearia', nome: 'Barbearia', ico: '✂️', re: /barbear|barber/, alt: [[C('shop', 'hairdresser'), ['name', '~', 'barb']]], dica: 'Vive de indicação e de nota no Google: a placa faz o cliente avaliar ao pagar.' },
-  { id: 'salao', nome: 'Salão de beleza', ico: '💇', re: /sal[aã]o|cabelei|beleza|manicure|unha/, alt: [[C('shop', 'hairdresser')], [C('shop', 'beauty')]], dica: 'Cliente fiel e muito Instagram: placa de avaliação + QR do perfil na bancada.' },
+  { id: 'barbearia', nome: 'Barbearia', ico: '✂️', re: /barbe/, alt: [[C('shop', 'hairdresser'), ['name', '~', 'barb']]], dica: 'Vive de indicação e de nota no Google: a placa faz o cliente avaliar ao pagar.' },
+  { id: 'salao', nome: 'Salão de beleza', ico: '💇', re: /sal[aã]o|saloes|cabel|beleza|manicure|unha|nail|esmalt|trancista|tran[cç]a/, alt: [[C('shop', 'hairdresser')], [C('shop', 'beauty')]], dica: 'Cliente fiel e muito Instagram: placa de avaliação + QR do perfil na bancada.' },
   { id: 'estetica', nome: 'Clínica de estética', ico: '💆', re: /est[eé]tic|depila|sobrancelha/, alt: [[C('shop', 'beauty')], [C('shop', 'massage')]], dica: 'Serviço de confiança: avaliações no Google decidem a compra.' },
   { id: 'tatuagem', nome: 'Estúdio de tatuagem', ico: '🖋️', re: /tatu|tattoo/, alt: [[C('shop', 'tattoo')]], dica: 'Cliente escolhe pelo portfólio: placa leva direto ao Instagram e ao WhatsApp para agendar.' },
   { id: 'otica', nome: 'Ótica', ico: '👓', re: /[óo]tica|[óo]culos/, alt: [[C('shop', 'optician')]], dica: 'Ticket alto: avaliações e Instagram dão confiança; QR no balcão para orçamento.' },
@@ -68,10 +68,10 @@ const NICHOS = [
   { id: 'calcados', nome: 'Calçados', ico: '👟', re: /cal[cç]ado|sapato|t[eê]nis/, alt: [[C('shop', 'shoes')]], dica: 'Avaliações e Instagram trazem o cliente que compara loja antes de comprar.' },
   { id: 'joias', nome: 'Joalheria / bijuteria', ico: '💍', re: /joia|jóia|bijut|semi.?joia/, alt: [[C('shop', 'jewelry')]], dica: 'Compra por confiança: avaliações e perfil do Instagram pesam muito.' },
   { id: 'perfumaria', nome: 'Perfumaria / cosméticos', ico: '💄', re: /perfum|cosm[eé]tic/, alt: [[C('shop', 'perfumery')], [C('shop', 'cosmetics')]], dica: 'Placa com Instagram e avaliação ao lado do caixa.' },
-  { id: 'restaurante', nome: 'Restaurante', ico: '🍽️', re: /restaurante|churrasc/, alt: [[C('amenity', 'restaurant')]], dica: 'Nota no Google define onde as pessoas almoçam: QR na mesa e no caixa.' },
+  { id: 'restaurante', nome: 'Restaurante', ico: '🍽️', re: /restaurant|churrasc|comida|self.?service|marmit|almo[cç]o|culin[aá]ria|cozinha|japones|sushi|temaki|frutos do mar|acaraj/, alt: [[C('amenity', 'restaurant')]], dica: 'Nota no Google define onde as pessoas almoçam: QR na mesa e no caixa.' },
   { id: 'pizzaria', nome: 'Pizzaria', ico: '🍕', re: /pizz/, alt: [[C('amenity', 'restaurant'), C('cuisine', 'pizza')], [C('amenity', 'fast_food'), C('cuisine', 'pizza')]], dica: 'Delivery e salão: QR na caixa da pizza e na mesa para avaliar.' },
-  { id: 'lanchonete', nome: 'Lanchonete / hamburgueria', ico: '🍔', re: /lanchonete|hamb[uú]rguer|sorvete|a[cç]a[ií]|fast/, alt: [[C('amenity', 'fast_food')], [C('amenity', 'ice_cream')], [C('amenity', 'cafe')]], dica: 'Alto giro: QR no balcão e na embalagem para avaliar e seguir.' },
-  { id: 'bar', nome: 'Bar / pub', ico: '🍺', re: /\bbar\b|pub|boteco/, alt: [[C('amenity', 'bar')], [C('amenity', 'pub')]], dica: 'Placa nas mesas leva ao Instagram da programação.' },
+  { id: 'lanchonete', nome: 'Lanchonete / hamburgueria', ico: '🍔', re: /lanch|hamb[uú]rgu|burger|sorvet|a[cç]a[ií]|fast|salgad|pastel|cafeteria|\bcafe\b|caf[eé]|espetinho|cachorro.?quente|hot.?dog|tapioca|creperia|doceria|sanduich/, alt: [[C('amenity', 'fast_food')], [C('amenity', 'ice_cream')], [C('amenity', 'cafe')]], dica: 'Alto giro: QR no balcão e na embalagem para avaliar e seguir.' },
+  { id: 'bar', nome: 'Bar / pub', ico: '🍺', re: /\bbar(es)?\b|\bpub\b|boteco|cervej|choperia|adega/, alt: [[C('amenity', 'bar')], [C('amenity', 'pub')]], dica: 'Placa nas mesas leva ao Instagram da programação.' },
   { id: 'academia', nome: 'Academia', ico: '🏋️', re: /academia|fitness|muscula|crossfit|pilates/, alt: [[C('leisure', 'fitness_centre')]], dica: 'Avaliações atraem matrícula; placa na recepção.' },
   { id: 'dentista', nome: 'Dentista', ico: '🦷', re: /dentist|odonto/, alt: [[C('amenity', 'dentist')]], dica: 'Confiança é tudo: nota no Google traz paciente novo.' },
   { id: 'clinica', nome: 'Clínica / consultório', ico: '🏥', re: /cl[ií]nica|consult[oó]rio|m[eé]dic|fisio|psic/, alt: [[C('amenity', 'clinic')], [C('amenity', 'doctors')], [C('healthcare', 'physiotherapist')]], dica: 'Placa na recepção pede avaliação de forma discreta.' },
@@ -90,10 +90,26 @@ const NICHOS = [
   { id: 'idiomas', nome: 'Escola / curso de idiomas', ico: '🎓', re: /idioma|curso|escola de/, alt: [[C('amenity', 'language_school')], [C('amenity', 'training')]], dica: 'Avaliações trazem matrícula.' },
   { id: 'hotel', nome: 'Hotel / pousada', ico: '🏨', re: /hotel|pousada|hospedagem/, alt: [[C('tourism', 'hotel')], [C('tourism', 'guest_house')], [C('tourism', 'motel')]], dica: 'Placa no quarto e na recepção para avaliação.' },
 ];
-const nichoDe = seg => { const t = String(seg || '').toLowerCase().trim(); return NICHOS.find(n => n.id === t || n.nome.toLowerCase() === t) || NICHOS.find(n => n.re.test(t)) || null; };
+const semAc = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+// Aceita do jeito que a pessoa escreve: com ou sem acento, no plural ("lanches", "barbearias") ou pelo nome do nicho
+const nichoDe = seg => {
+  const t = String(seg || '').toLowerCase().trim(), s0 = semAc(seg);
+  if (!s0) return null;
+  const formas = [t, s0, s0.replace(/s\b/g, ''), s0.replace(/oes\b/g, 'ao').replace(/aes\b/g, 'ao')];
+  return NICHOS.find(n => n.id === s0 || semAc(n.nome) === s0) || NICHOS.find(n => formas.some(f => n.re.test(f))) || null;
+};
+// Nada na lista: procura no mapa pelo nome dos estabelecimentos (lojas, comércios, serviços) que contenham o termo
+function nichoLivre(seg) {
+  const PARADAS = new Set(['loja', 'lojas', 'casa', 'comercio', 'servico', 'servicos', 'empresa', 'empresas', 'studio', 'estudio', 'centro', 'para', 'com', 'dos', 'das']);
+  const acento = w => w.replace(/a/g, '[aáàâã]').replace(/e/g, '[eéê]').replace(/i/g, '[ií]').replace(/o/g, '[oóôõ]').replace(/u/g, '[uúü]').replace(/c/g, '[cç]');
+  const termo = semAc(seg).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length >= 3 && !PARADAS.has(w)).map(w => acento(w.replace(/(oes|aes)$/, 'ao').replace(/s$/, ''))).join('|');
+  if (!termo) return null;
+  const nome = ['name', '~', termo];
+  return { id: 'texto', nome: txt(seg, 40).replace(/^./, c => c.toUpperCase()), ico: '🔎', alt: [[['shop'], nome], [['amenity'], nome], [['craft'], nome], [['office'], nome], [['leisure'], nome]], dica: '' };
+}
 const tagsDe = seg => { const n = nichoDe(seg); return n ? n.alt : null; };
 // monta o pedaço da consulta Overpass para um nicho
-const condQ = c => c.length === 3 ? `["${c[0]}"~"${String(c[2]).replace(/"/g, '')}",i]` : `["${c[0]}"="${c[1]}"]`;
+const condQ = c => c.length === 1 ? `["${c[0]}"]` : c.length === 3 ? `["${c[0]}"~"${String(c[2]).replace(/"/g, '')}",i]` : `["${c[0]}"="${c[1]}"]`;
 const filtroQ = (alt, esc) => alt.map(conj => 'nwr' + conj.map(condQ).join('') + esc + ';').join('');
 const distKm = (a, b, c, d) => { const R = 6371, rad = x => x * Math.PI / 180, dl = rad(c - a), dn = rad(d - b); const h = Math.sin(dl / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 
@@ -159,14 +175,14 @@ async function centroDe(b) {
   return centro;
 }
 async function buscarOsm(b, res) {
-  const nicho = nichoDe(b.nicho || b.segmento);
-  if (!nicho) return res.status(400).json({ error: 'Não reconheci esse segmento no mapa livre. Escolha um da lista (barbearia, tatuagem, ótica, padaria, roupas…).' });
+  const nicho = nichoDe(b.nicho || b.segmento) || nichoLivre(b.nicho || b.segmento);
+  if (!nicho) return res.status(400).json({ error: 'Escreva o que você procura (ex.: lanchonete, barbearia, ótica, pet shop).' });
   const raio = Math.min(20000, Math.max(500, Number(b.raio) || 5000));
   try {
     const centro = await centroDe(b);
     if (!centro) return res.status(400).json({ error: 'Não achei esse lugar. Escreva "bairro, cidade" ou use a sua localização.' });
     const out = ordenar(await acharNicho(nicho, centro, raio, null), db.prepare('SELECT id FROM prospects WHERE place_id = ?'));
-    res.json({ total: out.length, mais: false, fonte: 'osm', centro: centro.nome, resultados: out });
+    res.json({ total: out.length, mais: false, fonte: 'osm', centro: centro.nome, nicho: nicho.nome, por_nome: nicho.id === 'texto', resultados: out });
   } catch (e) { res.status(502).json({ error: 'O mapa livre (OpenStreetMap) não respondeu agora: ' + e.message + '. Tente de novo em instantes.' }); }
 }
 // Varredura da cidade: vários nichos de uma vez, um resumo por nicho e a lista única (sem repetir a mesma empresa).
@@ -445,4 +461,4 @@ router.post('/:id/contato', (req, res) => {
 });
 
 module.exports = router;
-module.exports._t = { bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS, raioX, roteiro, geocodificar, acharNicho, normalizar, google, CAMPOS };
+module.exports._t = { nichoDe, nichoLivre, bairroDe, oportunidade, tagsDe, normalizarOsm, NICHOS, raioX, roteiro, geocodificar, acharNicho, normalizar, google, CAMPOS };

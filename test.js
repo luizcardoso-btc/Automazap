@@ -593,7 +593,9 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const z = r.json.resultados[0]; assert.strictEqual(z.nota, null); assert.strictEqual(z.place_id, 'osm:node/1'); assert.strictEqual(z.nivel, 'alta'); assert.ok(z.maps_url.includes('google.com/maps'));
     assert.strictEqual(r.json.resultados[1].instagram, 'bartop'); assert.ok(/around:3000,-12.2,-38.9/.test(global.__q) && /"shop"="hairdresser"/.test(global.__q));
     assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'barbearia', local: 'Nada aqui' }, headers: H })).status, 400);
-    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'xyzabc', local: 'Centro' }, headers: H })).status, 400);
+    const livre = await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'xyzabc', local: 'Centro' }, headers: H }); assert.strictEqual(livre.status, 200); assert.strictEqual(livre.json.por_nome, true);   // fora da lista: procura pelo nome
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: 'lanches', local: 'Centro' }, headers: H })).json.nicho, 'Lanchonete / hamburgueria');
+    assert.strictEqual((await chamar('POST', '/api/prospeccao/buscar', { corpo: { segmento: ' ', local: 'Centro' }, headers: H })).status, 400);
     const s1 = await chamar('POST', '/api/prospeccao/salvar', { corpo: { lugares: r.json.resultados, segmento: 'Barbearia' }, headers: H }); assert.strictEqual(s1.json.novos, 2);
     const reg = (await chamar('GET', '/api/prospeccao', { headers: H })).json.find(x => x.nome === 'Barber Top'); assert.strictEqual(reg.origem, 'osm'); assert.strictEqual(reg.instagram, 'bartop');
     const up = await chamar('PUT', `/api/prospeccao/${reg.id}`, { corpo: { ...reg, nota: '4,3', avaliacoes: '27' }, headers: H }); assert.strictEqual(up.json.nota, 4.3); assert.strictEqual(up.json.avaliacoes, 27);
