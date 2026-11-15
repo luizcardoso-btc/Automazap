@@ -15,7 +15,7 @@ const txt = (v, n) => String(v ?? '').trim().slice(0, n);
 
 // ---------- configuração ----------
 const cfg = () => ({
-  url: String(process.env.EVOLUTION_URL || '').replace(/\/+$/, ''),
+  url: (u => (u && !/^https?:\/\//i.test(u) ? 'https://' + u : u))(String(process.env.EVOLUTION_URL || '').trim().replace(/\/+$/, '')),   // aceita o endereço sem https://
   chave: process.env.EVOLUTION_API_KEY || '',
   instancia: process.env.EVOLUTION_INSTANCE || 'nextap',
 });
