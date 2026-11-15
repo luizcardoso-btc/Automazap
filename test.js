@@ -1055,17 +1055,31 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const r2 = (await chamar('GET', '/api/predio/conteudo', { headers: H })).json; assert.strictEqual(r2.itens.length, 5);
     assert.strictEqual(r2.itens.find(c => c.id === r.itens[0].id).legenda, 'Minha legenda');
   });
-  await t('Marketing: Davi escreve roteiros dos vídeos, Nina os textos e a Lia os comandos do ChatGPT (carrossel ou post do dia)', async () => {
-    const m = (await chamar('GET', '/api/predio/marketing', { headers: H })).json;
-    assert.ok(m.videos.length >= 2); for (const v of m.videos) { assert.strictEqual(v.ganchos.length, 3); assert.ok(v.cenas.length >= 2); assert.ok(/^Comente [A-Z]/.test(v.cta), v.cta); assert.strictEqual(v.cenas[v.cenas.length - 1].tela, v.cta); }
-    assert.ok(m.videos.every(v => v.formato !== 'Carrossel')); assert.ok(m.imagens.every(c => c.titulo));
-    const h = m.hoje; assert.ok(['carrossel', 'post'].includes(h.tipo)); assert.ok(h.slides.length >= 1 && h.mestre.includes('4:5'));
-    for (const x of h.slides) { assert.ok(x.prompt.includes('"' + x.texto + '"')); assert.ok(!/^[^\p{L}"“]/u.test(x.texto), x.texto); }
-    const P = require('./predio.js'), seg = Date.parse(m.semana + 'T15:00:00-03:00'), car = P.pautaImagem(seg);
-    if (db.prepare("SELECT 1 FROM conteudo WHERE dia = ? AND formato = 'Carrossel'").get(m.semana)) { assert.strictEqual(car.tipo, 'carrossel'); assert.ok(car.slides.length >= 3); assert.ok(/^(Comente |Chama no direct)/.test(car.slides[car.slides.length - 1].texto)); }
-    const n0 = db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('imagem','copy_imagem','copy_video')").get().n;
-    P.turnoMarketing(); assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('imagem','copy_imagem','copy_video')").get().n > n0);
-    const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.strictEqual(vis.nomes.imagem, 'Lia'); assert.ok(vis.marketing.hoje.imagens >= 1);
+  await t('Marketing: cronograma (seg 2 posts, ter 1, dom 0, stories 2/dia), CTO revisa e aprova, outra versão, postado, métricas e guia de estilo', async () => {
+    const P = require('./predio.js'), m = (await chamar('GET', '/api/predio/marketing', { headers: H })).json;
+    assert.ok(m.videos.length >= 2); for (const v of m.videos) { assert.strictEqual(v.ganchos.length, 3); assert.ok(/^Comente [A-Z]/.test(v.cta), v.cta); assert.strictEqual(v.cenas[v.cenas.length - 1].tela, v.cta); }
+    assert.deepStrictEqual(m.cronograma, { feed: [0, 2, 1, 2, 1, 2, 2], stories: 2 }); assert.ok(m.estilo.includes('NexTap') && m.estilo_padrao);
+    const dia = d => Date.parse(d + 'T15:00:00-03:00'), slots = d => P.pecasDoDia(dia(d)).map(p => p.slot).sort();
+    assert.deepStrictEqual(slots('2026-12-07'), ['feed1', 'feed2', 'story1', 'story2']);   // segunda
+    assert.deepStrictEqual(slots('2026-12-08'), ['feed1', 'story1', 'story2']);            // terça
+    assert.deepStrictEqual(slots('2026-12-13'), ['story1', 'story2']);                     // domingo
+    const seg = P.pecasDoDia(dia('2026-12-07')), car = seg.find(p => p.slot === 'feed1');
+    assert.strictEqual(car.tipo, 'carrossel'); assert.ok(car.slides.length >= 4); assert.strictEqual(seg.find(p => p.slot === 'feed2').tipo, 'post');
+    for (const p of seg) { assert.strictEqual(p.status, 'aprovado', p.titulo + ' ' + JSON.stringify(p.revisao.notas)); for (const x of p.slides) { assert.ok(x.prompt.includes('"' + x.texto + '"')); assert.ok(x.texto.length <= 70); assert.ok(x.prompt.includes(p.canal === 'stories' ? '9:16' : '4:5')); } }
+    assert.ok(/Comente [A-Z]{3,}/.test(car.legenda) && car.legenda.includes('#'));
+    const ruim = P.revisar({ ...car, legenda: 'Garantimos o dobro de clientes', slides: [{ n: 1, texto: 'x'.repeat(90), sub: '' }] });
+    assert.ok(!ruim.ok && ruim.notas.length >= 4);   // texto longo, promessa, sem chamada, sem hashtag, poucas imagens
+    const r2 = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/refazer`, { headers: H })).json; assert.ok(r2.titulo !== car.titulo && r2.versao === car.versao + 1);
+    assert.strictEqual((await chamar('PUT', `/api/predio/marketing/pecas/${car.id}`, { corpo: { status: 'postado' }, headers: H })).json.status, 'postado');
+    const mt = P.metricasMkt(dia('2026-12-08')); assert.deepStrictEqual([mt.ontem.planejadas, mt.ontem.postadas], [4, 1]); assert.ok(mt.recomendacoes[0].includes('3 peça(s) sem postar'));
+    assert.strictEqual((await chamar('PUT', '/api/predio/marketing/config', { corpo: { cronograma: { feed: [0, 9, 1, 2, 1, 2, 2], stories: 2 } }, headers: H })).status, 400);
+    const c2 = (await chamar('PUT', '/api/predio/marketing/config', { corpo: { cronograma: { feed: [1, 2, 1, 2, 1, 2, 2], stories: 1 }, estilo: 'Estilo novo da marca' }, headers: H })).json;
+    assert.strictEqual(c2.cronograma.stories, 1); assert.strictEqual(c2.estilo, 'Estilo novo da marca'); assert.deepStrictEqual(slots('2026-12-20'), ['feed1', 'story1']);
+    await chamar('PUT', '/api/predio/marketing/config', { corpo: { cronograma: { feed: [0, 2, 1, 2, 1, 2, 2], stories: 2 }, estilo: '' }, headers: H });
+    const n0 = db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'cto'").get().n;
+    const rel = (await chamar('POST', '/api/predio/marketing/relatorio', { headers: H })).json; assert.ok(rel.texto.includes('Recomendações'));
+    assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'cto'").get().n > n0);
+    const vis = (await chamar('GET', '/api/predio', { headers: H })).json; assert.strictEqual(vis.nomes.cto, 'Rafael'); assert.strictEqual(vis.nomes.imagem, 'Lia'); assert.ok(vis.marketing.hoje.pecas >= 2); assert.ok(vis.ceo);
   });
   await t('Gerente: resumo com números de ontem e prioridades, aviso no celular; relógio roda uma vez por dia na hora certa', async () => {
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
