@@ -717,7 +717,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       await msg('5575966660001', 'R0', 'qual o preço?'); await espera(); assert.strictEqual(n0(), a);           // desligada: não responde
       assert.deepStrictEqual((await chamar('PUT', '/api/whatsapp/robo', { corpo: { ligado: true }, headers: H })).json, { ligado: true });
       a = n0(); await msg('5575966660001', 'R1', 'qual o preço?'); await espera();
-      let tx = saiu(a); assert.ok(tx.includes('Ana') && tx.includes('Bianca') && /\*1\* Para o meu estabelecimento/.test(tx) && /\*2\* Quero revender/.test(tx), tx);
+      let tx = saiu(a); assert.ok(tx.includes('Ana') && tx.includes('Bianca') && tx.includes('1️⃣ Para o meu estabelecimento') && tx.includes('2️⃣ Quero revender'), tx);
       assert.strictEqual(db.prepare("SELECT COUNT(*) AS n FROM contacts WHERE ext_id = '5575966660001'").get().n, 0);   // a Sofia (fluxos do Instagram) não entra
       a = n0(); await msg('5575966660001', 'R2', '1'); await espera(); tx = saiu(a);
       assert.ok(tx.includes('*Pix*') && !tx.includes('Redes sociais') && !tx.includes('R$') && /prefere uma placa do \*Google\* ou algum outro modelo\?$/.test(tx) && !tx.includes('http'), tx);
@@ -731,7 +731,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE titulo LIKE 'Cliente no WhatsApp:%' AND texto LIKE '%PEDIDO VAREJO: 2 placa(s) (Google, Instagram)%'").get().n === 1);
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE '%Bianca%'").get().n >= 2);
       a = n0(); await msg('5575966660001', 'R5', 'obrigada'); await espera(); assert.strictEqual(n0(), a);   // agora é com você
-      a = n0(); await msg('5575966660001', 'R6', '#teste'); await espera(); assert.ok(/\*1\* Para o meu estabelecimento/.test(saiu(a)));   // recomeça do zero no mesmo número
+      a = n0(); await msg('5575966660001', 'R6', '#teste'); await espera(); assert.ok(saiu(a).includes('1️⃣ Para o meu estabelecimento'));   // recomeça do zero no mesmo número
       assert.ok((await chamar('POST', '/api/whatsapp/bianca/reiniciar', { headers: H })).json.reiniciadas >= 1);
       // atacado
       a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('revenda') && tx.includes('quantas placas'), tx);
@@ -753,7 +753,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   });
   await t('Bianca no balcão: decide sem enviar (menu, varejo, 3+ placas, pedir humano, parar)', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
-    assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
+    assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '1️⃣').etapa, 'varejo'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '2️⃣').etapa, 'atacado'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
     const m = d({ etapa: 'menu', dados: {}, tentativas: 0 }, 'hã?'); assert.strictEqual(m.etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {}, tentativas: 1 }, 'hã?').etapa, 'humano');
     const tres = d({ etapa: 'varejo', dados: {} }, 'quero 4'); assert.strictEqual(tres.etapa, 'humano'); assert.ok(tres.avisar.includes('4 placas'));
     assert.ok(tres.textos[0].includes('preço especial') && !/atacado/i.test(tres.textos[0]) && tres.avisar.includes('não é atacado'));

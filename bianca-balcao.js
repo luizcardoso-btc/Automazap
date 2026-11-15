@@ -8,7 +8,7 @@ const { db, getSetting, setSetting } = require('./db.js');
 db.exec('CREATE TABLE IF NOT EXISTS bianca_balcao (contato_id INTEGER PRIMARY KEY, etapa TEXT NOT NULL, tipo TEXT NOT NULL DEFAULT \'\', dados TEXT NOT NULL DEFAULT \'{}\', tentativas INTEGER NOT NULL DEFAULT 0, em INTEGER NOT NULL)');
 
 const DIA = 86400e3;
-const sem = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+const sem = t => String(t || '').replace(/[\uFE0F\u20E3]/g, '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 const valor = (k, pad) => { const v = parseFloat(String(getSetting(k) || '').replace(/\./g, '').replace(',', '.')); const x = v > 0 ? v : pad; return Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.', ','); };
 const precos = () => {
   const um = valor('preco_varejo_1', 80), dois = valor('preco_varejo_2', 140), n = x => parseFloat(x.replace(',', '.')), br = x => Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.', ',');
@@ -48,8 +48,8 @@ function textos() {
   const video = String(getSetting('video_demo_url') || '').trim();
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
     return {
-    menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n*1* Para o meu estabelecimento\n*2* Quero revender (atacado)\n\n_Responda com o número._`,
-    menuDeNovo: () => 'Só pra eu te passar a informação certa: é para o *seu estabelecimento* (responda *1*) ou para *revender* (responda *2*)?',
+    menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n1️⃣ Para o meu estabelecimento\n2️⃣ Quero revender (atacado)\n\n_Responda com o número._`,
+    menuDeNovo: () => 'Só pra eu te passar a informação certa: é para o *seu estabelecimento* (responda 1️⃣) ou para *revender* (responda 2️⃣)?',
     // 1º balão: só o vídeo e a pergunta do modelo. Valores só se o cliente perguntar (ou na confirmação do pedido).
     varejo: () => [comVideo(`Show! A placa NexTap é de acrílico e fica no balcão: o cliente aproxima o celular (ou aponta a câmera) e já cai onde você quiser, sem aplicativo, em uns 5 segundos. Tem estes modelos:\n\n${LISTA_MODELOS}\n\nVocê prefere uma placa do *Google* ou algum outro modelo?`)],
     preco: (fim) => [`Aqui em ${cidade}:\n• *1 placa:* R$ ${p.um}\n• *2 placas:* ${p.economia ? `de ~R$ ${p.de}~ por *R$ ${p.dois}*: você economiza R$ ${p.economia} (sai R$ ${p.cada} cada)` : `R$ ${p.dois} (sai R$ ${p.cada} cada)`}\n\nValor único, sem mensalidade. O ${dono} leva até o seu estabelecimento já configurada, *sem taxa de entrega*, e o pagamento é feito na entrega.\n\n${fim}`],
@@ -73,7 +73,7 @@ function textos() {
     parar: () => ['Combinado, não escrevo mais. Bom trabalho!'],
     // Lembrete quando o cliente some por 3 horas no meio da conversa (um por etapa)
     lembrete: {
-      menu: () => 'Oi! 🙂 Ainda posso te ajudar com a placa? É só responder *1* (para o seu estabelecimento) ou *2* (para revender).',
+      menu: () => 'Oi! 🙂 Ainda posso te ajudar com a placa? É só responder 1️⃣ (para o seu estabelecimento) ou 2️⃣ (para revender).',
       varejo: () => 'Oi! 🙂 Conseguiu ver o vídeo? Você prefere a placa do *Google* ou algum outro modelo?',
       modelo: () => 'Oi! 🙂 Conseguiu ver o vídeo? Você prefere a placa do *Google* ou algum outro modelo?',
       qtd: () => 'Oi! 🙂 Só falta me dizer: vai querer *1* ou *2* placas?',
