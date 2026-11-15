@@ -103,9 +103,9 @@ function vars(p, t0 = Date.now()) {
 const escolher = (l, p) => l[(Number(p.id) || 0) % l.length];
 const T = {
   abertura: [
-    v => `${v.saud}${v.cnome}! Aqui é a ${v.eu}, assistente da NexTap, aqui de ${v.cidade}. 🙂\n\n${v.dado}\n\nPosso te mostrar em 15 segundos um jeito simples de aumentar isso?`,
-    v => `${v.saud}${v.cnome}, tudo bem? Sou a ${v.eu}, da NexTap (${v.cidade}).\n\n${v.dado}\n\nTenho uma ideia rápida pra isso. Posso te mostrar?`,
-    v => `${v.saud}${v.cnome}! ${v.eu} aqui, da NexTap. Estava olhando os negócios de ${v.cidade} no Google e parei no perfil de vocês.\n\n${v.dado}\n\nTe mando um vídeo de 15 segundinhos mostrando como melhorar?`],
+    v => `${v.saud}${v.cnome}! Aqui é a ${v.eu}, assistente da NexTap, aqui de ${v.cidade}. 🙂\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
+    v => `${v.saud}${v.cnome}, tudo bem? Sou a ${v.eu}, da NexTap (${v.cidade}).\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
+    v => `${v.saud}${v.cnome}! ${v.eu} aqui, da NexTap. Estava olhando os negócios de ${v.cidade} no Google e parei no perfil de vocês.\n\n${v.dado}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`],
   aviso: () => 'Se não for do seu interesse, é só me dizer que eu não escrevo mais.',
   d1: [v => `${v.saud}${v.cnome}! Passando só pra saber se você conseguiu ver a minha mensagem. 🙂\n\nÉ coisa rápida: mostro como cada cliente satisfeito avalia a ${v.empresa} em 5 segundos. Posso mandar?`,
     v => `Oi${v.cnome}! Sei que o dia é corrido. Fica a pergunta: posso te mandar um vídeo curtinho mostrando como aumentar as avaliações da ${v.empresa}?`],

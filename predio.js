@@ -74,7 +74,7 @@ function abertura(p) {
 }
 const primeiro = p => (p.contato ? ' ' + String(p.contato).split(' ')[0] : '');
 const MSG = {
-  d0: p => `Oi${primeiro(p)}! Tudo bem? Sou o ${vendedor()}, aqui de ${cidade()}.\n\n${abertura(p)}\n\nPosso te mostrar em 15 segundos como fazer os seus clientes avaliarem sem esforço?`,
+  d0: p => `Oi${primeiro(p)}! Tudo bem? Sou o ${vendedor()}, aqui de ${cidade()}.\n\n${abertura(p)}\n\nPosso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?`,
   d1: p => `Oi${primeiro(p)}! Conseguiu ver a minha mensagem?\n\nImagina cada cliente satisfeito avaliando ${p.nome} na saída, em 5 segundos. Posso te mandar um vídeo rápido?`,
   d3: p => `Oi${primeiro(p)}! Só para não deixar passar: consigo deixar a placa de vocês configurada ainda esta semana.\n\nPrefere uma só, para o balcão, ou duas (balcão e caixa)?`,
   d7: p => `Oi${primeiro(p)}! Última mensagem por aqui. 🙂\n\nQuando quiser mais avaliações no Google para ${p.nome}, é só me chamar. Obrigado pela atenção!`,

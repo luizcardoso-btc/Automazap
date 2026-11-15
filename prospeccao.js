@@ -408,7 +408,7 @@ function roteiro(p) {
   return {
     resumo: x ? x.pontos : [], dono: p.contato || '', fases: [
       { fase: 'Início', objetivo: 'Mostrar que você olhou a empresa e ganhar permissão para explicar.', passos: [
-        { titulo: 'WhatsApp · abertura', texto: `${oi} Aqui é o ${eu}, da NexTap, de ${cid}. ${dado} Posso te mostrar em 15 segundos como aumentar isso sem dar trabalho pra equipe?` },
+        { titulo: 'WhatsApp · abertura', texto: `${oi} Aqui é o ${eu}, da NexTap, de ${cid}. ${dado} Posso te mostrar um jeito simples de aumentar as avaliações da sua empresa no Google, sem precisar pagar tráfego pago?` },
         { titulo: 'Visita · abertura', texto: `Boa tarde! Sou o ${eu}, da NexTap. ${quem ? `O(a) ${quem} está?` : 'Você é o(a) responsável?'} Posso tomar 1 minuto? ${dado} Vocês pedem avaliação para os clientes hoje?` },
         { titulo: 'Ligação · abertura', texto: `Oi${quem ? ', ' + quem : ''}? Aqui é o ${eu}, da NexTap. ${dado} Posso te mandar um vídeo de 15 segundos nesse WhatsApp?` },
         { titulo: 'Se não for o dono', texto: 'Sem problema! Quando o responsável costuma estar? Posso mandar um vídeo de 15 segundos no WhatsApp dele(a)? Qual o número?' } ] },
