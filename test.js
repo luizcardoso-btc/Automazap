@@ -774,7 +774,8 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(!d({ etapa: 'varejo', dados: {} }, 'google e pix').textos.join().includes('R$') && d({ etapa: 'varejo', dados: {} }, 'google e pix').textos[0].includes('do *Pix* faz'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, '2 do whatsapp').etapa, 'dados'); assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'google e pix').etapa, 'dados');
     assert.ok(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, 'qual o valor?').textos[0].includes('R$ 140'));
-    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].includes('*WhatsApp*'), true);
+    setSetting('public_url', 'https://automazap.test'); assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].midia, 'https://automazap.test/assets/modelos-nextap.jpg'); setSetting('public_url', 'https://bot.exemplo.com');
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].texto.includes('*WhatsApp*'), true);
     assert.deepStrictEqual(B.modelosDe('pix e zap e redes sociais'), ['WhatsApp', 'Pix']);
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'tá caro').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {} }, 'tá caro').textos[0].includes('R$ 70'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quero falar com o dono').etapa, 'humano');

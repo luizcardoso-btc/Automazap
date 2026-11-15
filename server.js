@@ -115,6 +115,7 @@ app.use('/media', (req, res, next) => {
   const d = require('path').join(require('path').dirname(require('./db.js').arquivo === ':memory:' ? require('os').tmpdir() + '/x' : require('./db.js').arquivo), 'media');
   express.static(d, { maxAge: '7d', index: false, dotfiles: 'deny', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') })(req, res, next);
 });
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d', index: false, dotfiles: 'deny' }));   // imagens fixas (ex.: foto dos modelos que a Bianca manda)
 app.get('/brand', (req, res) => res.json(marca.publica()));
 // Painel instalável no celular (atalho na tela inicial) com notificações push
 app.get('/sw.js', (req, res) => { res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Service-Worker-Allowed': '/', 'Cache-Control': 'no-cache' }); res.sendFile(path.join(__dirname, 'sw.js')); });

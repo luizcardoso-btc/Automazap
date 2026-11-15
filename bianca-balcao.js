@@ -50,7 +50,7 @@ const ehVideo = u => /^https?:\/\/\S+\.(mp4|mov)(\?\S*)?$/i.test(u);
 function textos() {
   const P = require('./predio.js'), p = precos(), eu = P.nomes().prospectora, dono = P.vendedor(), cidade = P.cidade();
   const video = String(getSetting('video_demo_url') || '').trim();
-  const foto = String(getSetting('foto_modelos_url') || '').trim(), comFoto = txt => (/^https:\/\/\S+$/.test(foto) ? { midia: foto, texto: txt } : txt);   // foto com todos os modelos
+  const pub = String(getSetting('public_url') || '').replace(/\/+$/, ''), foto = String(getSetting('foto_modelos_url') || '').trim() || (pub ? pub + '/assets/modelos-nextap.jpg' : ''), comFoto = txt => (/^https:\/\/\S+$/.test(foto) ? { midia: foto, texto: txt } : txt);   // foto com todos os modelos
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
     return {
     menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n1️⃣ Para o meu estabelecimento\n2️⃣ Quero revender (atacado)\n\n_Responda com o número._`,
@@ -69,7 +69,7 @@ function textos() {
     dados: (q, mods, jaExplicados = []) => { const novos = mods.filter(m => !jaExplicados.includes(m)), oque = q === 2 ? (mods[0] === mods[1] ? `2 placas do *${mods[0]}*` : `2 placas (*${mods.join('* + *')}*)`) : `1 placa do *${mods[0]}*`;
       return [`Perfeito! ✅ Anotado: ${oque}.${novos.length ? `\n\n${beneficios(novos)}` : ''}\n\nO ${dono} leva até você já configurada, *sem taxa de entrega*, e te mostra funcionando na hora.`,
         `${q === 1 ? 'Se quiser 2 placas, é só me falar: levando 2 você ganha desconto. 😉\n\n' : ''}Pra eu agendar, me manda:\n• o *nome da empresa* como aparece no Google\n• o *endereço* (rua e bairro)\n• o melhor *dia e horário* pro ${dono} passar aí`]; },
-    modelos: () => [`Temos estes modelos:\n${LISTA_MODELOS}\n\nO ${dono} leva todos pra você ver na hora da entrega. Você prefere a do *Google* ou outro?`],
+    modelos: () => [comFoto(`Temos estes modelos:\n\n${LISTA_MODELOS}\n\nO ${dono} leva todos pra você ver na hora da entrega.\n\nVocê prefere a do *Google* ou outro?`)],
     dadosOk: () => [`Anotado! ✅ O ${dono} vai te confirmar por aqui o dia e o horário. Ele leva a placa já configurada, sem taxa de entrega, e você só paga na hora, depois de ver funcionando. Obrigada pela confiança! 💙`],
     // Atacado: simulação direto no painel do revendedor (sem preço nem promoção na conversa)
     atacado: () => ['Que legal! 🙌\n\nPra revenda, você compra direto pelo *painel do revendedor*:\n\n• Preço especial por quantidade\n• Entrega para todo o Brasil\n• Placas prontas para você configurar para os seus clientes',
