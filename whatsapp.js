@@ -448,12 +448,13 @@ async function atenderComRobo(c, texto, mid, nome) {
   if (!numero) return null;
   // Você respondeu pelo celular ou pelo painel há menos de 2 horas: a conversa é sua, o robô fica quieto
   const voce = db.prepare("SELECT MAX(criado_em) AS t FROM wa_mensagens WHERE contato_id = ? AND direcao = 'out' AND origem IN ('celular','painel')").get(c.id).t || 0;
-  if (agora() - voce < 2 * 3600e3) return { acao: 'ignorada', motivo: 'conversa com você' };
+  if (agora() - voce < 2 * 3600e3 && !require('./bianca-balcao.js').ehReinicio(texto)) return { acao: 'ignorada', motivo: 'conversa com você' };
   // Quem atende no WhatsApp é a Bianca (varejo e atacado). A Sofia fica só no Instagram.
   const r = await require('./bianca-balcao.js').atender(c, texto, txt(nome, 60));
   try { require('./eventos.js').registrar('whatsapp', r.acao, r.etapa || ''); } catch (e) { /* opcional */ }
   return r;
 }
+router.post('/bianca/reiniciar', (req, res) => res.json({ reiniciadas: require('./bianca-balcao.js').reiniciar() }));
 router.get('/robo', (req, res) => res.json({ ligado: roboLigado(), conectado: configurado() }));
 router.put('/robo', (req, res) => { setSetting('wa_robo', (req.body || {}).ligado ? '1' : '0'); res.json({ ligado: roboLigado() }); });
 

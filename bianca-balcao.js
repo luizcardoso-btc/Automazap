@@ -3,7 +3,7 @@
 // entrega pessoal sem taxa, já configurada, pagamento na entrega; modelos Google, Instagram, WhatsApp e Pix; vídeo vai como vídeo; lembrete após 3h sem resposta; 3+ = preço especial com você)
 // e ATACADO (revenda: não tem preço automático aqui, a Bianca anota quantidade e cidade e passa para você).
 // O que ela não reconhece vai para você (Gerente avisa no seu WhatsApp). Se você responder pelo celular/painel, ela fica quieta 2h.
-const { db, getSetting } = require('./db.js');
+const { db, getSetting, setSetting } = require('./db.js');
 
 db.exec('CREATE TABLE IF NOT EXISTS bianca_balcao (contato_id INTEGER PRIMARY KEY, etapa TEXT NOT NULL, tipo TEXT NOT NULL DEFAULT \'\', dados TEXT NOT NULL DEFAULT \'{}\', tentativas INTEGER NOT NULL DEFAULT 0, em INTEGER NOT NULL)');
 
@@ -70,6 +70,11 @@ function textos() {
   };
 }
 
+// Recomeçar do zero (para testar do mesmo número): o cliente manda "#teste" ou "reiniciar", ou você usa o botão no painel.
+const REINICIO = /^#?\s*(teste|reiniciar|recomecar|reset)\s*$/;
+const ehReinicio = texto => REINICIO.test(sem(texto));
+function reiniciar(cid) { return cid ? db.prepare('DELETE FROM bianca_balcao WHERE contato_id = ?').run(cid).changes : db.prepare('DELETE FROM bianca_balcao').run().changes; }
+if (!getSetting('bianca_balcao_reset_1')) { db.exec('DELETE FROM bianca_balcao'); setSetting('bianca_balcao_reset_1', new Date().toISOString()); }   // recomeço pedido em 15/11
 { const tem = db.prepare('PRAGMA table_info(bianca_balcao)').all().some(x => x.name === 'lembrado'); if (!tem) db.exec('ALTER TABLE bianca_balcao ADD COLUMN lembrado INTEGER NOT NULL DEFAULT 0'); }
 function estado(cid, t0) {
   const e = db.prepare('SELECT * FROM bianca_balcao WHERE contato_id = ?').get(cid);
@@ -132,6 +137,7 @@ const enviarItem = (W, c, x) => typeof x === 'string'
   ? W.enviarContato(c, { texto: x, digitando: Math.min(6000, 1000 + x.length * 30) }, 'bianca')
   : W.enviarContato(c, { midia: x.midia, texto: x.texto }, 'bianca');
 async function atender(c, textoIn, nome, t0 = Date.now()) {
+  if (ehReinicio(textoIn)) reiniciar(c.id);
   const e = estado(c.id, t0), r = decidir(e, textoIn, String(nome || '').trim().split(' ')[0]);
   salvar(c.id, r.etapa, r.tipo, r.dados, t0, r.tentativas || 0);
   if (r.avisar) avisar(c, r.avisar, textoIn, t0);
@@ -163,4 +169,4 @@ async function lembrar(t0 = Date.now()) {
   return n;
 }
 
-module.exports = { atender, decidir, lembrar, precos, qtdDe, modelosDe };
+module.exports = { reiniciar, ehReinicio, atender, decidir, lembrar, precos, qtdDe, modelosDe };

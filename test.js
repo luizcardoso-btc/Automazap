@@ -731,6 +731,8 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE titulo LIKE 'Cliente no WhatsApp:%' AND texto LIKE '%PEDIDO VAREJO: 2 placa(s) (Google, Instagram)%'").get().n === 1);
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE '%Bianca%'").get().n >= 2);
       a = n0(); await msg('5575966660001', 'R5', 'obrigada'); await espera(); assert.strictEqual(n0(), a);   // agora é com você
+      a = n0(); await msg('5575966660001', 'R6', '#teste'); await espera(); assert.ok(/\*1\* Para o meu estabelecimento/.test(saiu(a)));   // recomeça do zero no mesmo número
+      assert.ok((await chamar('POST', '/api/whatsapp/bianca/reiniciar', { headers: H })).json.reiniciadas >= 1);
       // atacado
       a = n0(); await msg('5575966660002', 'A1', 'boa tarde, quero revender as placas'); await espera(); tx = saiu(a); assert.ok(tx.includes('revenda') && tx.includes('quantas placas'), tx);
       a = n0(); await msg('5575966660002', 'A2', '50 placas, sou de Salvador'); await espera(); tx = saiu(a); assert.ok(tx.includes('Já passei'), tx);
