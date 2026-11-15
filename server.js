@@ -164,6 +164,7 @@ if (require.main === module) {
   setTimeout(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 15e3).unref();   // agentes começam logo que o servidor sobe
   setInterval(() => { try { require('./predio.js').tick(); } catch (e) { console.error('[PRÉDIO]', e.message); } }, 60e3).unref();
   setTimeout(() => { try { require('./bianca.js').importarLotes(); } catch (e) { console.error('[BIANCA] lotes:', e.message); } }, 5e3).unref();   // lotes do Google gravados pela tarefa agendada
+  setInterval(() => { require('./bianca-balcao.js').lembrar().catch(e => console.error('[BIANCA] lembrete:', e.message)); }, 60e3).unref();   // cliente sumiu 3h no meio da conversa: um lembrete
   setInterval(() => { require('./bianca.js').tick().catch(e => console.error('[BIANCA]', e.message)); }, 60e3).unref();   // Bianca mapeia e aborda sozinha (se ligada)
   setInterval(() => { require('./social.js').tick().catch(e => console.error('[SOCIAL]', e.message)); }, 60e3).unref();   // Renan publica o que está programado
   // Disparos programados do WhatsApp
