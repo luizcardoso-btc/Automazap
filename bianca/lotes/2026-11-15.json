@@ -1,0 +1,391 @@
+{
+ "data": "2026-11-15",
+ "fonte": "Bianca",
+ "empresas": [
+  {
+   "nome": "Unidos Importados",
+   "telefone": "+55 75 3603-6400",
+   "segmento": "Oficina / auto",
+   "bairro": "Baraúna",
+   "endereco": "Rua Visconde do Rio Branco, 1103 - Baraúna, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Santa Fé",
+   "telefone": "+55 75 3221-5727",
+   "segmento": "Oficina / auto",
+   "bairro": "Olhos d'Água",
+   "endereco": "Rua Papa João XXIII, 1420 - Olhos d'Água, Feira de Santana - BA"
+  },
+  {
+   "nome": "Fas - Ferreira Autoservice",
+   "telefone": "+55 75 3625-6239",
+   "segmento": "Oficina / auto",
+   "bairro": "Parque Getúlio Vargas",
+   "endereco": "Avenida Getúlio Vargas, 3570 - Parque Getúlio Vargas, Feira de Santana - BA"
+  },
+  {
+   "nome": "Autopeças Castro",
+   "telefone": "+55 75 3225-5547",
+   "segmento": "Oficina / auto",
+   "bairro": "Pedra do Descanso",
+   "endereco": "Rua dos Expedicionários, 646 - Pedra do Descanso, Feira de Santana - BA"
+  },
+  {
+   "nome": "Vitória Direção Hidráulica",
+   "telefone": "+55 75 3488-8079",
+   "segmento": "Oficina / auto",
+   "bairro": "Cidade Nova",
+   "endereco": "Avenida Eduardo Fróes da Mota, 6777 - Cidade Nova, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Só Direção Hidráulica",
+   "telefone": "+55 75 3225-7456",
+   "segmento": "Oficina / auto",
+   "bairro": "Centenário",
+   "endereco": "Avenida Eduardo Fróes da Mota, 17628 - Centenário, Feira de Santana - BA"
+  },
+  {
+   "nome": "Auto Mecânica Lopes",
+   "telefone": "+55 75 3221-7860",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Rua São Vicente de Paula, 72 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "A S Carvalho Serviços Mecânicos",
+   "telefone": "+55 75 3624-0265",
+   "segmento": "Oficina / auto",
+   "bairro": "Sobradinho",
+   "endereco": "Avenida Eduardo Fróes da Mota, 19981 - Sobradinho, Feira de Santana - BA"
+  },
+  {
+   "nome": "Comercial Cooperdisel",
+   "telefone": "+55 75 3614-4521",
+   "segmento": "Oficina / auto",
+   "bairro": "Sobradinho",
+   "endereco": "Avenida Eduardo Fróes da Mota, 150 - Sobradinho, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Mecânica Queiroz",
+   "telefone": "+55 75 3625-5550",
+   "segmento": "Oficina / auto",
+   "bairro": "Capuchinhos",
+   "endereco": "Rua Venezuela, 57 - Capuchinhos, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Nunes Diesel",
+   "telefone": "+55 75 3221-0492",
+   "segmento": "Oficina / auto",
+   "bairro": "Cidade Nova",
+   "endereco": "Avenida Eduardo Fróes da Mota, 508 - Cidade Nova, Feira de Santana - BA"
+  },
+  {
+   "nome": "Moto Service",
+   "telefone": "+55 75 3623-8375",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Avenida Governador João Durval Carneiro, 692 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Império Diesel",
+   "telefone": "+55 75 3221-8160",
+   "segmento": "Oficina / auto",
+   "bairro": "Pedra do Descanso",
+   "endereco": "Rua Utinga, 77 - Pedra do Descanso, Feira de Santana - BA"
+  },
+  {
+   "nome": "Nordeste Diesel",
+   "telefone": "+55 75 3224-3167",
+   "segmento": "Oficina / auto",
+   "bairro": "Parque Ipê",
+   "endereco": "Avenida Transnordestina, 3570 - Parque Ipê, Feira de Santana - BA"
+  },
+  {
+   "nome": "Automotivo Reis",
+   "telefone": "+55 75 3625-6857",
+   "segmento": "Oficina / auto",
+   "bairro": "Tomba",
+   "endereco": "Rua Senador Quintino, 2279 - Tomba, Feira de Santana - BA"
+  },
+  {
+   "nome": "Mecânica R J Nunes",
+   "telefone": "+55 75 3614-1125",
+   "segmento": "Oficina / auto",
+   "bairro": "Subae",
+   "endereco": "Rodovia BR-324, km 12 - Subae, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Santo Antônio",
+   "telefone": "+55 75 3223-1344",
+   "segmento": "Oficina / auto",
+   "bairro": "Centro",
+   "endereco": "Rua Castro Alves, 583 - Centro, Feira de Santana - BA"
+  },
+  {
+   "nome": "Max Injetcar",
+   "telefone": "+55 75 3225-4014",
+   "segmento": "Oficina / auto",
+   "bairro": "Centro",
+   "endereco": "Rua São José, 358 - Centro, Feira de Santana - BA"
+  },
+  {
+   "nome": "Monobloco Alinhamento Técnico",
+   "telefone": "+55 75 3223-0905",
+   "segmento": "Oficina / auto",
+   "bairro": "Lagoa Grande",
+   "endereco": "Avenida Eduardo Fróes da Mota, 2050 - Lagoa Grande, Feira de Santana - BA"
+  },
+  {
+   "nome": "Satal Serviços e Assistência Técnica de Autos",
+   "telefone": "+55 75 3221-8374",
+   "segmento": "Oficina / auto",
+   "bairro": "Jardim Acácia",
+   "endereco": "Rua Papa João XXIII, 1137 - Jardim Acácia, Feira de Santana - BA"
+  },
+  {
+   "nome": "Posto de Molas e Comércio de Peças Freire",
+   "telefone": "+55 75 3623-3380",
+   "segmento": "Oficina / auto",
+   "bairro": "Centenário",
+   "endereco": "Avenida Eduardo Fróes da Mota, 2480 - Centenário, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Arco-Íris",
+   "telefone": "+55 75 3224-0941",
+   "segmento": "Oficina / auto",
+   "bairro": "Cidade Nova",
+   "endereco": "Rua Antônio Carlos Magalhães, 1574 - Cidade Nova, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Vavauto Service",
+   "telefone": "+55 75 3221-7745",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Rua Rio Itapemirim, 315 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Toiotal Peças",
+   "telefone": "+55 75 3223-7406",
+   "segmento": "Oficina / auto",
+   "bairro": "Centro",
+   "endereco": "Rua Marechal Floriano Peixoto, 64 - loja 5 - Centro, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Vera Cruz",
+   "telefone": "+55 75 3625-2093",
+   "segmento": "Oficina / auto",
+   "bairro": "Santa Mônica",
+   "endereco": "Rua Rio Vermelho, 94 - Santa Mônica, Feira de Santana - BA"
+  },
+  {
+   "nome": "Ivetran",
+   "telefone": "+55 75 3622-0392",
+   "segmento": "Oficina / auto",
+   "bairro": "Tomba",
+   "endereco": "Estrada de São Gonçalo, 163 - Tomba, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Freitas",
+   "telefone": "+55 75 3625-3077",
+   "segmento": "Oficina / auto",
+   "bairro": "Centenário",
+   "endereco": "Avenida Eduardo Fróes da Mota, 1720 - Centenário, Feira de Santana - BA"
+  },
+  {
+   "nome": "Tec Freios",
+   "telefone": "+55 75 3624-2606",
+   "segmento": "Oficina / auto",
+   "bairro": "Centenário",
+   "endereco": "Avenida Eduardo Fróes da Mota, 19999 - Centenário, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Diesel Santo Antônio",
+   "telefone": "+55 75 3622-2188",
+   "segmento": "Oficina / auto",
+   "bairro": "Santa Mônica",
+   "endereco": "Rua Rio Tietê, 88 - Santa Mônica, Feira de Santana - BA"
+  },
+  {
+   "nome": "Nelson do Carburador",
+   "telefone": "+55 75 3623-7443",
+   "segmento": "Oficina / auto",
+   "bairro": "Baraúna",
+   "endereco": "Rua Visconde do Rio Branco, 1273 - Baraúna, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina São Paulo",
+   "telefone": "+55 75 3625-4657",
+   "segmento": "Oficina / auto",
+   "bairro": "Centenário",
+   "endereco": "Avenida Eduardo Fróes da Mota, 728 - Centenário, Feira de Santana - BA"
+  },
+  {
+   "nome": "Autopistola de Ouro",
+   "telefone": "+55 75 3224-0814",
+   "segmento": "Oficina / auto",
+   "bairro": "Cidade Nova",
+   "endereco": "Rua Barra dos Bandeirantes, 888 - Cidade Nova, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Bahiana",
+   "telefone": "+55 75 3221-0587",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Visconde do Rio Branco, 1090 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Ar Livre",
+   "telefone": "+55 75 3224-1616",
+   "segmento": "Oficina / auto",
+   "bairro": "Parque Ipê",
+   "endereco": "Avenida Transnordestina, 3310 - Parque Ipê, Feira de Santana - BA"
+  },
+  {
+   "nome": "Gt Autoservice",
+   "telefone": "+55 75 3223-4320",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Avenida Presidente Dutra, 1495 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Didi Diesel",
+   "telefone": "+55 75 3221-8018",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Eduardo Spínola, 56 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina D'Dias",
+   "telefone": "+55 75 3221-7144",
+   "segmento": "Oficina / auto",
+   "bairro": "Pedra do Descanso",
+   "endereco": "Avenida Rio de Janeiro, 1170 - Pedra do Descanso, Feira de Santana - BA"
+  },
+  {
+   "nome": "Rocar Peças e Serviços",
+   "telefone": "+55 75 3221-4082",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Aloísio Resende, 564 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Comserta",
+   "telefone": "+55 75 3623-8332",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Artur de Assis, 387 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Aliança",
+   "telefone": "+55 75 3223-0924",
+   "segmento": "Oficina / auto",
+   "bairro": "Muchila",
+   "endereco": "Travessa dos Expedicionários, 163 - Muchila, Feira de Santana - BA"
+  },
+  {
+   "nome": "Unida Retificadora de Motores",
+   "telefone": "+55 75 3623-6192",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Eduardo Spínola, 79 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina de Pinturas Santo Antônio",
+   "telefone": "+55 75 3221-1167",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Avenida Presidente Dutra, 1385 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Técnica",
+   "telefone": "+55 75 3624-4256",
+   "segmento": "Oficina / auto",
+   "bairro": "Cidade Nova",
+   "endereco": "Avenida Eduardo Fróes da Mota, 355 - Cidade Nova, Feira de Santana - BA"
+  },
+  {
+   "nome": "Junton Diesel",
+   "telefone": "+55 75 3616-6179",
+   "segmento": "Oficina / auto",
+   "bairro": "Santa Mônica",
+   "endereco": "Rua Rio Vermelho, 102 - Santa Mônica, Feira de Santana - BA"
+  },
+  {
+   "nome": "L A Mecânica",
+   "telefone": "+55 75 3622-1999",
+   "segmento": "Oficina / auto",
+   "bairro": "Tomba",
+   "endereco": "Avenida Subae, 974 - Tomba, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Solemnity K",
+   "telefone": "+55 75 3223-7109",
+   "segmento": "Oficina / auto",
+   "bairro": "Pedra do Descanso",
+   "endereco": "Rua dos Expedicionários, 551 - Pedra do Descanso, Feira de Santana - BA"
+  },
+  {
+   "nome": "Supercar Serviços e Comércio",
+   "telefone": "+55 75 3221-6239",
+   "segmento": "Oficina / auto",
+   "bairro": "Queimadinha",
+   "endereco": "Rua Humberto de Campos, 346 - Queimadinha, Feira de Santana - BA"
+  },
+  {
+   "nome": "Tubo Car",
+   "telefone": "+55 75 3221-6716",
+   "segmento": "Oficina / auto",
+   "bairro": "Pedra do Descanso",
+   "endereco": "Rua dos Expedicionários, 818 - Pedra do Descanso, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Ebenézer",
+   "telefone": "+55 75 3225-2237",
+   "segmento": "Oficina / auto",
+   "bairro": "Baraúna",
+   "endereco": "Rua General Costa e Silva, 77 - Baraúna, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina do Carburador",
+   "telefone": "+55 75 3221-4386",
+   "segmento": "Oficina / auto",
+   "bairro": "Pilão",
+   "endereco": "Rua Doutor Honorato Bonfim, 177 - Pilão, Feira de Santana - BA"
+  },
+  {
+   "nome": "Oficina Opala",
+   "telefone": "+55 75 3221-5268",
+   "segmento": "Oficina / auto",
+   "bairro": "Pilão",
+   "endereco": "Rua Doutor Honorato Bonfim, 779 - Pilão, Feira de Santana - BA"
+  },
+  {
+   "nome": "Automecânica Arlufcar",
+   "telefone": "+55 75 3225-3750",
+   "segmento": "Oficina / auto",
+   "bairro": "Centro",
+   "endereco": "Rua João de Barros, 733 - Centro, Feira de Santana - BA"
+  },
+  {
+   "nome": "Js Service Car",
+   "telefone": "+55 75 3485-3534",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Rua Rio Araguaia, 70 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Empacto Autocenter",
+   "telefone": "+55 75 3624-8582",
+   "segmento": "Oficina / auto",
+   "bairro": "Brasília",
+   "endereco": "Avenida Maria Quitéria, 3334 - Brasília, Feira de Santana - BA"
+  },
+  {
+   "nome": "Centro Automotivo Kit Gás",
+   "telefone": "+55 75 3625-4510",
+   "segmento": "Oficina / auto",
+   "bairro": "Santa Mônica",
+   "endereco": "Avenida Presidente Dutra, 2604 - Santa Mônica, Feira de Santana - BA"
+  }
+ ]
+}

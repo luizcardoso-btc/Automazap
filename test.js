@@ -1210,6 +1210,18 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       await chamar('DELETE', `/api/prospeccao/${p.id}`, { headers: H }); await chamar('DELETE', `/api/prospeccao/${mei.id}`, { headers: H });
     } finally { srv.close(); const v = (k, x) => { if (x === undefined) delete process.env[k]; else process.env[k] = x; }; v('GOOGLE_PLACES_BASE', gb); v('GOOGLE_PLACES_API_KEY', gk); v('CNPJ_API_BASE', cb); }
   });
+  await t('Bianca importa lotes do Google (nota, avaliações) sem repetir e só uma vez por arquivo', () => {
+    const B = require('./bianca.js'), fs = require('fs'), os = require('os'), path = require('path'), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lotes-'));
+    fs.writeFileSync(path.join(dir, '2099-01-01.json'), JSON.stringify({ empresas: [
+      { nome: 'Barbearia Lote', telefone: '(75) 98877-1001', segmento: 'Barbearia', bairro: 'Centro', google_nota: 4.3, google_avaliacoes: 12, lat: -12.25, lng: -38.96 },
+      { nome: 'Barbearia Lote', telefone: '(75) 98877-1001' }, { nome: 'Sem Fone' }, { nome: 'Pizzaria Lote', telefone: '75 3221-1002', nota: '4,8', avaliacoes: 310, place_id: 'ChIJlote2' }] }));
+    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 1, novos: 2 });
+    const a = db.prepare("SELECT * FROM prospects WHERE nome = 'Barbearia Lote'").get(), b = db.prepare("SELECT * FROM prospects WHERE nome = 'Pizzaria Lote'").get();
+    assert.ok(a.nota === 4.3 && a.avaliacoes === 12 && a.origem === 'bianca' && a.place_id.startsWith('lote:') && a.lat === -12.25);
+    assert.ok(b.nota === 4.8 && b.avaliacoes === 310 && b.place_id === 'ChIJlote2');
+    assert.deepStrictEqual(B.importarLotes(dir), { arquivos: 0, novos: 0 });
+    db.prepare("DELETE FROM prospects WHERE nome IN ('Barbearia Lote','Pizzaria Lote')").run();
+  });
   await t('Bianca automática: só ligada e em horário comercial, intervalo entre envios, pula número sem WhatsApp, meta do dia, resposta para os retornos e pedido de parar encerra', async () => {
     const B = require('./bianca.js'), P = require('./predio.js'), W = require('./whatsapp.js');
     db.prepare("UPDATE prospects SET status = 'perdido' WHERE status IN ('novo','abordado','interessado','orcamento')").run();   // zera o funil dos outros testes

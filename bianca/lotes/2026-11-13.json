@@ -1,0 +1,510 @@
+{
+ "data": "2026-11-13",
+ "fonte": "Varredura inicial da Bianca (Feira de Santana)",
+ "empresas": [
+  {
+   "nome": "Will Barber Barbearia",
+   "telefone": "+55 75 3030-2836",
+   "segmento": "Barbearia",
+   "bairro": "",
+   "endereco": "Av. Artêmia Pires Freitas, 10215 - Loja: 09 - Sim, Feira de Santana - BA, 44085-370",
+   "google_nota": 5.0,
+   "google_avaliacoes": 904
+  },
+  {
+   "nome": "Will Barber Barbearia",
+   "telefone": "+55 75 99935-7508",
+   "segmento": "Barbearia",
+   "bairro": "Parque Ipê",
+   "endereco": "Av. Francisco Fraga Maia - Parque Ipê, Feira de Santana - BA, 44054-378",
+   "google_nota": 5.0,
+   "google_avaliacoes": 486
+  },
+  {
+   "nome": "Barbearia Renildo Barber",
+   "telefone": "+55 75 98134-9508",
+   "segmento": "Barbearia",
+   "bairro": "Centro",
+   "endereco": "Av. Getúlio Vargas, 471 - Centro, Feira de Santana - BA, 44001-525",
+   "google_nota": 5.0,
+   "google_avaliacoes": 265
+  },
+  {
+   "nome": "Dom Mustache Barbearia",
+   "telefone": "+55 75 3623-7831",
+   "segmento": "Barbearia",
+   "bairro": "Santa Mônica",
+   "endereco": "R. São Domingos, 588 - Lj 13 - Santa Mônica, Feira de Santana - BA, 44076-200",
+   "google_nota": 4.9,
+   "google_avaliacoes": 469
+  },
+  {
+   "nome": "Barbearia Renildo Barber",
+   "telefone": "+55 75 98345-7582",
+   "segmento": "Barbearia",
+   "bairro": "Muchila",
+   "endereco": "R. E, 55A - Muchila, Feira de Santana - BA, 44006-000",
+   "google_nota": 5.0,
+   "google_avaliacoes": 184
+  },
+  {
+   "nome": "Barbearia Kefi - Fraga Maia",
+   "telefone": "+55 75 99863-8480",
+   "segmento": "Barbearia",
+   "bairro": "Cidade Nova",
+   "endereco": "Av. Francisco Fraga Maia, 5265 - Cidade Nova, Feira de Santana - BA, 44053-055",
+   "google_nota": 5.0,
+   "google_avaliacoes": 429
+  },
+  {
+   "nome": "Barbearia Barba Negra",
+   "telefone": "+55 75 98307-4970",
+   "segmento": "Barbearia",
+   "bairro": "Cidade Nova",
+   "endereco": "Av. Antônio Carlos Magalhães, 26 - Cidade Nova, Feira de Santana - BA, 44054-005",
+   "google_nota": 5.0,
+   "google_avaliacoes": 191
+  },
+  {
+   "nome": "Studio R Barbearia",
+   "telefone": "+55 75 98321-6944",
+   "segmento": "Barbearia",
+   "bairro": "Mangabeira",
+   "endereco": "Av. Iguatemi, 283 - Mangabeira, Feira de Santana - BA, 44057-300",
+   "google_nota": 4.9,
+   "google_avaliacoes": 316
+  },
+  {
+   "nome": "Corte Fino Barbearia Masculina | Corte & Barba em Feira de Santana",
+   "telefone": "+55 75 98352-7757",
+   "segmento": "Barbearia",
+   "bairro": "Ponto Central",
+   "endereco": "Av. João Durval Carneiro, 1937 - Ponto Central, Feira de Santana - BA, 44001-615",
+   "google_nota": 5.0,
+   "google_avaliacoes": 49
+  },
+  {
+   "nome": "Seu Fernandes - A primeira Barbearia de Feira de Santana com Atendimento a domicílio",
+   "telefone": "+55 75 99277-6848",
+   "segmento": "Barbearia",
+   "bairro": "Fraga Maia",
+   "endereco": "Av. Francisco Fraga Maia, 5725 - Fraga Maia, Feira de Santana - BA, 44082-400",
+   "google_nota": 5.0,
+   "google_avaliacoes": 154
+  },
+  {
+   "nome": "Hambúrgueria Chapa Quente",
+   "telefone": "+55 75 99183-6234",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "R. Dr. João Mangabeira, 1009 - Brasília, Feira de Santana - BA, 44088-048",
+   "google_nota": 4.7,
+   "google_avaliacoes": 308
+  },
+  {
+   "nome": "Restaurante Cantinho da Roça Artêmia Pires",
+   "telefone": "+55 75 99933-3092",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "",
+   "endereco": "R. Cores, 61 - Sim, Feira de Santana - BA, 40301-110",
+   "google_nota": 4.7,
+   "google_avaliacoes": 1103
+  },
+  {
+   "nome": "Burguelandia fast food",
+   "telefone": "+55 75 98224-5260",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Kalilândia",
+   "endereco": "R. Profa. Edelvira de Oliveira - Kalilândia, Feira de Santana - BA, 44001-032",
+   "google_nota": 4.8,
+   "google_avaliacoes": 50
+  },
+  {
+   "nome": "Point Burg",
+   "telefone": "+55 75 3614-8587",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "Av. João Durval Carneiro - Brasília, Feira de Santana - BA, 44088-714",
+   "google_nota": 4.5,
+   "google_avaliacoes": 343
+  },
+  {
+   "nome": "Derciu's Lanches (Hamburger e Hot dog)",
+   "telefone": "+55 75 3223-6380",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "Av. João Durval Carneiro, 709 - Brasília, Feira de Santana - BA, 44088-126",
+   "google_nota": 4.4,
+   "google_avaliacoes": 327
+  },
+  {
+   "nome": "Sanduba House - Hamburgueria e Lanchonete",
+   "telefone": "+55 75 99222-9855",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "Av. João Durval Carneiro - Brasília, Feira de Santana - BA, 44088-714",
+   "google_nota": 4.5,
+   "google_avaliacoes": 154
+  },
+  {
+   "nome": "Cabeça Lanches - JOÃO DURVAL (sede)",
+   "telefone": "+55 75 98844-9530",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Olhos d'Água",
+   "endereco": "Av. João Durval Carneiro, 3123 - Olhos d'Água, Feira de Santana - BA, 40301-110",
+   "google_nota": 4.6,
+   "google_avaliacoes": 493
+  },
+  {
+   "nome": "DiRango Burguer",
+   "telefone": "+55 75 3223-7692",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "Av. João Durval Carneiro, 848 - Brasília, Feira de Santana - BA, 44088-120",
+   "google_nota": 4.5,
+   "google_avaliacoes": 203
+  },
+  {
+   "nome": "LANCHE DO CHICO",
+   "telefone": "+55 75 98823-0973",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Brasília",
+   "endereco": "Av. Gov - Av. João Durval Carneiro, 1611 - Brasília, Feira de Santana - BA, 44090-008",
+   "google_nota": 4.4,
+   "google_avaliacoes": 142
+  },
+  {
+   "nome": "Batata palha Lanches",
+   "telefone": "+55 75 98149-4750",
+   "segmento": "Restaurante / lanchonete",
+   "bairro": "Queimadinha",
+   "endereco": "R. Paulo VI - Queimadinha, Feira de Santana - BA, 44050-162",
+   "google_nota": 4.4,
+   "google_avaliacoes": 198
+  },
+  {
+   "nome": "Espaço de Beleza Loy Ramos",
+   "telefone": "+55 75 99111-6650",
+   "segmento": "Salão de beleza",
+   "bairro": "Santa Mônica",
+   "endereco": "R. São Domingos, 263 - Santa Mônica, Feira de Santana - BA, 44076-200",
+   "google_nota": 4.9,
+   "google_avaliacoes": 279
+  },
+  {
+   "nome": "Salão de Beleza Laiza Carime -Feira de Santana",
+   "telefone": "+55 75 98196-2619",
+   "segmento": "Salão de beleza",
+   "bairro": "Olhos d'Água",
+   "endereco": "Rua Doutor Araújo Pinho 952 Próximo à - Próximo ao arena senador - Praça da Paquera - Olhos d'Água, Feira de Santana - BA, 44003-604",
+   "google_nota": 5.0,
+   "google_avaliacoes": 164
+  },
+  {
+   "nome": "Salão Casal 20 - Centro de Estética",
+   "telefone": "+55 75 3223-1579",
+   "segmento": "Salão de beleza",
+   "bairro": "Centro",
+   "endereco": "R. Domingos Barbosa de Araújo, 314 - Centro, Feira de Santana - BA, 44001-280",
+   "google_nota": 4.7,
+   "google_avaliacoes": 568
+  },
+  {
+   "nome": "Instituto de Beleza Korpo & Rosto",
+   "telefone": "+55 75 3623-4087",
+   "segmento": "Salão de beleza",
+   "bairro": "Centro",
+   "endereco": "Av. Sampaio, 335 - Centro, Feira de Santana - BA, 44001-584",
+   "google_nota": 4.9,
+   "google_avaliacoes": 60
+  },
+  {
+   "nome": "Your passion Beauty space",
+   "telefone": "+55 75 3223-4382",
+   "segmento": "Salão de beleza",
+   "bairro": "Brasília",
+   "endereco": "Av. João Durval Carneiro, 600 - Brasília, Feira de Santana - BA, 44088-126",
+   "google_nota": 4.5,
+   "google_avaliacoes": 274
+  },
+  {
+   "nome": "Maison Laine Coiffeur",
+   "telefone": "+55 75 99915-3113",
+   "segmento": "Salão de beleza",
+   "bairro": "Capuchinhos",
+   "endereco": "R. Felinto Marquês de Cerqueira, 245 - Capuchinhos, Feira de Santana - BA, 44076-040",
+   "google_nota": 4.6,
+   "google_avaliacoes": 153
+  },
+  {
+   "nome": "Studio de Beleza Fernanda Freitas",
+   "telefone": "+55 75 99177-8326",
+   "segmento": "Salão de beleza",
+   "bairro": "Santa Mônica",
+   "endereco": "R. São Domingos, 893 - Santa Mônica, Feira de Santana - BA, 44076-400",
+   "google_nota": 4.6,
+   "google_avaliacoes": 76
+  },
+  {
+   "nome": "Fernando Cabeleireiro",
+   "telefone": "+55 75 98111-5989",
+   "segmento": "Salão de beleza",
+   "bairro": "CASEB",
+   "endereco": "Av. João Durval Carneiro, 3655 - CASEB, Feira de Santana - BA, 44052-064",
+   "google_nota": 4.3,
+   "google_avaliacoes": 193
+  },
+  {
+   "nome": "Salão Lucas Vieira",
+   "telefone": "+55 75 99268-5291",
+   "segmento": "Salão de beleza",
+   "bairro": "Capuchinhos",
+   "endereco": "Av. Santo Antônio - Capuchinhos, Feira de Santana - BA, 44076-050",
+   "google_nota": 5.0,
+   "google_avaliacoes": 39
+  },
+  {
+   "nome": "Espaço De Beleza Andréa Bittencourt",
+   "telefone": "+55 75 98183-3349",
+   "segmento": "Salão de beleza",
+   "bairro": "CASEB",
+   "endereco": "R. Ribeirão Preto, 236 - CASEB, Feira de Santana - BA, 44052-056",
+   "google_nota": 4.8,
+   "google_avaliacoes": 34
+  },
+  {
+   "nome": "Instituto Integrale 24 Horas - Dentista 24 Horas",
+   "telefone": "+55 75 98302-0595",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "Av. Getúlio Vargas, 941 - Centro, Feira de Santana - BA, 44001-325",
+   "google_nota": 4.9,
+   "google_avaliacoes": 401
+  },
+  {
+   "nome": "Clínica Central do Sorriso - Dentista Particular Feira de Santana",
+   "telefone": "+55 75 99975-9104",
+   "segmento": "Odontologia",
+   "bairro": "Kalilândia",
+   "endereco": "Largo São Francisco, 101 - Kalilândia, Feira de Santana - BA, 44001-024",
+   "google_nota": 5.0,
+   "google_avaliacoes": 1116
+  },
+  {
+   "nome": "COAF | Dentista 24 horas",
+   "telefone": "+55 75 99190-2377",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "R. Barão do Rio Branco - Centro, Feira de Santana - BA, 44001-205",
+   "google_nota": 5.0,
+   "google_avaliacoes": 127
+  },
+  {
+   "nome": "Odonto Marco - Clinica Odontológica, Dentista e Consultório Odontologico",
+   "telefone": "+55 75 98123-1816",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "Av. Getúlio Vargas, 536 - Lj 03 - Centro, Feira de Santana - BA, 44001-496",
+   "google_nota": 5.0,
+   "google_avaliacoes": 1307
+  },
+  {
+   "nome": "Instituto Ortocentro | Dentista | Implante Dentário | Santa Mônica | Feira de Santana - BA",
+   "telefone": "+55 75 3199-7476",
+   "segmento": "Odontologia",
+   "bairro": "Santa Mônica",
+   "endereco": "Av. Getúlio Vargas, 3445 - Santa Mônica, Feira de Santana - BA, 44076-405",
+   "google_nota": 5.0,
+   "google_avaliacoes": 1002
+  },
+  {
+   "nome": "Oral Feira | Odontologia e Estética avançada em Feira de Santana",
+   "telefone": "+55 75 99963-0999",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "R. Osvaldo Cruz, 295 - Centro, Feira de Santana - BA, 44001-288",
+   "google_nota": 4.8,
+   "google_avaliacoes": 273
+  },
+  {
+   "nome": "Moisés Suzart | Odontologia Especializada",
+   "telefone": "+55 75 3624-0396",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "R. Barão de Cotegipe, 913 - Centro, Feira de Santana - BA, 40001-555",
+   "google_nota": 4.9,
+   "google_avaliacoes": 1385
+  },
+  {
+   "nome": "Center Dental Let Smiling",
+   "telefone": "+55 75 3223-6865",
+   "segmento": "Odontologia",
+   "bairro": "Centro",
+   "endereco": "Av. Visc. do Rio Branco, 57 - Centro, Feira de Santana - BA, 44001-525",
+   "google_nota": 4.8,
+   "google_avaliacoes": 925
+  },
+  {
+   "nome": "Revittale Odontologia | Ortodontista | Implantes | Feira de Santana Ba",
+   "telefone": "+55 75 99979-4314",
+   "segmento": "Odontologia",
+   "bairro": "Capuchinhos",
+   "endereco": "R. São Domingos, 429 - Capuchinhos, Feira de Santana - BA, 44076-200",
+   "google_nota": 5.0,
+   "google_avaliacoes": 415
+  },
+  {
+   "nome": "PET SHOP",
+   "telefone": "+55 75 3024-3729",
+   "segmento": "Pet shop",
+   "bairro": "Santa Mônica",
+   "endereco": "Av. Getúlio Vargas - Santa Mônica, Feira de Santana - BA, 44077-015",
+   "google_nota": 4.6,
+   "google_avaliacoes": 167
+  },
+  {
+   "nome": "Clinica Veterinária 24h - Pet Clin Feira de Santana",
+   "telefone": "+55 75 3030-6010",
+   "segmento": "Pet shop",
+   "bairro": "Cidade Nova",
+   "endereco": "Av. Antônio Carlos Magalhães, 1372 - Cidade Nova, Feira de Santana - BA, 44054-005",
+   "google_nota": 4.7,
+   "google_avaliacoes": 148
+  },
+  {
+   "nome": "PETSHOP",
+   "telefone": "+55 75 3221-3387",
+   "segmento": "Pet shop",
+   "bairro": "CASEB",
+   "endereco": "Av. João Durval Carneiro, 3174 - CASEB, Feira de Santana - BA, 44052-004",
+   "google_nota": 4.7,
+   "google_avaliacoes": 384
+  },
+  {
+   "nome": "Shop Animal",
+   "telefone": "+55 75 3491-9778",
+   "segmento": "Pet shop",
+   "bairro": "Brasília",
+   "endereco": "Caminho 10 N°01 Conjunto Jomafa Feira De Santana Ba Jomafa - Cam. 7, 1 - Brasília, Feira de Santana - BA, 44089-000",
+   "google_nota": 4.6,
+   "google_avaliacoes": 382
+  },
+  {
+   "nome": "Hospital Animal Center 24h",
+   "telefone": "+55 75 98244-3331",
+   "segmento": "Pet shop",
+   "bairro": "Kalilandia",
+   "endereco": "R. Domingos Barbosa de Araújo, 52 - Kalilandia, Feira de Santana - BA, 44025-050",
+   "google_nota": 4.4,
+   "google_avaliacoes": 211
+  },
+  {
+   "nome": "Pet shop em Feira de Santana - Pets Star",
+   "telefone": "+55 75 98216-9330",
+   "segmento": "Pet shop",
+   "bairro": "Olhos d'Água",
+   "endereco": "Av. João Durval Carneiro, 77 A - Olhos d'Água, Feira de Santana - BA, 44003-401",
+   "google_nota": 5.0,
+   "google_avaliacoes": 10
+  },
+  {
+   "nome": "Pêlos e Penas Rações",
+   "telefone": "+55 75 99268-3660",
+   "segmento": "Pet shop",
+   "bairro": "CASEB",
+   "endereco": "Av. João Durval Carneiro, 3366 - CASEB, Feira de Santana - BA, 44052-032",
+   "google_nota": 4.7,
+   "google_avaliacoes": 205
+  },
+  {
+   "nome": "Bichannu's Clínica Veterinária & Pet Shop",
+   "telefone": "+55 75 98178-3689",
+   "segmento": "Pet shop",
+   "bairro": "Muchila",
+   "endereco": "próximo à Farmácia Ribeiro - R. L, 71 - A, Conjunto - Muchila, Feira de Santana - BA, 44006-000",
+   "google_nota": 4.6,
+   "google_avaliacoes": 125
+  },
+  {
+   "nome": "AnimalMed - Capucchinhos",
+   "telefone": "+55 75 3625-4548",
+   "segmento": "Pet shop",
+   "bairro": "Capuchinhos",
+   "endereco": "R. Frei Áureliano Grotamares, 394 - Capuchinhos, Feira de Santana - BA, 44076-290",
+   "google_nota": 4.4,
+   "google_avaliacoes": 947
+  },
+  {
+   "nome": "Academia Gaviões 24h - Feira de Santana",
+   "telefone": "+55 11 94074-7584",
+   "segmento": "Academia",
+   "bairro": "Santo Antônio dos Prazeres",
+   "endereco": "Av. Artêmia Pires Freitas, 8610 - Santo Antônio dos Prazeres, Feira de Santana - BA, 44071-010",
+   "google_nota": 4.5,
+   "google_avaliacoes": 108
+  },
+  {
+   "nome": "Academia Engenharia do Corpo - Feira de Santana",
+   "telefone": "+55 75 98708-3177",
+   "segmento": "Academia",
+   "bairro": "Ponto Central",
+   "endereco": "Av. Getúlio Vargas, 1459 - Ponto Central, Feira de Santana - BA, 44075-732",
+   "google_nota": 4.4,
+   "google_avaliacoes": 285
+  },
+  {
+   "nome": "Academia Skyfit Feira de Santana",
+   "telefone": "+55 75 99894-1792",
+   "segmento": "Academia",
+   "bairro": "",
+   "endereco": "Av. Nóide Cerqueira, 4000 - Parque Getúlio Vargas - Sim, Feira de Santana - BA, 44076-828",
+   "google_nota": 4.3,
+   "google_avaliacoes": 29
+  },
+  {
+   "nome": "Academia Olimpo Gym- Feira de Santana",
+   "telefone": "+55 75 98264-0101",
+   "segmento": "Academia",
+   "bairro": "São João",
+   "endereco": "R. Quintino Bocaiúva, 750 - São João, Feira de Santana - BA, 44051-762",
+   "google_nota": 4.9,
+   "google_avaliacoes": 255
+  },
+  {
+   "nome": "Fitness Academy Gold",
+   "telefone": "+55 75 3024-2526",
+   "segmento": "Academia",
+   "bairro": "Centro",
+   "endereco": "Av. Nóide Cerqueira, 4225 - Centro, Feira de Santana - BA, 44077-090",
+   "google_nota": 4.6,
+   "google_avaliacoes": 206
+  },
+  {
+   "nome": "Fit7Cinco",
+   "telefone": "+55 75 99123-9175",
+   "segmento": "Academia",
+   "bairro": "Olhos d'Água",
+   "endereco": "R. Sen. Quintino, 1121 - Olhos d'Água, Feira de Santana - BA, 44089-006",
+   "google_nota": 4.7,
+   "google_avaliacoes": 317
+  },
+  {
+   "nome": "Feira Fitness Gym",
+   "telefone": "+55 75 3223-0746",
+   "segmento": "Academia",
+   "bairro": "Centro",
+   "endereco": "Av. Pres. Dutra, 497 - Centro, Feira de Santana - BA, 44001-615",
+   "google_nota": 4.4,
+   "google_avaliacoes": 228
+  },
+  {
+   "nome": "Space Park",
+   "telefone": "+55 75 3625-5745",
+   "segmento": "Academia",
+   "bairro": "Ponto Central",
+   "endereco": "R. Suécia, 175 - Ponto Central, Feira de Santana - BA, 44075-336",
+   "google_nota": 4.5,
+   "google_avaliacoes": 275
+  }
+ ]
+}

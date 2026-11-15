@@ -51,6 +51,41 @@ async function mapear(t0 = Date.now()) {
   return { nicho: nicho.nome, fonte, encontradas: achados.length, novos, comCel };
 }
 
+// Lotes do Google (grátis): uma tarefa agendada do Claude busca empresas no Google Maps (nota, avaliações, telefone, endereço)
+// e grava bianca/lotes/AAAA-MM-DD.json neste repositório. Na subida do servidor a Bianca importa os lotes novos para a fila.
+function importarLotes(dir = require('path').join(__dirname, 'bianca', 'lotes'), t0 = Date.now()) {
+  const fs = require('fs'), path = require('path'), W = require('./whatsapp.js');
+  let arqs = []; try { arqs = fs.readdirSync(dir).filter(f => /^[\w.-]+\.json$/.test(f)).sort(); } catch (e) { return { arquivos: 0, novos: 0 }; }
+  const s = (v, m) => String(v ?? '').trim().slice(0, m), nn = v => { const x = Number(String(v ?? '').replace(',', '.')); return v === '' || v == null || !Number.isFinite(x) ? null : x; };
+  const temPid = db.prepare('SELECT 1 FROM prospects WHERE place_id = ?'), temNome = db.prepare('SELECT 1 FROM prospects WHERE lower(nome) = lower(?)');
+  const ins = db.prepare(`INSERT INTO prospects (place_id, nome, segmento, telefone, instagram, endereco, bairro, nota, avaliacoes, site, maps_url, lat, lng, origem, obs)
+    VALUES (@place_id, @nome, @segmento, @telefone, @instagram, @endereco, @bairro, @nota, @avaliacoes, @site, @maps_url, @lat, @lng, 'bianca', @obs)`);
+  let arquivos = 0, novos = 0;
+  for (const f of arqs) {
+    const chave = 'bianca_lote_' + f; if (getSetting(chave)) continue;
+    let j; try { j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { console.error('[BIANCA] lote inválido:', f, e.message); continue; }
+    const lista = Array.isArray(j) ? j : Array.isArray(j.empresas) ? j.empresas : [];
+    const tels = new Set(db.prepare("SELECT telefone FROM prospects WHERE telefone <> ''").all().map(p => W.normalizarNumero(p.telefone)).filter(Boolean));
+    let n0 = 0, cel = 0;
+    db.transaction(() => {
+      for (const e of lista.slice(0, 400)) {
+        const nome = s(e.nome, 120), num = W.normalizarNumero(e.telefone || '');
+        if (!nome || !num || tels.has(num) || temNome.get(nome)) continue;
+        const pid = s(e.place_id, 120) || 'lote:' + num; if (temPid.get(pid)) continue;
+        const nota = nn(e.nota ?? e.google_nota), av = nn(e.avaliacoes ?? e.google_avaliacoes);
+        ins.run({ place_id: pid, nome, segmento: s(e.segmento, 40), telefone: s(e.telefone, 25), instagram: s(e.instagram, 60).replace(/^@/, ''), endereco: s(e.endereco, 200), bairro: s(e.bairro, 60),
+          nota: nota == null || nota < 0 || nota > 5 ? null : Math.round(nota * 10) / 10, avaliacoes: Math.max(0, Math.floor(av || 0)), site: s(e.site, 200), maps_url: s(e.maps_url, 300),
+          lat: nn(e.lat), lng: nn(e.lng), obs: s(e.obs, 400) });
+        tels.add(num); n0++; if (celular(num)) cel++;
+      }
+      setSetting(chave, new Date(t0).toISOString());
+    })();
+    arquivos++; novos += n0;
+    require('./predio.js').registrar('prospectora', `Lote do Google: ${f.replace('.json', '')}`, `${lista.length} empresa(s) no lote, ${n0} nova(s) na fila (${cel} com celular).`, { arquivo: f, novos: n0, comCel: cel }, t0);
+  }
+  return { arquivos, novos };
+}
+
 // ======================= V2: conversa autônoma e humanizada =======================
 // A Bianca acompanha cada empresa por etapa da conversa e responde sozinha o que é previsível (interesse, preço, compra, objeções comuns).
 // O que ela não reconhece vai para você: ela nunca chuta resposta. Se perguntarem, diz que é a assistente virtual da NexTap.
@@ -293,4 +328,4 @@ function painel(t0 = Date.now()) {
     google: !!process.env.GOOGLE_PLACES_API_KEY };
 }
 
-module.exports = { testeABC, salvarABC, varianteDe, tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
+module.exports = { importarLotes, testeABC, salvarABC, varianteDe, tick, mapear, respondeu, responder, intencao, mapa, saida, etapaDe, ETAPAS, painel, naJanela, celular, ligada, meta };
