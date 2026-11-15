@@ -294,8 +294,20 @@ function avisar(texto, { tipo = 'sistema', titulo, url = '/', chave = '' } = {})
   return require('./notificacoes.js').notificar({ tipo, titulo: titulo || linhas[0], texto: titulo ? texto : linhas.slice(1).join('\n'), url, chave })
     .catch(e => console.error('[ALERTA]', e.message));
 }
+const ultimoAvisoWpp = new Map();
 function avisarHumano(contato, fluxo, prioridade) {
-  return avisar(`Fluxo: ${fluxo.name}. Responda pelo painel (janela de 24h do Instagram).`, {
+  const canal = contato.channel === 'whatsapp' ? 'WhatsApp' : 'Instagram';
+  // Atendimento humano: vai para a Gerente geral (registro no Prédio) e para o CEO no WhatsApp, no máximo 1 aviso por pessoa a cada 2h
+  try {
+    const P = require('./predio.js'), N = P.nomes(), quem = nomeDe(contato), fone = contato.channel === 'whatsapp' ? '+' + contato.ext_id : (contato.phone ? '+' + contato.phone : '');
+    P.registrar('gerente', `Atendimento humano: ${quem}`, `${canal} · fluxo "${fluxo.name}"${prioridade >= 2 ? ' · prioridade alta' : ''}`, { contato: contato.id, canal });
+    if (Date.now() - (ultimoAvisoWpp.get(contato.id) || 0) > 2 * 3600e3) {
+      ultimoAvisoWpp.set(contato.id, Date.now());
+      const ult = db.prepare("SELECT text FROM messages WHERE contact_id = ? AND direction = 'in' ORDER BY id DESC LIMIT 1").get(contato.id);
+      require('./whatsapp.js').avisarDono(`${prioridade >= 2 ? '🔥' : '🙋'} *${N.gerente}: atendimento humano*\n\n${quem}${fone ? ' · ' + fone : ''} · ${canal}\nFluxo: ${fluxo.name}${ult && ult.text ? `\nÚltima mensagem: "${String(ult.text).slice(0, 200)}"` : ''}\n\nResponda ${contato.channel === 'whatsapp' ? 'pelo WhatsApp da NexTap (o robô fica quieto por 2h quando você responde)' : 'pelo painel (janela de 24h do Instagram)'}.`).catch(() => {});
+    }
+  } catch (e) { console.error('[BOT] aviso humano:', e.message); }
+  return avisar(`Fluxo: ${fluxo.name}. ${contato.channel === 'whatsapp' ? 'Responda pelo WhatsApp da NexTap.' : 'Responda pelo painel (janela de 24h do Instagram).'}`, {
     tipo: prioridade >= 2 ? 'alta' : 'atendente', titulo: `${prioridade >= 2 ? '🔥 Prioridade alta' : '🙋 Pediu atendimento'}: ${nomeDe(contato)}`,
     url: '/#c=' + contato.id, chave: 'c' + contato.id });
 }

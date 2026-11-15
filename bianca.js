@@ -200,8 +200,9 @@ function respondeu(prospectId, textoIn, contato, t0 = Date.now(), { sorteio = Ma
   if (responde) db.prepare('INSERT INTO bianca_respostas (prospect_id, textos, enviar_em, criado_em) VALUES (?, ?, ?, ?)').run(p.id, JSON.stringify(texto(k, p, t0)), t0 + Math.round((60 + sorteio() * 110) * 1000), t0);
   const motivo = !responde || AVISAR[k] ? (responde ? AVISAR[k] : (k && AVISAR[k]) || (tua ? '💬 respondeu (a conversa já é sua)' : repetiu || limite ? '🔁 insistiu no mesmo ponto: melhor você assumir' : AVISAR[''])) : '';
   if (motivo && !final) {
-    W.avisarDono(`*${P.nomes().prospectora}: ${p.nome}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`).catch(() => {});
+    W.avisarDono(`*${P.nomes().gerente}: atendimento humano*\n${P.nomes().prospectora} passou: *${p.nome}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`).catch(() => {});
     P.registrar('prospectora', `Com você: ${p.nome}`, `${motivo} · "${String(textoIn).slice(0, 120)}"`, { id: p.id }, t0);
+    P.registrar('gerente', `Atendimento humano: ${p.nome}`, `Prospecção (${P.nomes().prospectora}) · ${motivo}`, { prospect: p.id }, t0);
   }
   return { parar: k === 'parar', intencao: k, etapa: nova, responde: !!responde };
 }

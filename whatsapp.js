@@ -45,6 +45,7 @@ async function evo(metodo, caminho, corpo) {
 }
 
 // ---------- números ----------
+const formatarBR = n => { const m = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(String(n || '')); return m ? `(${m[1]}) ${m[2]}-${m[3]}` : String(n || ''); };
 // "(75) 98820-9055" → "5575988209055". Número de fora do Brasil: escreva com o código do país (ex.: +351...).
 function normalizarNumero(v) {
   const s = String(v || '').trim();
@@ -277,6 +278,8 @@ router.get('/status', async (req, res) => {
           const i = Array.isArray(l) ? l[0] : l;
           const dono = i && (i.ownerJid || (i.instance && i.instance.owner));
           if (dono) out.numero = numeroDoJid(dono);
+          // Este número passa a ser o de suporte da NexTap: o {{telefone}} dos fluxos e os avisos usam ele
+          if (out.numero && getSetting('wa_numero_conectado') !== out.numero) { setSetting('wa_numero_conectado', out.numero); setSetting('telefone', formatarBR(out.numero)); }
         } catch (e) { /* número é só informativo */ }
       }
     } catch (e) { out.erro = e.status === 404 ? null : e.message; out.estado = e.status === 404 ? 'sem_instancia' : null; }
@@ -468,4 +471,4 @@ async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   return c;
 }
 
-module.exports = { atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

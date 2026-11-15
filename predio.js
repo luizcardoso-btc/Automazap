@@ -447,6 +447,7 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
   const igErro = getSetting('ig_conexao_erro');
   if (igErro) prioridades.push('🚨 O robô do Instagram está parado: gere um token novo e troque IG_ACCESS_TOKEN no Railway.');
   if (esperando) prioridades.push(`🙋 ${esperando} pessoa(s) esperando atendente.`);
+  { const hum = n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND criado_em >= ? AND criado_em < ?", dia0(t0) - DIA, dia0(t0)); if (hum) prioridades.push(`🤝 Ontem ${hum} conversa(s) passaram para atendimento humano (Instagram, WhatsApp e prospecção). Confira se todas tiveram resposta.`); }
   if (semResposta) prioridades.push(`💬 ${semResposta} conversa(s) das últimas 24h com a última mensagem do cliente sem resposta.`);
   if (s1.q >= 10 && s0.q >= 10 && s0.p > 0 && s1.p < s0.p * 0.7) alertas.push(`📉 Pedidos abertos caíram: ${pct(s1.c, s1.q)}% de quem escolheu a quantidade nesta semana, contra ${pct(s0.c, s0.q)}% na anterior.`);
   try {
