@@ -184,7 +184,7 @@ function vars(p, t0 = Date.now()) {
   const P = require('./predio.js'), h = local(t0).getUTCHours(), nome = String(p.contato || '').trim().split(' ')[0];
   const av = Number(p.avaliacoes) || 0, nt = Number(p.nota) > 0 ? String(p.nota).replace('.', ',') : '';
   const numeros = av && nt ? `Vi que vocês estão com nota ${nt} e ${av} avaliações.` : av ? `Vi que vocês têm ${av} avaliações por lá.` : 'Vi que vocês ainda têm poucas avaliações por lá.';
-  return { numeros, saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR().um, preco2: precoBR().dois, cada: precoBR().cada,
+  return { numeros, saud: h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', nome, cnome: nome ? ', ' + nome : '', empresa: p.nome, eu: P.nomes().prospectora, dono: P.vendedor(), cidade: P.cidade(), dado: P.abertura(p), preco: precoBR().um, preco2: precoBR().dois, cada: precoBR().cada, dois2: precoBR().economia ? `de ~R$ ${precoBR().de}~ por *R$ ${precoBR().dois}*: economiza R$ ${precoBR().economia} (R$ ${precoBR().cada} cada)` : `R$ ${precoBR().dois} (R$ ${precoBR().cada} cada)`,
     ver: String(getSetting('video_demo_url') || '').trim() || String(getSetting('site_url') || '').trim(), temVideo: !!String(getSetting('video_demo_url') || '').trim() };
 }
 const escolher = (l, p) => l[(Number(p.id) || 0) % l.length];
@@ -197,8 +197,8 @@ const T = {
   d7: [v => `Oi${v.cnome}! Não vou mais te escrever por aqui. Quando quiser mais avaliações no Google para a ${v.empresa}, é só me chamar. Bom trabalho! 🙌`],
   positivo: [v => [`Que bom! É bem simples: é uma plaquinha de acrílico que fica no balcão. O cliente aproxima o celular (ou aponta a câmera) e já cai direto na tela de avaliar a ${v.empresa} no Google. Sem aplicativo, leva uns 5 segundos.`, `${v.temVideo ? 'Olha funcionando' : 'Dá pra ver os modelos aqui'}: ${v.ver}\n\nQuer que eu te passe o valor?`],
     v => [`Show! Funciona assim: uma placa de acrílico no balcão. O cliente encosta o celular nela e a tela de avaliação da ${v.empresa} abre na hora, sem baixar nada.`, `${v.temVideo ? 'Dá uma olhada' : 'Os modelos estão aqui'}: ${v.ver}\n\nPosso te dizer quanto custa?`]],
-  preco: [v => [`Aqui em ${v.cidade}:\n• *1 placa:* R$ ${v.preco}\n• *2 placas:* R$ ${v.preco2} (sai R$ ${v.cada} cada)\n\nValor único, sem mensalidade. O ${v.dono} leva até a ${v.empresa} já configurada, sem taxa de entrega, e o pagamento é na entrega.`, 'Vai querer 1 ou 2?'],
-    v => [`É valor único, sem mensalidade: *1 placa R$ ${v.preco}* ou *2 placas R$ ${v.preco2}* (R$ ${v.cada} cada). Entrego configurada na ${v.empresa}, sem taxa, e vocês pagam na entrega.`, 'Quantas vão ser, 1 ou 2?']],
+  preco: [v => [`Aqui em ${v.cidade}:\n• *1 placa:* R$ ${v.preco}\n• *2 placas:* ${v.dois2}\n\nValor único, sem mensalidade. O ${v.dono} leva até a ${v.empresa} já configurada, sem taxa de entrega, e o pagamento é na entrega.`, 'Vai querer 1 ou 2?'],
+    v => [`É valor único, sem mensalidade: *1 placa R$ ${v.preco}* ou *2 placas* ${v.dois2}. Entrego configurada na ${v.empresa}, sem taxa, e vocês pagam na entrega.`, 'Quantas vão ser, 1 ou 2?']],
   compra: [v => [`Perfeito! 🙌 Vou separar a sua.`, `Me confirma quantas (1 ou 2), o modelo (Google, Instagram, WhatsApp ou Pix), o endereço e o melhor dia e horário? O ${v.dono} leva até vocês já configurada, sem taxa de entrega, e o pagamento é na hora.`]],
   caro: [v => [`Entendo! Pensa assim: a placa trabalha todo dia, sem mensalidade, e uma única avaliação boa já pode trazer um cliente novo. É valor único: R$ ${v.preco} uma, ou R$ ${v.preco2} as duas (R$ ${v.cada} cada).`, 'Quer começar com uma só, no balcão?']],
   pensar: [v => ['Claro, sem pressa! 🙂 Só pra eu te ajudar: ficou alguma dúvida de como funciona, ou é mais a questão do valor?']],

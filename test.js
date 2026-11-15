@@ -722,12 +722,12 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       a = n0(); await msg('5575966660001', 'R2', '1'); await espera(); tx = saiu(a);
       assert.ok(tx.includes('*Pix*') && !tx.includes('Redes sociais') && !tx.includes('R$') && /prefere uma placa do \*Google\* ou algum outro modelo\?$/.test(tx) && !tx.includes('http'), tx);
       const vid = enviosEvo().slice(a).find(x => x.corpo.mediatype === 'video'); assert.ok(vid && vid.corpo.media === 'https://x.com/demo.mp4' && vid.corpo.caption.includes('*Google*')); assert.strictEqual(enviosEvo().slice(a).length, 1);
-      a = n0(); await msg('5575966660001', 'R3', 'quanto custa?'); await espera(); tx = saiu(a); assert.ok(tx.includes('*1 placa:* R$ 80') && tx.includes('R$ 70 cada') && tx.includes('qual modelo'), tx);
-      a = n0(); await msg('5575966660001', 'R3a', 'a do google'); await espera(); tx = saiu(a); assert.ok(tx.includes('placa do *Google*') && tx.includes('*1* ou *2*'), tx);
+      a = n0(); await msg('5575966660001', 'R3', 'quanto custa?'); await espera(); tx = saiu(a); assert.ok(tx.includes('*1 placa:* R$ 80') && tx.includes('de ~R$ 160~ por *R$ 140*') && tx.includes('economiza R$ 20') && tx.includes('qual modelo'), tx);
+      a = n0(); await msg('5575966660001', 'R3a', 'a do google'); await espera(); tx = saiu(a); assert.ok(tx.includes('do *Google* faz o cliente') && tx.includes('*1* ou *2*') && tx.includes('ganha desconto') && !tx.includes('R$'), tx);
       a = n0(); await msg('5575966660001', 'R3b', '2'); await espera(); tx = saiu(a); assert.ok(tx.includes('segunda'), tx);
       a = n0(); await msg('5575966660001', 'R3c', 'a outra do instagram'); await espera(); tx = saiu(a);
-      assert.ok(tx.includes('2 placas por R$ 140') && tx.includes('(Google + Instagram)') && tx.includes('dia e horário'), tx);
-      a = n0(); await msg('5575966660001', 'R4', 'Barbearia da Ana, Rua X 10, Centro, amanhã 10h'); await espera(); tx = saiu(a); assert.ok(tx.includes('pagamento é na hora'), tx);
+      assert.ok(tx.includes('2 placas (*Google* + *Instagram*)') && tx.includes('do *Instagram* faz') && !tx.includes('do *Google* faz') && !tx.includes('R$') && tx.includes('dia e horário'), tx);
+      a = n0(); await msg('5575966660001', 'R4', 'Barbearia da Ana, Rua X 10, Centro, amanhã 10h'); await espera(); tx = saiu(a); assert.ok(tx.includes('só paga na hora'), tx);
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE titulo LIKE 'Cliente no WhatsApp:%' AND texto LIKE '%PEDIDO VAREJO: 2 placa(s) (Google, Instagram)%'").get().n === 1);
       assert.ok(db.prepare("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE '%Bianca%'").get().n >= 2);
       a = n0(); await msg('5575966660001', 'R5', 'obrigada'); await espera(); assert.strictEqual(n0(), a);   // agora é com você
@@ -748,7 +748,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       await ev({ key: { remoteJid: '5575966660003@s.whatsapp.net', fromMe: true, id: 'C3' }, message: { conversation: 'Oi, aqui é o Luiz!' } }); await espera();
       a = n0(); await msg('5575966660003', 'C4', 'qual o preço?'); await espera(); assert.strictEqual(n0(), a);
       // preços editáveis
-      setSetting('preco_varejo_1', '85'); setSetting('preco_varejo_2', '150'); assert.deepStrictEqual(require('./bianca-balcao.js').precos(), { um: '85', dois: '150', cada: '75' });
+      setSetting('preco_varejo_1', '85'); setSetting('preco_varejo_2', '150'); assert.deepStrictEqual(require('./bianca-balcao.js').precos(), { um: '85', dois: '150', cada: '75', de: '170', economia: '20' });
     } finally { setSetting('wa_robo', '0'); setSetting('video_demo_url', ''); setSetting('preco_varejo_1', '80'); setSetting('preco_varejo_2', '140'); if (gap === undefined) delete process.env.WA_GAP_MS; else process.env.WA_GAP_MS = gap; }
   });
   await t('Bianca no balcão: decide sem enviar (menu, varejo, 3+ placas, pedir humano, parar)', () => {
@@ -758,7 +758,8 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const tres = d({ etapa: 'varejo', dados: {} }, 'quero 4'); assert.strictEqual(tres.etapa, 'humano'); assert.ok(tres.avisar.includes('4 placas'));
     assert.ok(tres.textos[0].includes('preço especial') && !/atacado/i.test(tres.textos[0]) && tres.avisar.includes('não é atacado'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pix').etapa, 'qtd'); assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 0 }, 'hmm').etapa, 'varejo'); assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 1 }, 'hmm').etapa, 'humano');
-    assert.strictEqual(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, 'uma').etapa, 'dados'); assert.ok(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, '2 iguais').textos[0].includes('2 do Pix'));
+    assert.strictEqual(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, 'uma').etapa, 'dados'); assert.ok(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, '2 iguais').textos[0].includes('2 placas do *Pix*') && !d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, '2 iguais').textos.join().includes('R$'));
+    assert.ok(!d({ etapa: 'varejo', dados: {} }, 'google e pix').textos.join().includes('R$') && d({ etapa: 'varejo', dados: {} }, 'google e pix').textos[0].includes('do *Pix* faz'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, '2 do whatsapp').etapa, 'dados'); assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'google e pix').etapa, 'dados');
     assert.ok(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, 'qual o valor?').textos[0].includes('R$ 140'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].includes('*WhatsApp*'), true);

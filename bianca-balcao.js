@@ -11,8 +11,9 @@ const DIA = 86400e3;
 const sem = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 const valor = (k, pad) => { const v = parseFloat(String(getSetting(k) || '').replace(/\./g, '').replace(',', '.')); const x = v > 0 ? v : pad; return Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.', ','); };
 const precos = () => {
-  const um = valor('preco_varejo_1', 80), dois = valor('preco_varejo_2', 140), cada = parseFloat(dois.replace(',', '.')) / 2;
-  return { um, dois, cada: Number.isInteger(cada) ? String(cada) : cada.toFixed(2).replace('.', ',') };
+  const um = valor('preco_varejo_1', 80), dois = valor('preco_varejo_2', 140), n = x => parseFloat(x.replace(',', '.')), br = x => Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.', ',');
+  const cada = n(dois) / 2, de = n(um) * 2, eco = de - n(dois);
+  return { um, dois, cada: br(cada), de: br(de), economia: eco > 0 ? br(eco) : '' };
 };
 
 const RX = {
@@ -32,29 +33,39 @@ const MODELOS = [['Google', /google|avalia/], ['Instagram', /insta/], ['WhatsApp
 const modelosDe = t => MODELOS.filter(([, r]) => r.test(t)).map(([n]) => n);
 const LISTA_MODELOS = '• *Google* (avaliações)\n• *Instagram*\n• *WhatsApp*\n• *Pix*';
 const qtdDe = t => { const m = /\b(\d{1,4})\b/.exec(t); if (m) return Number(m[1]); if (/\b(duas|dois)\b/.test(t)) return 2; if (/\b(uma|um|1a)\b/.test(t)) return 1; if (/\b(tres|quatro|cinco|seis|dez)\b/.test(t)) return 3; return 0; };
+// O que cada placa resolve (benefício antes de preço)
+const BENEFICIO = {
+  Google: 'a do *Google* faz o cliente satisfeito te avaliar em 5 segundos: mais estrelas, você aparece melhor nas buscas e no Maps e quem ainda não te conhece confia mais',
+  Instagram: 'a do *Instagram* faz o cliente seguir o seu perfil na hora: mais seguidores reais para ver suas novidades e promoções',
+  WhatsApp: 'a do *WhatsApp* abre a conversa com você em um toque: o cliente salva o seu contato e volta a comprar',
+  Pix: 'a do *Pix* faz o cliente pagar sem digitar chave: mais rápido no caixa e sem erro de digitação',
+};
+const beneficios = mods => [...new Set(mods)].map(m => BENEFICIO[m]).filter(Boolean).map(b => '• ' + b.charAt(0).toUpperCase() + b.slice(1) + '.').join('\n');
 const ehVideo = u => /^https?:\/\/\S+\.(mp4|mov)(\?\S*)?$/i.test(u);
 
 function textos() {
   const P = require('./predio.js'), p = precos(), eu = P.nomes().prospectora, dono = P.vendedor(), cidade = P.cidade();
   const video = String(getSetting('video_demo_url') || '').trim();
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
-  const qtdOk = q => `*${q === 2 ? `2 placas por R$ ${p.dois}` : `1 placa por R$ ${p.um}`}*`;
-  return {
+    return {
     menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n*1* Para o meu estabelecimento\n*2* Quero revender (atacado)\n\n_Responda com o número._`,
     menuDeNovo: () => 'Só pra eu te passar a informação certa: é para o *seu estabelecimento* (responda *1*) ou para *revender* (responda *2*)?',
     // 1º balão: só o vídeo e a pergunta do modelo. Valores só se o cliente perguntar (ou na confirmação do pedido).
     varejo: () => [comVideo(`Show! A placa NexTap é de acrílico e fica no balcão: o cliente aproxima o celular (ou aponta a câmera) e já cai onde você quiser, sem aplicativo, em uns 5 segundos. Tem estes modelos:\n\n${LISTA_MODELOS}\n\nVocê prefere uma placa do *Google* ou algum outro modelo?`)],
-    preco: (fim) => [`Aqui em ${cidade}:\n• *1 placa:* R$ ${p.um}\n• *2 placas:* R$ ${p.dois} (sai R$ ${p.cada} cada)\n\nValor único, sem mensalidade. O ${dono} leva até o seu estabelecimento já configurada, *sem taxa de entrega*, e o pagamento é feito na entrega.\n\n${fim}`],
-    caro: () => [`Entendo! Pensa assim: a placa trabalha todo dia no balcão, sem mensalidade, e uma avaliação boa já pode trazer cliente novo. Com 2 placas cada uma sai R$ ${p.cada}.`, 'Quer começar com uma só?'],
+    preco: (fim) => [`Aqui em ${cidade}:\n• *1 placa:* R$ ${p.um}\n• *2 placas:* ${p.economia ? `de ~R$ ${p.de}~ por *R$ ${p.dois}*: você economiza R$ ${p.economia} (sai R$ ${p.cada} cada)` : `R$ ${p.dois} (sai R$ ${p.cada} cada)`}\n\nValor único, sem mensalidade. O ${dono} leva até o seu estabelecimento já configurada, *sem taxa de entrega*, e o pagamento é feito na entrega.\n\n${fim}`],
+    caro: () => [`Entendo! Pensa assim: a placa trabalha todo dia no balcão, sem mensalidade, e uma avaliação boa já pode trazer cliente novo. ${p.economia ? `E levando 2 você economiza R$ ${p.economia}: cada uma sai R$ ${p.cada}.` : `Com 2 placas cada uma sai R$ ${p.cada}.`}`, 'Quer começar com uma só?'],
     pensar: () => ['Claro, sem pressa! 🙂 Quando decidir, é só me chamar aqui. Ficou alguma dúvida de como funciona?'],
     muitas: (q) => [`Para ${q} placas o ${dono} faz um preço especial pra você! Já avisei ele, ele te chama aqui em instantes. 🙌`],
-    qtd: (mods) => [`Ótima escolha, placa do *${mods.join('* e do *')}*! ✅ Vai querer *1* ou *2* placas?`],
+    qtd: (mods) => [`Ótima escolha! ✅\n\n${beneficios(mods)}\n\nE ela já chega configurada com a sua empresa: é só colocar no balcão.`, `Vai querer *1* ou *2* placas?${p.economia ? ' Levando 2 você ganha desconto. 😉' : ''}`],
     qtdDeNovo: () => ['Só pra eu anotar certinho: vai querer *1* ou *2* placas?'],
     modeloDeNovo: () => [`Só pra eu anotar certinho, qual modelo você prefere? *Google*, *Instagram*, *WhatsApp* ou *Pix*?`],
     segundo: () => ['Show, 2 placas! A segunda é do mesmo modelo ou de outro? (*Google*, *Instagram*, *WhatsApp* ou *Pix*)'],
-    dados: (q, mods) => [`Ótimo! ${qtdOk(q)} (${mods.length === 2 && mods[0] === mods[1] ? '2 do ' + mods[0] : mods.join(' + ')}). ✅`, `Agora me manda, por favor:\n• o *nome da empresa* como aparece no Google\n• o *endereço* (rua e bairro)\n• o melhor *dia e horário* pro ${dono} passar aí\n\nEle leva já configurada, sem taxa de entrega, e você paga na hora.`],
+    // Confirmação SEM preço (preço só se o cliente perguntar): benefícios do que ainda não foi explicado + o que vem a seguir
+    dados: (q, mods, jaExplicados = []) => { const novos = mods.filter(m => !jaExplicados.includes(m)), oque = q === 2 ? (mods[0] === mods[1] ? `2 placas do *${mods[0]}*` : `2 placas (*${mods.join('* + *')}*)`) : `1 placa do *${mods[0]}*`;
+      return [`Perfeito! ✅ Anotado: ${oque}.${novos.length ? `\n\n${beneficios(novos)}` : ''}\n\nO ${dono} leva até você já configurada, *sem taxa de entrega*, e te mostra funcionando na hora.`,
+        `Pra eu agendar, me manda:\n• o *nome da empresa* como aparece no Google\n• o *endereço* (rua e bairro)\n• o melhor *dia e horário* pro ${dono} passar aí`]; },
     modelos: () => [`Temos estes modelos:\n${LISTA_MODELOS}\n\nO ${dono} leva todos pra você ver na hora da entrega. Você prefere a do *Google* ou outro?`],
-    dadosOk: () => [`Anotado! ✅ O ${dono} vai te confirmar por aqui o dia e o horário da entrega. Ele leva a placa já configurada, sem taxa, e o pagamento é na hora. Obrigada pela confiança! 💙`],
+    dadosOk: () => [`Anotado! ✅ O ${dono} vai te confirmar por aqui o dia e o horário. Ele leva a placa já configurada, sem taxa de entrega, e você só paga na hora, depois de ver funcionando. Obrigada pela confiança! 💙`],
     atacado: () => [`Que legal! Para revenda (atacado), quem cuida é o ${dono} pessoalmente, com valor por quantidade.`, 'Me conta: quantas placas você está pensando e de qual cidade você é?'],
     atacadoOk: () => [`Obrigada! Já passei tudo para o ${dono}, ele te chama aqui em breve. 🙌`],
     humano: () => [`Claro! Já avisei o ${dono}, ele te responde por aqui. 🙂`],
@@ -132,8 +143,8 @@ function decidir(e, textoIn, nome) {
   if (etapa === 'qtd') {
     const q = qtdDe(t), tudo = { ...d, modelos: mods };
     if (q >= 3) return R(T.muitas(q), 'humano', 'varejo', { ...tudo, qtd: q }, `🔥 VAREJO: quer ${q} placas (${mods.join(', ')}). Faça um preço especial (não é atacado)`);
-    if (q === 2 && mods.length < 2) return /mesm|igua|ambas|as duas/.test(t) ? R(T.dados(2, [mods[0], mods[0]]), 'dados', 'varejo', { ...tudo, modelos: [mods[0], mods[0]], qtd: 2 }) : R(T.segundo(), 'segundo', 'varejo', { ...tudo, qtd: 2 });
-    if (q === 1 || q === 2) return R(T.dados(q, mods.slice(0, q)), 'dados', 'varejo', { ...tudo, modelos: mods.slice(0, q), qtd: q });
+    if (q === 2 && mods.length < 2) return /mesm|igua|ambas|as duas/.test(t) ? R(T.dados(2, [mods[0], mods[0]], mods), 'dados', 'varejo', { ...tudo, modelos: [mods[0], mods[0]], qtd: 2 }) : R(T.segundo(), 'segundo', 'varejo', { ...tudo, qtd: 2 });
+    if (q === 1 || q === 2) return R(T.dados(q, mods.slice(0, q), mods), 'dados', 'varejo', { ...tudo, modelos: mods.slice(0, q), qtd: q });
     if (extra === 'preco') return R(T.preco('Vai querer *1* ou *2*?'), 'qtd');
     if (extra) return R(extra, 'qtd');
     if (RX.pensar.test(t)) return R(T.pensar(), 'qtd');
@@ -144,7 +155,7 @@ function decidir(e, textoIn, nome) {
   // 2 placas, falta o modelo da segunda
   if (etapa === 'segundo') {
     const p0 = (d.modelos || [])[0], novos = modelosDe(t), m2 = novos.length ? [p0, novos.find(x => x !== p0) || novos[0]] : /mesm|igua|tambem/.test(t) ? [p0, p0] : null;
-    if (m2) return R(T.dados(2, m2), 'dados', 'varejo', { ...d, modelos: m2 });
+    if (m2) return R(T.dados(2, m2, [p0]), 'dados', 'varejo', { ...d, modelos: m2 });
     if (extra === 'preco') return R(T.preco('E a segunda placa, é do mesmo modelo ou de outro?'), 'segundo');
     if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'varejo', d, '❓ quer 2 placas, mas não entendi o modelo da segunda');
     return { ...R(T.segundo(), 'segundo'), tentativas: 1 };
