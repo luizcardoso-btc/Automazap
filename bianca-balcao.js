@@ -41,6 +41,44 @@ if (!getSetting('bianca_faq_v2')) {   // bancos que já tinham as respostas da 1
   setSetting('bianca_faq_v2', new Date().toISOString());
 }
 if (!getSetting('bianca_obj_v1')) { try { db.exec("DELETE FROM bianca_perguntas WHERE lower(trim(texto, ' .!?')) IN ('tá caro','ta caro','não sei','nao sei')"); } catch (e) { /* ok */ } setSetting('bianca_obj_v1', '1'); }
+// Objeções e dúvidas comuns (v3). Todas terminam com pergunta ou ganham a pergunta da etapa.
+const FAQ_V3 = [
+  ['golpe, e golpe, confiavel, e confiavel, posso confiar, e seguro, e verdade, e real isso, empresa seria, reclame aqui',
+    'Pergunta super justa! 🙂\n\nA NexTap é uma empresa da Bahia que vende placas de avaliação para comércios do Brasil todo. Pra você comprar tranquilo:\n\n• Aqui em Feira de Santana, no varejo, você *só paga na entrega*, depois de ver a placa funcionando\n• No painel do revendedor, o pagamento é pelo Pix ou cartão, com o pedido registrado na sua conta\n• Placa com defeito tem troca\n\nNo Instagram você vê o nosso trabalho: @nextapbr', 0],
+  ['iphone, android, todo celular, qualquer celular, celular antigo, celular sem nfc, nao tem nfc, sem nfc, funciona em qualquer',
+    'Funciona sim! 📱\n\n• Nos celulares com *NFC* (a maioria dos Android e os iPhones mais novos), é só *aproximar* da placa\n• Em *qualquer celular* com câmera, é só *apontar para o QR Code*\n\nOu seja: nenhum cliente fica de fora. ✅', 0],
+  ['mensalidade, tem mensalidade, assinatura, paga todo mes, taxa mensal, cobranca mensal',
+    'Não tem mensalidade nenhuma! 🙌\n\nVocê paga *uma vez só* e a placa é sua. Ela trabalha todo dia no seu balcão, sem custo extra.', 0],
+  ['bateria, pilha, energia, tomada, precisa carregar, precisa de internet, wifi',
+    'A placa *não usa bateria, pilha nem energia*: ela fica no balcão e funciona sempre. 🔋❌\n\nQuem precisa de internet é só o celular do seu cliente, pra abrir a página do Google (o que todo mundo já tem).', 0],
+  ['tamanho, medida, material, acrilico, resistente, quebra facil, dura quanto tempo, durabilidade',
+    'A placa é de *acrílico cristal, 10×10 cm*: bonita, resistente e fácil de limpar. 💎\n\nComo não tem bateria, ela não "descarrega": é só deixar no balcão ou no caixa.', 0],
+  ['funciona mesmo, da resultado, vale a pena, meus clientes vao usar, cliente nao vai usar, ninguem vai usar, nao sei se funciona',
+    'Funciona porque deixa tudo *fácil*: o cliente avalia em uns 5 segundos, sem procurar a sua empresa no Google. 🙂\n\n💡 Dica que faz muita diferença: na hora do pagamento, o atendente fala "*se puder, encosta o celular aqui e deixa sua avaliação*". Com a placa ali do lado, muito mais gente avalia.', 0],
+  ['permitido, e permitido, proibido, proibe, nao proibe, google proibe, pode pedir avaliacao, google bane, google bloqueia, pode banir, contra as regras, politica do google',
+    'É permitido sim! ✅\n\nO Google deixa você *pedir* avaliação aos seus clientes. O que ele não permite é *pagar* ou dar brinde em troca de avaliação, ou avaliação falsa.\n\nA placa só facilita o caminho: quem decide a nota é o cliente.', 0],
+  ['avaliacao ruim, avaliacao negativa, nota baixa, cliente insatisfeito, e se avaliarem mal',
+    'Boa pergunta! 🙂\n\nA placa leva o cliente direto pra avaliar, e quem decide a nota é ele. O lado bom: quanto mais clientes satisfeitos avaliam, *mais a sua nota sobe* e uma avaliação ruim perde força no meio de muitas boas.\n\n💡 Dica: responda todas as avaliações no Google, inclusive as negativas, com educação. Isso passa muita confiança.', 0],
+  ['ja tenho avaliacoes, ja tenho muitas, nao preciso, ja tenho nota boa, minha nota ja e boa',
+    'Que ótimo, isso é raro! 👏\n\nO ponto é *manter o ritmo*: o Google valoriza avaliação *recente*. A placa deixa isso no automático, todo dia, sem você precisar pedir no WhatsApp.\n\nE além da do Google, tem as de *Instagram*, *WhatsApp* e *Pix*, que também ajudam no dia a dia.', 0],
+  ['vou pensar, vou ver, depois eu vejo, depois falo, mais tarde, outra hora, semana que vem, vou falar com meu socio, vou falar com minha esposa, vou falar com meu marido',
+    'Claro, sem pressa! 🙂\n\nSó pra eu te ajudar: ficou alguma dúvida de *como funciona*, de *valor* ou de *qual modelo* escolher?', 0],
+  ['amostra, testar antes, ver antes, ver funcionando, demonstracao',
+    'Pode sim! 🙂\n\nAqui em Feira de Santana, no varejo, o Luiz leva a placa até você *já configurada* e mostra funcionando. Você *só paga na hora*, depois de ver.', 0],
+  ['outra cidade, sou de fora, nao sou de feira, voces entregam em, envia para, manda para, entrega em outra cidade',
+    'Atendemos o Brasil todo! 📦\n\nFora de Feira de Santana, o envio é pelos *Correios* (de 3 a 10 dias, conforme o modo de envio, depois de 5 a 7 dias de produção).\n\nMe conta: de qual cidade você é e quantas placas você precisa?', 1],
+  ['quanto lucro, quanto ganho, da lucro, vale a pena revender, por quanto vendo, por quanto revender, margem',
+    'Dá pra ter uma margem muito boa! 💰\n\nAqui em Feira de Santana, a gente vende a placa por *R$ 80* no varejo. No atacado, o valor por placa cai conforme a quantidade, e você vê tudo no painel do revendedor antes de pagar.\n\nE você não começa sozinho: acompanha o *roteiro de vendas* para oferecer aos comércios da sua cidade.', 0],
+  ['pedido minimo, minimo, so uma placa, apenas uma, uma unidade, comprar uma so',
+    'Depende de onde você está! 🙂\n\n• *Aqui em Feira de Santana* (varejo): pode levar *1 placa*, com entrega sem taxa e pagamento na entrega\n• *Revenda / outras cidades*: o pedido mínimo no painel do revendedor é de *5 placas*', 0],
+  ['trocar o link, mudar o link, mudar depois, trocar depois, reprogramar, regravar',
+    'Pode ficar tranquilo! 🙂\n\nA placa é configurada com o link da sua empresa. Se um dia precisar mudar (por exemplo, trocar de perfil), me chama aqui que a gente te orienta no passo a passo.', 1],
+];
+if (!getSetting('bianca_faq_v3')) {
+  const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, criado_em) VALUES (?, ?, ?, ?)');
+  for (const [p, r, a] of FAQ_V3) ins.run(p, r, a, Date.now());
+  setSetting('bianca_faq_v3', new Date().toISOString());
+}
 const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
 function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
 function faqDe(texto) {

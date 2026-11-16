@@ -797,6 +797,20 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     // o aviso nunca vai para o próprio cliente (quando o número do CEO é o mesmo)
     setSetting('ceo_whatsapp', '5575966660009'); const W = require('./whatsapp.js'); assert.strictEqual((await W.avisarDono('x', { exceto: '5575966660009' })).ok, false); setSetting('ceo_whatsapp', '');
   });
+  await t('mapa de dúvidas (Instagram + WhatsApp) e as respostas novas de objeção', async () => {
+    const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
+    const c = engine.upsertContato({ canal: 'instagram', extId: 'duv1' });
+    for (const t of ['precisa de aplicativo?', 'Precisa de aplicativo?', 'funciona no iphone?', '💰 REVENDER', 'quanto custa?']) db.prepare("INSERT INTO messages (contact_id, direction, kind, text, status, created_at) VALUES (?, 'in', 'texto', ?, 'ok', ?)").run(c.id, t, Date.now());
+    const m = (await chamar('GET', '/api/whatsapp/bianca/duvidas?dias=30', { headers: H })).json;
+    const app = m.temas.find(x => x.id === 'app'); assert.ok(app && app.n >= 2 && app.instagram >= 2, JSON.stringify(m.temas));
+    assert.ok(m.temas.find(x => x.id === 'celular').bianca, 'iPhone já tem resposta');
+    assert.ok(m.frases.some(f => /aplicativo/i.test(f.texto) && f.n >= 2)); assert.ok(!m.temas.some(x => x.exemplos.includes('💰 REVENDER')));
+    const g = d({ etapa: 'varejo', dados: {} }, 'isso é golpe?'); assert.ok(g.textos[0].includes('só paga na entrega') && g.textos[1].includes('Qual modelo'));
+    assert.ok(d({ etapa: 'menu', dados: {} }, 'tem mensalidade?').textos[0].includes('Não tem mensalidade'));
+    assert.ok(d({ etapa: 'atacado_qtd', dados: {} }, 'o google não proíbe isso?').textos[0].includes('É permitido'));
+    assert.ok(d({ etapa: 'varejo', dados: {} }, 'vou pensar').textos[0].includes('ficou alguma dúvida'));
+    const fora = d(null, 'sou de outra cidade, vocês entregam em Salvador?'); assert.ok(fora.textos[0].includes('Correios') && fora.avisar);
+  });
   await t('Bianca: objeções "tá caro" e "não sei" respondidas conforme a etapa, sem perder o lugar na conversa', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
     const c1 = d({ etapa: 'dados', dados: { qtd: 1, modelos: ['Google'] } }, 'Tá caro'); assert.ok(c1.etapa === 'dados' && c1.textos[0].includes('valor *único*') && c1.textos[1].includes('endereço') && !c1.pergunta, JSON.stringify(c1));

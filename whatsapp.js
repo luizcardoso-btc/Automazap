@@ -456,6 +456,7 @@ async function atenderComRobo(c, texto, mid, nome) {
   return r;
 }
 // Perguntas e respostas da Bianca (treino) e perguntas que ela ainda não soube responder
+router.get('/bianca/duvidas', (req, res) => res.json(require('./duvidas.js').mapa(Number(req.query.dias) || 90)));
 router.get('/bianca/faq', (req, res) => res.json(require('./bianca-balcao.js').faqPainel()));
 router.post('/bianca/faq', (req, res) => { try { res.json(require('./bianca-balcao.js').faqSalvar(req.body || {})); } catch (e) { res.status(400).json({ error: e.message }); } });
 router.put('/bianca/faq/:id', (req, res) => { try { res.json(require('./bianca-balcao.js').faqSalvar({ ...(req.body || {}), id: Number(req.params.id) })); } catch (e) { res.status(400).json({ error: e.message }); } });
