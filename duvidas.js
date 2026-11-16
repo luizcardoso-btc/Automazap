@@ -17,7 +17,9 @@ const TEMAS = [
   ['revenda', '🤝 Revenda / lucro', /(revend|revenda|lucro|atacado|margem|quanto ganho|ganhar dinheiro|vender as placas)/],
   ['personalizar', '🎨 Personalização / com a minha logo', /(personaliz|minha logo|com logo|logomarca|minha marca|meu nome)/],
   ['confianca', '🛡️ É confiável? / golpe', /(golpe|confiavel|confianca|seguro|reclame|verdade mesmo|e real)/],
-  ['onde', '📍 Onde fica / loja física / retirar', /(onde fica|onde voces|loja fisica|endereco|retirar|buscar ai|de onde)/],
+  ['onde', '📍 Onde comprar / onde fica / loja física', /(onde fica|onde voces|loja fisica|endereco|retirar|buscar ai|de onde|onde comprar|onde compro|como comprar)/],
+  ['modelos', '🗂️ Quais modelos existem', /(modelos|catalogo|quais placas|tipos de placa)/],
+  ['teste', '🧪 Quer testar antes / amostra', /(teste|testar|amostra)/],
   ['mensalidade', '🔁 Tem mensalidade?', /(mensalidade|assinatura|todo mes|mensal|taxa)/],
   ['bateria', '🔋 Precisa de bateria / internet / energia', /(bateria|pilha|energia|tomada|internet|wifi|carregar)/],
   ['garantia', '🔧 Garantia / defeito / troca', /(garantia|defeito|quebr|troca|devolu)/],
@@ -43,7 +45,9 @@ function mapa(dias = 90, t0 = Date.now()) {
     for (const [id, , rx] of TEMAS) if (rx.test(t)) { const x = por[id]; x.n++; x[m.canal]++; if (x.exemplos.length < 4 && !x.exemplos.includes(bruto)) x.exemplos.push(bruto.slice(0, 160)); achou = true; }
     if (achou || t.includes('?')) { consideradas++; const k = t.replace(/\?/g, '').trim(); if (k.length >= 4) frases.set(k, { texto: bruto.slice(0, 160), n: ((frases.get(k) || {}).n || 0) + 1 }); }
   }
-  for (const x of temas) x.bianca = !!(B && x.exemplos.some(e => B.faqDe(e)));
+  // a Bianca responde pela conversa (código) ou por uma resposta do treino
+  const PELA_CONVERSA = ['preco', 'caro', 'como_funciona', 'revenda', 'personalizar', 'minimo'];
+  for (const x of temas) x.bianca = PELA_CONVERSA.includes(x.id) || !!(B && x.exemplos.some(e => B.faqDe(e)));
   return { dias, mensagens: msgs.length, consideradas, temas: temas.filter(x => x.n).sort((a, b) => b.n - a.n), frases: [...frases.values()].filter(f => f.n >= 2).sort((a, b) => b.n - a.n).slice(0, 20) };
 }
 

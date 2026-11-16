@@ -811,6 +811,16 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(d({ etapa: 'varejo', dados: {} }, 'vou pensar').textos[0].includes('ficou alguma dúvida'));
     const fora = d(null, 'sou de outra cidade, vocês entregam em Salvador?'); assert.ok(fora.textos[0].includes('Correios') && fora.avisar);
   });
+  await t('perguntas reais do Instagram: preço, como funciona, modelos, onde comprar, revenda, configurar QR — com apresentação na primeira mensagem', () => {
+    const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana'); setSetting('site_url', 'https://www.nextapbrasil.com.br');
+    const p = d(null, 'Qual é o custo do NexTap?'); assert.ok(p.etapa === 'menu' && p.textos[0].includes('Já te passo o valor'));
+    const c = d(null, 'Como funciona?'); assert.ok(c.textos[0].startsWith('Oi, Ana! Aqui é a Bianca') && c.textos[0].includes('NFC + QR Code') && c.textos[1].includes('1️⃣'));
+    const m = d({ etapa: 'varejo', dados: {} }, 'Quais são os modelos disponíveis?'); assert.ok(m.etapa === 'varejo' && m.textos[1].includes('Google'));
+    assert.ok(d(null, 'Onde comprar?').textos[0].includes('direto com a gente'));
+    assert.strictEqual(d(null, 'Como começar a vender?').etapa, 'atacado');
+    assert.ok(d(null, 'Quando já vem qr code não dá pra configurar pra loja né?').textos[0].includes('NFC Academy'));
+    assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'Poderia me manda a chave pix').avisar);
+  });
   await t('Bianca: objeções "tá caro" e "não sei" respondidas conforme a etapa, sem perder o lugar na conversa', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
     const c1 = d({ etapa: 'dados', dados: { qtd: 1, modelos: ['Google'] } }, 'Tá caro'); assert.ok(c1.etapa === 'dados' && c1.textos[0].includes('valor *único*') && c1.textos[1].includes('endereço') && !c1.pergunta, JSON.stringify(c1));

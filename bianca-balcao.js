@@ -79,6 +79,24 @@ if (!getSetting('bianca_faq_v3')) {
   for (const [p, r, a] of FAQ_V3) ins.run(p, r, a, Date.now());
   setSetting('bianca_faq_v3', new Date().toISOString());
 }
+const FAQ_V4 = [
+  ['onde comprar, onde compro, como comprar, como faco para comprar, como faco pra comprar, como eu compro, onde vende, qual o site, onde fica o site, tem site',
+    'Você compra direto com a gente, da fábrica! 🙂\n\n• *Aqui em Feira de Santana* (para o seu estabelecimento): por aqui mesmo, com entrega sem taxa e pagamento na entrega\n• *Revenda ou outras cidades*: pelo painel do revendedor, no site 👉 {painel}', 0],
+  ['qr code dinamico, configurar pra loja, configurar para loja, configurar para a loja, configurar para minha loja, ja vem configurado, vem configurado, vem com qr code, qr code ja vem, configurar para meus clientes, configurar pro cliente',
+    'Dá sim! 🙂\n\nO *QR Code e o NFC* da NexTap são ativados com o link que *você* escolher: avaliação no Google, Instagram, WhatsApp ou Pix da loja.\n\nPra quem revende, cada placa é configurada para a loja do seu cliente. No painel do revendedor tem a *NFC Academy* com o passo a passo em vídeo. 📲', 0],
+  ['frete caro, taxa de entrega, frete alto, valor do frete, quanto e o frete, quanto fica o frete',
+    'O frete é calculado pelo seu *CEP* no painel, na hora de finalizar, e você escolhe o modo de envio. 📦\n\n💡 Dica: quanto mais placas no mesmo pedido, menor fica o frete de cada uma.\n\nE aqui em Feira de Santana, no varejo, a entrega é *sem taxa*.', 0],
+  ['chave pix, manda o pix, me manda o pix, passa o pix, dados para pagamento, como faco o pagamento',
+    'Claro! 🙂\n\n• *Revenda*: o pagamento é feito no painel do revendedor (Pix ou cartão), com o pedido registrado na sua conta\n• *Varejo aqui em Feira*: você paga na hora da entrega\n\nSe você já combinou um pedido comigo, o Luiz te envia os dados do pagamento por aqui em instantes.', 1],
+];
+if (!getSetting('bianca_faq_v4')) {
+  const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, criado_em) VALUES (?, ?, ?, ?)');
+  for (const [p, r, a] of FAQ_V4) ins.run(p, r, a, Date.now());
+  // "testar antes": acrescenta quem quer testar para revenda
+  db.prepare("UPDATE bianca_faq SET palavras = palavras || ', fazer teste, fazer um teste, realizar um teste, pra testar, testar primeiro, comprar pra testar', resposta = ? WHERE palavras LIKE 'amostra,%'")
+    .run('Pode sim! 🙂\n\n• *Aqui em Feira de Santana*: o Luiz leva a placa até você *já configurada* e mostra funcionando. Você *só paga na hora*, depois de ver.\n• *Para revenda*: dá pra começar com o pedido mínimo de *5 placas* e testar na sua cidade antes de pedir mais.');
+  setSetting('bianca_faq_v4', new Date().toISOString());
+}
 const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
 function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
 function faqDe(texto) {
@@ -113,9 +131,11 @@ const precos = () => {
 const RX = {
   parar: /(\bpare\b|para de (me )?mandar|nao (me )?(mande|envie|chame)|sem interesse|nao tenho interesse|descadastr|\bstop\b|\bspam\b)/,
   humano: /(falar com (alguem|uma pessoa|atendente|o dono|o luiz|voce|humano)|atendente|pessoa de verdade|me liga|pode (me )?ligar)/,
-  atacado: /(revend|revenda|atacado|atacadista|lote|distribu|\b(1\d|[2-9]\d|\d{3,}) (placas|unidades|unid|un)\b|quantidade grande|preco de fabrica|para vender|pra vender)/,
+  atacado: /(revend|revenda|atacado|atacadista|lote|distribu|\b(1\d|[2-9]\d|\d{3,}) (placas|unidades|unid|un)\b|quantidade grande|preco de fabrica|para vender|pra vender|comecar a vender|como vender|quero vender)/,
+  comoFunciona: /(como funciona|o que e isso|o que e a nextap|o que e nextap|como usa|como que usa|me explica|tecnologia nfc|como e a placa|pra que serve|para que serve)/,
+  modelosQ: /(quais (sao )?(os )?modelos|modelos disponiveis|que modelos|tem quais modelos|catalogo|quais placas|quais tipos|tipos de placa)/,
   varejo: /(estabelecimento|meu (negocio|comercio|salao|restaurante|consultorio|espaco|estudio)|minha (loja|empresa|barbearia|clinica|lanchonete|pizzaria|academia|hamburgueria)|pra mim|para mim|uso proprio|para (a|minha|o meu) (loja|empresa)|pro meu|pra minha|no balcao)/,
-  preco: /(quanto|\bvalor\b|preco|custa|r\$|tabela)/,
+  preco: /(quanto|\bvalor\b|preco|custa|\bcusto\b|r\$|tabela)/,
   caro: /(\bcaro\b|carinho|salgado|desconto|mais barato|faz por menos|abaixa|nao tenho dinheiro|sem dinheiro|sem grana|apertad)/,
   naoSei: /^(nao sei|sei la|nao sei ainda|nao sei dizer|nao tenho certeza|to em duvida|estou em duvida|fiquei em duvida|tanto faz|qualquer um|qualquer uma|me ajuda a escolher|qual voce indica|qual vc indica|qual voce recomenda|o que voce indica)\b/,
   pensar: /(vou pensar|vou ver|depois (eu )?(vejo|falo|respondo|te chamo)|mais tarde|outra hora|semana que vem)/,
@@ -149,6 +169,11 @@ function textos() {
   const pub = String(getSetting('public_url') || '').replace(/\/+$/, ''), foto = String(getSetting('foto_modelos_url') || '').trim() || (pub ? pub + '/assets/modelos-nextap.jpg' : ''), comFoto = txt => (/^https:\/\/\S+$/.test(foto) ? { midia: foto, texto: txt } : txt);   // foto com todos os modelos
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
     return {
+    // Primeira mensagem perguntando o preço / como funciona / modelos: responde o que dá e já qualifica
+    menuPreco: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nJá te passo o valor certinho! É que ele muda se a placa é para o *seu estabelecimento* ou para *revender*:\n\n1️⃣ Para o meu estabelecimento\n2️⃣ Quero revender (atacado)\n\n_Responda com o número._`,
+    explica: () => comVideo('A NexTap é uma placa de *acrílico* com *NFC + QR Code*. ✨\n\nO cliente *aproxima o celular* (ou aponta a câmera) e cai direto onde você quiser:\n\n• Avaliação no *Google*\n• Seu *Instagram*\n• Seu *WhatsApp*\n• Seu *Pix*\n\nSem aplicativo, em uns 5 segundos.'),
+    listaModelos: () => comFoto(`Estes são os modelos disponíveis:\n\n${LISTA_MODELOS}\n\nTodos com NFC + QR Code, em acrílico.`),
+    menuCurto: () => 'Me conta: a placa é para o seu estabelecimento (1️⃣) ou para revender (2️⃣)?',
     menu: (nome) => `Oi${nome ? ', ' + nome : ''}! Aqui é a ${eu}, da NexTap. 🙂\n\nPra eu te ajudar certinho: a placa é para o seu estabelecimento ou você quer revender?\n\n1️⃣ Para o meu estabelecimento\n2️⃣ Quero revender (atacado)\n\n_Responda com o número._`,
     menuDeNovo: () => 'Só pra eu te passar a informação certa: é para o *seu estabelecimento* (responda 1️⃣) ou para *revender* (responda 2️⃣)?',
     // 1º balão: só o vídeo e a pergunta do modelo. Valores só se o cliente perguntar (ou na confirmação do pedido).
@@ -252,7 +277,16 @@ function proxPergunta(etapa) {
 }
 const terminaEmPergunta = t => /\?[\s\p{Extended_Pictographic}\uFE0F\u200D]*$/u.test(String(t || '').trim());
 // Decide a resposta. Devolve { textos, etapa, tipo, dados, avisar } (sem enviar nada): fácil de testar.
+// Conversa nova: a primeira resposta sempre se apresenta (quando ainda não se apresentou)
 function decidir(e, textoIn, nome) {
+  const r = decidir0(e, textoIn, nome);
+  if (!e && r.textos.length && r.etapa !== 'parado') {
+    const oi = `Oi${nome ? ', ' + nome : ''}! Aqui é a ${require('./predio.js').nomes().balcao}, da NexTap. 🙂\n\n`, x = r.textos[0];
+    if (typeof x === 'string') { if (!/^Oi\b/.test(x)) r.textos[0] = oi + x; } else if (x && !/^Oi\b/.test(x.texto || '')) r.textos[0] = { ...x, texto: oi + (x.texto || '') };
+  }
+  return r;
+}
+function decidir0(e, textoIn, nome) {
   const T = textos(), t = sem(textoIn), etapa = e ? e.etapa : '', d = (e && e.dados) || {}, tipo = (e && e.tipo) || '';
   const naoSei = (tp, dd, av) => ({ ...R(T.naoSei(), 'humano', tp, dd, av), pergunta: true });   // não sabe: responde com naturalidade e te chama em segredo
   const R = (textos, et, tp = tipo, dd = d, av = '') => ({ textos: textos ? (Array.isArray(textos) ? textos : [textos]) : [], etapa: et, tipo: tp, dados: dd, avisar: av });
@@ -260,6 +294,11 @@ function decidir(e, textoIn, nome) {
   if (RX.parar.test(t)) return R(T.parar(), 'parado', tipo, d);
   if (etapa === 'humano') return R(null, 'humano');                       // já está com você
   if (RX.humano.test(t)) return R(T.humano(), 'humano', tipo, d, '🙋 pediu para falar com uma pessoa');
+  // "Como funciona?" e "Quais modelos?" em qualquer etapa de venda: explica (com vídeo/foto) e volta para a pergunta da etapa
+  if (!['perso', 'perso_dados'].includes(etapa) && !RX.atacado.test(t) && !RX.perso.test(t) && (RX.modelosQ.test(t) || RX.comoFunciona.test(t))) {
+    const fim = !etapa || etapa === 'menu' ? T.menuCurto() : etapa === 'atacado' ? 'Quais modelos você quer revender?' : ['varejo', 'modelo'].includes(etapa) ? 'Você prefere a do *Google* ou algum outro modelo?' : proxPergunta(etapa);
+    return R([RX.modelosQ.test(t) ? T.listaModelos() : T.explica(), fim], etapa || 'menu', tipo, d);
+  }
   // Personalizada: em qualquer etapa (benefícios → quantidade → preço no final)
   if (RX.perso.test(t) && !['perso', 'perso_dados'].includes(etapa)) {
     const q = qtdDe(t), antes = etapa;
@@ -296,7 +335,7 @@ function decidir(e, textoIn, nome) {
   if (!etapa || etapa === 'menu') {
     if (atac && !varj) return R(T.atacado(), 'atacado', 'atacado', qtdDe(t) ? { qtd: qtdDe(t) } : {});   // primeiro os modelos (com a foto), depois a quantidade
     if (varj) return R(T.varejo(), 'varejo', 'varejo');
-    if (!etapa) return R(T.menu(nome), 'menu', '');
+    if (!etapa) return R(RX.preco.test(t) ? T.menuPreco(nome) : T.menu(nome), 'menu', '');
     if ((e.tentativas || 0) >= 1) return R(T.humano(), 'humano', '', d, '❓ não disse se é varejo ou atacado');
     return { ...R(T.menuDeNovo(), 'menu', ''), tentativas: 1 };
   }
