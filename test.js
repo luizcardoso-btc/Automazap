@@ -937,16 +937,16 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     db.prepare("UPDATE contacts SET ab_grupo = 'A' WHERE ext_id = 'v5a'").run();
     const s3 = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s3);
     assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas'); assert.strictEqual(s3.env.length, 1, 'mais de uma mensagem na oferta');
-    const p = s3.env[0].p; assert.strictEqual(p.type, 'button'); assert.ok(p.text.includes('R$ 1.240,20 de lucro'), p.text);
-    assert.deepStrictEqual(p.buttons.map(b => b.title), ['FAZER MEU PEDIDO'], 'botão de vídeo sem link devia sumir');
+    const p = s3.env[0].p; assert.strictEqual(p.type, 'button'); assert.ok(p.text.includes('Montei o seu pedido com 20 placas') && !p.text.includes('R$'), p.text);
+    assert.deepStrictEqual(p.buttons.map(b => b.title), ['FAZER MEU PEDIDO']);
     setSetting('video_demo_url', 'https://x.com/demo.mp4');
     const s4 = rec(); await engine.processarMensagem(msg('11 a 49', { extId: 'v5a', payload: respRapida(s2.env[0].p, '11 a 49') }), s4);
-    assert.deepStrictEqual(s4.env[0].p.buttons.map(b => b.title), ['FAZER MEU PEDIDO', 'VER FUNCIONANDO']); setSetting('video_demo_url', '');
+    assert.deepStrictEqual(s4.env[0].p.buttons.map(b => b.title), ['FAZER MEU PEDIDO'], 'só o botão do pedido, sem VER FUNCIONANDO'); setSetting('video_demo_url', '');
   });
   await t('A/B: cada pessoa é sorteada uma vez e sempre vê o mesmo lado; a B usa {{payback}}', async () => {
     db.prepare("UPDATE contacts SET ab_grupo = 'B' WHERE ext_id = 'v5a'").run();
     const s = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s);
-    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('🚀 Com 5 placas vendidas, você já paga o pedido inteiro.\n\n'), s.env[0].p.text);
+    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('🚀 O seu pedido de 20 placas já está montado') && !s.env[0].p.text.includes('R$'), s.env[0].p.text);
     const lados = new Set();
     for (let i = 0; i < 30; i++) {
       await engine.processarMensagem(msg('revender', { extId: 'ab' + i }), rec());
@@ -1074,8 +1074,8 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const oferta = async (ext, lado) => { await engine.processarMensagem(msg('revender', { extId: ext }), rec()); db.prepare('UPDATE contacts SET ab_grupo = ? WHERE ext_id = ?').run(lado, ext);
       const s = rec(); await engine.processarMensagem(msg('10', { extId: ext }), s); return s.env[0].p.text; };
     const a = await oferta('bfA', 'A'), b = await oferta('bfB', 'B');
-    for (const t of [a, b]) { assert.ok(t.includes('de R$ 21,90 por R$ 17,99 cada'), t); assert.ok(t.includes('\n\n🖤 Preço da Black NexTap, válido até '), t); assert.ok(t.length <= 640); }
-    assert.ok(a.includes('de lucro') && b.startsWith('🚀'), 'as duas versões continuam diferentes no que está sendo testado');
+    for (const t of [a, b]) { assert.ok(!t.includes('R$') && !t.includes('Black'), 'oferta não mostra preço nem promoção: ' + t); assert.ok(t.length <= 640); }
+    assert.ok(a.startsWith('📦 Montei') && b.startsWith('🚀'), 'as duas versões continuam diferentes');
     // banco com o v5 já instalado (a entrada ainda sem a linha da Black): troca uma vez e só o que estava igual ao original
     const sd = require('./seed.js'); setSetting('black_v5', '0'); assert.ok(sd.atualizarBlackV5() >= 1); assert.strictEqual(sd.atualizarBlackV5(), 0, 'rodou duas vezes');
     const e = rec(); assert.strictEqual((await engine.processarMensagem(msg('BLACK', { extId: 'bfE' }), e)).fluxo, 'Entrada: 3 toques');
@@ -1084,7 +1084,12 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(nx.textoPromo('black_final', 10, Date.now() + 9.5 * 86400e3).startsWith('⏰ Últimas horas'));
     assert.strictEqual(nx.textoPromo('black', 10, Date.now() + 11 * 86400e3), '', 'promoção vencida continuou aparecendo');
     setSetting('nextap_promo', 'null');
-    const sem = await oferta('bfC', 'A'); assert.ok(sem.startsWith('📦 10 placas: R$ 17,99 cada, total de R$ 179,90.\n\n💰'), sem); assert.ok(!sem.includes('Black'));
+    const sem = await oferta('bfC', 'A'); assert.ok(sem.startsWith('📦 Montei o seu pedido com 10 placas'), sem); assert.ok(!sem.includes('Black'));
+    // banco antigo (com preço): a troca tira o preço e o VER FUNCIONANDO, uma vez só
+    const of = db.prepare("SELECT id, steps FROM flows WHERE name = 'Oferta: 5 a 10 placas' ORDER BY id DESC LIMIT 1").get();
+    db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(JSON.stringify([{ type: 'button', text: '📦 {{qtd}} placas: {{preco_de_por}} cada', buttons: [{ title: 'FAZER MEU PEDIDO', url: '{{link_pedido}}' }, { title: 'VER FUNCIONANDO', url: '{{video_demo}}' }] }]), of.id);
+    setSetting('oferta_sem_preco_v5', '0'); assert.ok(sd.ofertaSemPrecoV5() >= 1); assert.strictEqual(sd.ofertaSemPrecoV5(), 0);
+    const st = JSON.parse(db.prepare('SELECT steps FROM flows WHERE id = ?').get(of.id).steps)[0]; assert.ok(!st.text.includes('preco') && st.buttons.length === 1 && st.buttons[0].title === 'FAZER MEU PEDIDO');
   });
   console.log('Prédio (agentes por regras)');
   const predio = require('./predio.js');

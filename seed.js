@@ -499,7 +499,7 @@ function instalarV5({ desativarAntigos = true } = {}) {
       { type: 'text', text: 'Combinado! 🔥\n\nO nosso comercial já foi avisado e vai falar com você aqui em instantes.' },
     ], { tipo: 'botao', acao: 'handoff', humano: 2, tags: ['QUENTE'] });
     const verPedido = criar('Botão: VER MEU PEDIDO', [
-      { type: 'button', text: '📦 Seu pedido de {{qtd}} placas: R$ {{total}} (o frete é calculado pelo seu CEP).\n\nÉ só abrir e finalizar: 👇', buttons: [PEDIR] },
+      { type: 'button', text: VER_PEDIDO_SEM_PRECO, buttons: [PEDIR] },
     ], { tipo: 'botao', tags: ['VIU PREÇO'] });
 
     // ---------- oferta (o número no evento é a quantidade de exemplo da faixa) ----------
@@ -507,14 +507,14 @@ function instalarV5({ desativarAntigos = true } = {}) {
     const ofertaB = '🚀 Com {{payback}} placas vendidas, você já paga o pedido inteiro.\n\n📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}} (o frete é calculado pelo seu CEP). O restante é lucro.{{black_oferta}}\n\n' + GARANTIA;
     const oferta = (nome, evento, faixa) => {
       const tags = ['QUANTIDADE', 'QTD ' + faixa, 'VIU PREÇO'];
-      const a = criar(nome, [{ type: 'button', text: ofertaA, buttons: [PEDIR, VIDEO] }], { tipo: 'botao', evento, tags });
-      criar(nome + ' · variante B', [{ type: 'button', text: ofertaB, buttons: [PEDIR, VIDEO] }], { tipo: 'botao', tags, varianteDe: a });
+      const a = criar(nome, [{ type: 'button', text: OFERTA_SEM_PRECO_A, buttons: [PEDIR] }], { tipo: 'botao', evento, tags });
+      criar(nome + ' · variante B', [{ type: 'button', text: OFERTA_SEM_PRECO_B, buttons: [PEDIR] }], { tipo: 'botao', tags, varianteDe: a });
       return a;
     };
     const q1 = oferta('Oferta: 5 a 10 placas', 'qtd5_10', '5-10');
     const q2 = oferta('Oferta: 11 a 49 placas', 'qtd5_20', '11-49');
     const q3 = criar('Oferta: 50 ou mais (lead quente)', [
-      { type: 'quick', text: '📦 {{qtd}} placas: {{preco_de_por}} cada, total de R$ {{total}}.{{black_oferta}}\n\n💰 Revendendo a R$ {{preco_venda}} cada, são R$ {{lucro}} de lucro.\n\nNesse volume, o nosso comercial atende você diretamente. Quer que entrem em contato agora?', replies: [
+      { type: 'quick', text: OFERTA_SEM_PRECO_50, replies: [
         { title: 'SIM, ME CHAMA', flow_id: meChama }, { title: 'VER MEU PEDIDO', flow_id: verPedido },
       ] },
     ], { tipo: 'botao', evento: 'qtd5_50', humano: 2, tags: ['QUANTIDADE', 'QTD 50+', 'LEAD GRANDE', 'QUENTE', 'VIU PREÇO'] });
@@ -561,12 +561,12 @@ function instalarV5({ desativarAntigos = true } = {}) {
     // ---------- acompanhamento: no máximo 2 por pessoa (3h e 20h depois da última mensagem dela) ----------
     const fu = (nome, passos, publico, atraso) => criar(nome, passos, { tipo: 'followup', publico, atraso, tags: ['FOLLOW-UP'] });
     fu('3h · não escolheu a quantidade', [
-      { type: 'quick', text: 'Oi, {{nome}}! 👋\n\nA maioria dos revendedores começa com 10 placas.\n\nQuer ver quanto fica e quanto sobra de lucro?', replies: [
+      { type: 'quick', text: 'Oi, {{nome}}! 👋\n\nA maioria dos revendedores começa com 10 placas.\n\nQuer que eu monte o seu pedido?', replies: [
         { title: '10 PLACAS', flow_id: q1 }, { title: 'OUTRA QUANTIDADE', flow_id: revender },
       ] },
     ], 'revenda_qtd', 3);
     fu('3h · viu o preço e não pediu', [
-      { type: 'button', text: 'Oi, {{nome}}! 👋\n\nO seu pedido de {{qtd}} placas continua montado: R$ {{total}}, com R$ {{lucro}} de lucro.', buttons: [PEDIR] },
+      { type: 'button', text: FOLLOWUP_SEM_PRECO, buttons: [PEDIR] },
     ], 'revenda_preco', 3);
     fu('3h · abriu o pedido e não pagou', [
       { type: 'quick', text: 'Oi, {{nome}}! 👋\n\nFicou alguma dúvida no cadastro, no frete ou no pagamento?\n\nEu ajudo você a finalizar.', replies: [{ title: 'QUERO AJUDA', flow_id: querAjuda }] },
@@ -739,6 +739,12 @@ function atualizarPausaV5() {
   return !!ent;
 }
 
+// Oferta sem preço: o preço só aparece no painel do revendedor, depois do cadastro (quem via o preço na conversa não se cadastrava).
+const OFERTA_SEM_PRECO_A = '📦 Montei o seu pedido com {{qtd}} placas! ✅\n\nAgora é só criar a sua conta grátis no painel do revendedor. O pedido já abre pronto e, lá, você:\n\n• Vê o valor por quantidade\n• Calcula o frete pelo seu CEP\n• Finaliza no Pix ou no cartão\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito.\n\nToque no botão abaixo: 👇';
+const OFERTA_SEM_PRECO_B = '🚀 O seu pedido de {{qtd}} placas já está montado no painel do revendedor!\n\nCrie a sua conta grátis em 1 minuto e veja o valor por quantidade, o frete pelo seu CEP e quanto você pode lucrar revendendo.\n\n✅ Acompanha o roteiro de vendas e a troca de placas com defeito.\n\nToque no botão abaixo: 👇';
+const OFERTA_SEM_PRECO_50 = '📦 {{qtd}} placas é pedido de revendedor grande! 🔥\n\nO seu pedido já está montado no painel do revendedor, com o valor por quantidade e o frete pelo seu CEP.\n\nNesse volume, o nosso comercial também pode atender você diretamente. Quer que entrem em contato agora?';
+const FOLLOWUP_SEM_PRECO = 'Oi, {{nome}}! 👋\n\nO seu pedido de {{qtd}} placas continua montado no painel do revendedor.\n\nÉ só criar a sua conta grátis para ver o valor e finalizar: 👇';
+const VER_PEDIDO_SEM_PRECO = '📦 O seu pedido de {{qtd}} placas já está montado.\n\nCrie a sua conta grátis e veja o valor por quantidade e o frete pelo seu CEP: 👇';
 // Promoção do site nas mensagens do funil 3 toques (entrada, oferta A e B por igual, oferta 50+ e último follow-up).
 // Bancos com o v5 instalado: troca uma vez só as mensagens iguais às originais e acrescenta "black" às palavras da entrada.
 const TROCAS_BLACK = [
@@ -781,6 +787,27 @@ function atualizarBlackV5() {
   return n;
 }
 
+// Bancos já instalados: tira o preço das ofertas (A, B e 50+) e do "VER MEU PEDIDO", e deixa só o botão FAZER MEU PEDIDO. Uma vez só.
+function ofertaSemPrecoV5() {
+  if (getSetting('oferta_sem_preco_v5') === '1') return 0;
+  const NOVO = { 'Oferta: 5 a 10 placas': OFERTA_SEM_PRECO_A, 'Oferta: 11 a 49 placas': OFERTA_SEM_PRECO_A, 'Oferta: 5 a 10 placas · variante B': OFERTA_SEM_PRECO_B, 'Oferta: 11 a 49 placas · variante B': OFERTA_SEM_PRECO_B,
+    'Oferta: 50 ou mais (lead quente)': OFERTA_SEM_PRECO_50, 'Botão: VER MEU PEDIDO': VER_PEDIDO_SEM_PRECO, '3h · viu o preço e não pediu': FOLLOWUP_SEM_PRECO,
+    '3h · não escolheu a quantidade': 'Oi, {{nome}}! 👋\n\nA maioria dos revendedores começa com 10 placas.\n\nQuer que eu monte o seu pedido?' };
+  let n = 0;
+  db.transaction(() => {
+    for (const f of db.prepare('SELECT id, name, steps FROM flows').all()) {
+      if (!(f.name in NOVO)) continue;
+      const passos = JSON.parse(f.steps || '[]'), p = passos.find(x => x.type === 'button' || x.type === 'quick');
+      if (!p) continue;
+      p.text = NOVO[f.name];
+      if (p.type === 'button') { const pedir = (p.buttons || []).find(b => /FAZER MEU PEDIDO/i.test(b.title)) || { title: 'FAZER MEU PEDIDO', url: '{{link_pedido}}' }; p.buttons = [pedir]; }
+      db.prepare('UPDATE flows SET steps = ? WHERE id = ?').run(JSON.stringify(passos), f.id); n++;
+    }
+    setSetting('oferta_sem_preco_v5', '1');
+  })();
+  return n;
+}
+
 // Atendente do Prédio: quando o robô não entende, mostra um menu com botões em vez da resposta padrão
 function criarMenuNaoEntendi() {
   const id = nome => (db.prepare('SELECT id FROM flows WHERE name = ? AND funil_id = ? ORDER BY id DESC LIMIT 1').get(nome, FUNIL) || {}).id;
@@ -801,8 +828,8 @@ function atualizarAtendenteV5() {
 }
 
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); atualizarAtendenteV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); atualizarAtendenteV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
