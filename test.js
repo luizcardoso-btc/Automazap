@@ -1240,6 +1240,13 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const ruim = P.revisar({ ...car, legenda: 'Garantimos o dobro de clientes', slides: [{ n: 1, texto: 'x'.repeat(90), sub: '' }] });
     assert.ok(!ruim.ok && ruim.notas.length >= 4);   // texto longo, promessa, sem chamada, sem hashtag, poucas imagens
     const r2 = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/refazer`, { headers: H })).json; assert.ok(r2.titulo !== car.titulo && r2.versao === car.versao + 1);
+    { const ed = (await chamar('PUT', `/api/predio/marketing/pecas/${car.id}/editar`, { corpo: { titulo: 'Título meu', legenda: 'Legenda minha', slides: [{ texto: 'Texto novo da capa', sub: 'apoio' }] }, headers: H })).json;
+      assert.ok(ed.titulo === 'Título meu' && ed.legenda === 'Legenda minha' && ed.slides[0].texto === 'Texto novo da capa' && ed.slides[0].prompt.includes('Texto novo da capa'), JSON.stringify(ed.slides[0]));
+      assert.ok((await chamar('DELETE', `/api/predio/marketing/pecas/${car.id}`, { headers: H })).json.ok);
+      const diaC = db.prepare('SELECT dia FROM mkt_pecas WHERE id = ?').get(car.id).dia; assert.strictEqual(db.prepare('SELECT status FROM mkt_pecas WHERE id = ?').get(car.id).status, 'excluido');
+      assert.ok(!predio.pecasDoDia(Date.parse(diaC + 'T12:00:00-03:00')).some(x => x.id === car.id), 'excluída voltou');
+      assert.ok((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/restaurar`, { headers: H })).json.ok);
+      assert.ok(predio.pecasDoDia(Date.parse(diaC + 'T12:00:00-03:00')).some(x => x.id === car.id)); }
     assert.strictEqual((await chamar('PUT', `/api/predio/marketing/pecas/${car.id}`, { corpo: { status: 'postado' }, headers: H })).json.status, 'postado');
     const vol = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/desfazer`, { headers: H })).json; assert.ok(vol.status === 'aprovado' && !vol.postado_em, JSON.stringify(vol));   // marcou por engano: volta para a fila
     assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/desfazer`, { headers: H })).status, 400);

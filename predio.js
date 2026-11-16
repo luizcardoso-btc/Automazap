@@ -378,13 +378,27 @@ function proporPeca(t0, slot, v0 = 0) {
 function pecasDoDia(t0 = Date.now()) {
   const dia = dataStr(t0), slots = SLOTS(t0);
   for (const s of slots) if (!db.prepare('SELECT 1 FROM mkt_pecas WHERE dia = ? AND slot = ?').get(dia, s)) proporPeca(t0, s);
-  return db.prepare('SELECT * FROM mkt_pecas WHERE dia = ? ORDER BY canal, slot').all(dia).filter(r => slots.includes(r.slot) || r.status === 'postado' || r.status === 'programado').map(lerPeca)
+  return db.prepare("SELECT * FROM mkt_pecas WHERE dia = ? AND status <> 'excluido' ORDER BY canal, slot").all(dia).filter(r => slots.includes(r.slot) || r.status === 'postado' || r.status === 'programado').map(lerPeca)
     .map(p => ({ ...p, horario: p.horario || social.horarioDe(p.slot, slots.filter(x => x.startsWith(p.canal === 'feed' ? 'feed' : 'story')).length), completa: social.completa(p) }));
 }
 function refazerPeca(id) {
   const r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(id);
   if (!r) return null;
   return proporPeca(Date.parse(r.dia + 'T12:00:00-03:00'), r.slot, r.versao + 1);
+}
+// Você edita a peça (título, textos das imagens e legenda): os comandos do ChatGPT são refeitos com os textos novos
+function editarPeca(id, b = {}) {
+  const r = lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(id)); if (!r) return null;
+  if (r.status === 'postado') { const e = new Error('Esta peça já foi publicada.'); e.status = 400; throw e; }
+  const titulo = String(b.titulo ?? r.titulo).trim().slice(0, 80) || r.titulo, legenda = typeof b.legenda === 'string' ? b.legenda.trim().slice(0, 2200) : r.legenda;
+  const novos = Array.isArray(b.slides) ? b.slides : [];
+  const p = { ...r, titulo, legenda };
+  p.slides = r.slides.map((sl, i) => { const x = novos[i] || {}; return { ...sl, texto: String(x.texto ?? sl.texto).trim().slice(0, 120) || sl.texto, sub: String(x.sub ?? sl.sub ?? '').trim().slice(0, 160) }; });
+  p.slides = p.slides.map((sl, i) => ({ ...sl, prompt: comando(p, sl, i, p.slides.length) }));
+  const status = r.status === 'ajustar' || r.status === 'aguardando' ? 'aprovado' : r.status;
+  db.prepare('UPDATE mkt_pecas SET titulo = ?, legenda = ?, slides = ?, status = ?, revisao = ? WHERE id = ?').run(titulo, legenda, JSON.stringify(p.slides), status, JSON.stringify({ ok: true, notas: ['Editado por você.'] }), id);
+  registrar('cto', `Peça editada pelo CEO: ${titulo}`, 'Textos e comandos atualizados.', {});
+  return lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(id));
 }
 // CTO: métricas das últimas 24h e recomendações
 function metricasMkt(t0 = Date.now()) {
@@ -411,7 +425,7 @@ function marketingSemana(t0 = Date.now()) {
   const semana = semanaDe(t0), itens = db.prepare('SELECT * FROM conteudo WHERE semana = ? ORDER BY dia, id').all(semana);
   const m = ultimo('cto');
   return { semana, videos: itens.filter(c => c.formato !== 'Carrossel').map(copyVideo), imagens: itens.filter(c => c.formato === 'Carrossel').map(c => ({ id: c.id, dia: c.dia, titulo: c.titulo, status: c.status })),
-    pecas: pecasDoDia(t0), social: social.painel(t0), estilo: estilo(), estilo_padrao: !String(getSetting('mkt_estilo') || '').trim(), cronograma: cronograma(), metricas: metricasMkt(t0),
+    excluidas: db.prepare("SELECT id, titulo, slot FROM mkt_pecas WHERE dia = ? AND status = 'excluido'").all(dataStr(t0)), pecas: pecasDoDia(t0), social: social.painel(t0), estilo: estilo(), estilo_padrao: !String(getSetting('mkt_estilo') || '').trim(), cronograma: cronograma(), metricas: metricasMkt(t0),
     relatorio: m ? { titulo: m.titulo, texto: m.texto, em: m.criado_em } : null };
 }
 function turnoMarketing(t0 = Date.now(), { avisar = true } = {}) {
@@ -620,6 +634,16 @@ router.put('/marketing/config', (req, res) => {
   if (typeof b.estilo === 'string') { if (b.estilo.length > 4000) return res.status(400).json({ error: 'Guia de estilo muito longo (máximo 4.000 caracteres).' }); setSetting('mkt_estilo', b.estilo.trim()); registrar('cto', 'Guia de estilo atualizado', 'Os próximos comandos já usam o novo guia.', {}); }
   res.json(marketingSemana(Date.now()));
 });
+const tratarMkSync = fn => (req, res) => { try { res.json(fn(req)); } catch (e) { res.status(e.status || 500).json({ error: e.message }); } };
+router.put('/marketing/pecas/:id/editar', tratarMkSync(req => { const p = editarPeca(Number(req.params.id), req.body || {}); if (!p) { const e = new Error('Peça não encontrada.'); e.status = 404; throw e; } return p; }));
+router.delete('/marketing/pecas/:id', (req, res) => {   // excluir: a peça sai do cronograma de hoje (não volta sozinha)
+  const r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ error: 'Peça não encontrada.' });
+  if (r.status === 'postado') return res.status(400).json({ error: 'Esta peça já foi publicada.' });
+  db.prepare("UPDATE mkt_pecas SET status = 'excluido' WHERE id = ?").run(r.id); registrar('cto', `Peça excluída pelo CEO: ${r.titulo}`, '', {});
+  res.json({ ok: true });
+});
+router.post('/marketing/pecas/:id/restaurar', (req, res) => { const r = db.prepare("UPDATE mkt_pecas SET status = 'aprovado' WHERE id = ? AND status = 'excluido'").run(req.params.id); res.json({ ok: r.changes > 0 }); });
 router.post('/marketing/pecas/:id/refazer', (req, res) => { const p = refazerPeca(Number(req.params.id)); if (!p) return res.status(404).json({ error: 'Peça não encontrada.' }); res.json(p); });
 router.put('/marketing/pecas/:id', (req, res) => {
   const b = req.body || {}, r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(req.params.id);
