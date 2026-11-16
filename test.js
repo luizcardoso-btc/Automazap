@@ -1385,7 +1385,14 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const sub = { endpoint: 'https://push.exemplo.com/gerente', keys: { p256dh: 'BChave', auth: 'segredo' } };
     await chamar('POST', '/api/push/assinar', { corpo: { assinatura: sub, aparelho: 'iPhone' }, headers: H }); pushes.length = 0;
     const ontem = Date.now() - 86400e3; const c = engine.upsertContato({ canal: 'instagram', extId: 'gr1' }); db.prepare('UPDATE contacts SET created_at = ?, needs_human = 1 WHERE id = ?').run(ontem, c.id);
-    const r = predio.resumo(); assert.ok(r.texto.includes('📊 Ontem: '), r.texto); assert.ok(/🙋 \d+ pessoa\(s\) esperando atendente/.test(r.texto), r.texto); assert.ok(r.texto.includes('Prospectora'));
+    const r = predio.resumo(); assert.ok(r.texto.includes('📊 Ontem: '), r.texto); assert.ok(/Responder \d+ pessoa\(s\) esperando atendente no Instagram/.test(r.texto), r.texto); assert.ok(r.texto.includes('✅ *Para fazer:*'));
+    // checklist do CEO: item some = feito sozinho; tarefa manual; marcar à mão
+    const ck0 = (await chamar('GET', '/api/predio/ceo', { headers: H })).json, it = ck0.itens.find(i => i.chave === 'ig_humano'); assert.ok(it && !it.feito_em);
+    const hum = db.prepare('SELECT id FROM contacts WHERE needs_human = 1').all().map(x => x.id); db.prepare('UPDATE contacts SET needs_human = 0').run();
+    const ck1 = (await chamar('GET', '/api/predio/ceo', { headers: H })).json; assert.ok(ck1.itens.find(i => i.chave === 'ig_humano').feito_em && ck1.feitos >= 1);
+    const ck2 = (await chamar('POST', '/api/predio/ceo', { corpo: { titulo: 'Ligar para o fornecedor' }, headers: H })).json, mt = ck2.itens.find(i => i.titulo === 'Ligar para o fornecedor');
+    assert.ok(mt && mt.tipo === 'manual'); assert.ok((await chamar('PUT', '/api/predio/ceo/' + mt.id, { corpo: { feito: true }, headers: H })).json.feito_em);
+    assert.ok((await chamar('DELETE', '/api/predio/ceo/' + mt.id, { headers: H })).json.ok); for (const id of hum) db.prepare('UPDATE contacts SET needs_human = 1 WHERE id = ?').run(id);
     await new Promise(z => setTimeout(z, 30)); assert.ok(pushes.some(x => x.titulo.startsWith('☀️ Helena: Resumo de') && x.url === '/#predio'), JSON.stringify(pushes));
     setSetting('predio_hora', '08:00');
     const base = Date.parse(predio.dataStr(Date.now()) + 'T07:59:00-03:00');

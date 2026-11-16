@@ -445,52 +445,54 @@ function resumo(t0 = Date.now(), { avisar = true } = {}) {
   const taxa = (ini, fim) => { const r = db.prepare(`SELECT COALESCE(SUM(tags LIKE '%"QUANTIDADE"%'), 0) AS q, COALESCE(SUM(tags LIKE '%"QUANTIDADE"%' AND tags LIKE '%"ABRIU CHECKOUT"%'), 0) AS c
     FROM contacts WHERE channel <> 'sim' AND created_at >= ? AND created_at < ?`).get(ini, fim); return { q: r.q, c: r.c, p: r.q ? r.c / r.q : 0 }; };
   const s1 = taxa(hoje0 - 7 * DIA, hoje0), s0 = taxa(hoje0 - 14 * DIA, hoje0 - 7 * DIA);
-  const prioridades = [], alertas = [];
+  const prioridades = [], alertas = [], cobertos = [];   // cobertos: já estão no checklist do CEO
   const igErro = getSetting('ig_conexao_erro');
-  if (igErro) prioridades.push('🚨 O robô do Instagram está parado: gere um token novo e troque IG_ACCESS_TOKEN no Railway.');
-  if (esperando) prioridades.push(`🙋 ${esperando} pessoa(s) esperando atendente.`);
+  if (igErro) cobertos.push('🚨 O robô do Instagram está parado: gere um token novo e troque IG_ACCESS_TOKEN no Railway.');
+  if (esperando) cobertos.push(`🙋 ${esperando} pessoa(s) esperando atendente.`);
   { const hum = n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND criado_em >= ? AND criado_em < ?", dia0(t0) - DIA, dia0(t0)); if (hum) prioridades.push(`🤝 Ontem ${hum} conversa(s) passaram para atendimento humano (Instagram, WhatsApp e prospecção). Confira se todas tiveram resposta.`); }
   if (semResposta) prioridades.push(`💬 ${semResposta} conversa(s) das últimas 24h com a última mensagem do cliente sem resposta.`);
   if (s1.q >= 10 && s0.q >= 10 && s0.p > 0 && s1.p < s0.p * 0.7) alertas.push(`📉 Pedidos abertos caíram: ${pct(s1.c, s1.q)}% de quem escolheu a quantidade nesta semana, contra ${pct(s0.c, s0.q)}% na anterior.`);
   try {
     for (const t of require('./routes-api.js').resultadosAB().filter(x => x.b_ativo && x.confianca >= 95)) {
       const a = t.A.clicou / (t.A.recebeu || 1), b = t.B.clicou / (t.B.recebeu || 1);
-      prioridades.push(`🧪 Teste A/B "${t.a_nome}": a versão ${b > a ? 'B' : 'A'} está na frente com ${t.confianca}% de confiança. Escolha a vencedora em Fluxos.`);
+      cobertos.push(`🧪 Teste A/B "${t.a_nome}": a versão ${b > a ? 'B' : 'A'} está na frente com ${t.confianca}% de confiança. Escolha a vencedora em Fluxos.`);
     }
   } catch (e) { /* sem teste A/B */ }
   const nx = require('./nextap.js'), black = nx.textoPromo('black_final', 10, t0).split('\n')[0];
   const lista = listaDeHoje(t0), hojeConteudo = db.prepare('SELECT * FROM conteudo WHERE dia = ? ORDER BY id DESC LIMIT 1').get(dataStr(t0));
   const naoEnt = n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova' AND ultimo_em >= ?", ontem0);
-  if (lista && lista.itens.length) prioridades.push(`📋 ${quem('prospectora')}: ${lista.itens.filter(i => i.tipo === 'retorno').length} retorno(s) e ${lista.itens.filter(i => i.tipo === 'abordagem').length} empresa(s) nova(s) para hoje.`);
+  if (lista && lista.itens.length) cobertos.push(`📋 ${quem('prospectora')}: ${lista.itens.filter(i => i.tipo === 'retorno').length} retorno(s) e ${lista.itens.filter(i => i.tipo === 'abordagem').length} empresa(s) nova(s) para hoje.`);
   if (hojeConteudo && hojeConteudo.status !== 'postado') prioridades.push(`🎬 ${quem('conteudo')}, conteúdo de hoje: ${hojeConteudo.formato} "${hojeConteudo.titulo}".`);
-  try { const pc = pecasDoDia(t0), fal = pc.filter(x => x.status !== 'postado'); if (fal.length) prioridades.push(`🖼 ${quem('imagem')}: ${fal.length} peça(s) de hoje para gerar no ChatGPT e postar (${pc.filter(x => x.status === 'ajustar').length} aguardando ajuste do ${nomes().cto}).`); } catch (e) { /* sem pauta */ }
-  if (naoEnt) prioridades.push(`🧠 ${quem('atendente')}: ${naoEnt} frase(s) nova(s) que o robô não entendeu. Ensine em Prédio → Atendente.`);
+  try { const pc = pecasDoDia(t0), fal = pc.filter(x => x.status !== 'postado'); if (fal.length) cobertos.push(`🖼 ${quem('imagem')}: ${fal.length} peça(s) de hoje para gerar no ChatGPT e postar (${pc.filter(x => x.status === 'ajustar').length} aguardando ajuste do ${nomes().cto}).`); } catch (e) { /* sem pauta */ }
+  if (naoEnt) cobertos.push(`🧠 ${quem('atendente')}: ${naoEnt} frase(s) nova(s) que o robô não entendeu. Ensine em Prédio → Atendente.`);
   const F = fin(), rf = resumoFin(F), finLinhas = [];
   if (rf) {
     finLinhas.push(`💰 ${quem('financeiro')}: no mês, ${rf.pedidos_mes} pedido(s) pago(s), receita ${reais(rf.receita_mes)} e lucro final ${reais(rf.lucro_mes)} (margem ${String(rf.margem_mes).replace('.', ',')}%). Últimos 7 dias: ${reais(rf.receita_7)} de receita.`);
     if (rf.a_receber) finLinhas.push(`🧾 A receber: ${reais(rf.a_receber)} em pedidos aguardando pagamento.`);
     for (const a of (F.mes.alertas || []).filter(x => x.nivel === 'critico').slice(0, 3)) prioridades.push(`🚨 Financeiro: ${a.titulo}.`);
-    if (rf.parados) prioridades.push(`📦 ${rf.parados} pedido(s) pago(s) parado(s) há 3 dias ou mais. Produza e envie no admin do NexTap.`);
+    if (rf.parados) cobertos.push(`📦 ${rf.parados} pedido(s) pago(s) parado(s) há 3 dias ou mais. Produza e envie no admin do NexTap.`);
     const est = (F.mes.alertas || []).find(x => x.titulo === 'Estoque baixo'); if (est) prioridades.push(`📦 Estoque baixo: ${rf.estoque} placa(s) disponível(is)${rf.cobertura != null ? `, dura cerca de ${rf.cobertura} dia(s)` : ''}.`);
     if (t0 - rf.em > 2 * DIA) prioridades.push(`🔌 ${quem('financeiro')}: o financeiro do NexTap não atualiza há mais de 2 dias.`);
   } else if (getSetting('nextap_fin_erro')) prioridades.push(`🔌 ${quem('financeiro')} não consegue ler o NexTap: ${getSetting('nextap_fin_erro')}`);
+  const ck = require('./ceo.js').textoRelatorio(t0);
   const linhas = [
     `📊 Ontem: ${novos} lead(s) novo(s), ${recebidas} mensagem(ns) recebida(s), ${cliques} clique(s) no pedido, ${v.n} venda(s)${v.total ? ` (R$ ${brl(v.total)})` : ''}.`,
     `🔁 Funil da semana: ${pct(s1.c, s1.q)}% de quem escolheu a quantidade abriu o pedido (${s1.c} de ${s1.q}).`,
     ...finLinhas, ...(black ? [black] : []), ...alertas,
-    '', prioridades.length ? '✅ Prioridades de hoje:' : '✅ Nada urgente hoje. Bom trabalho!', ...prioridades.map(p => '• ' + p),
+    '', ck.texto, ...(prioridades.length ? ['', '⚠️ *Avisos:*', ...prioridades.map(p => '• ' + p)] : []),
   ];
   const titulo = 'Resumo de ' + diaBR(t0), texto = linhas.join('\n');
-  registrar('gerente', titulo, texto, { novos, recebidas, cliques, vendas: v.n, total: v.total, esperando, semResposta, prioridades: prioridades.length, lucro_mes: rf ? rf.lucro_mes : null }, t0);
+  registrar('gerente', titulo, texto, { novos, recebidas, cliques, vendas: v.n, total: v.total, esperando, semResposta, prioridades: prioridades.length + ck.abertos, aprovar: ck.aprovar, fazer: ck.fazer, lucro_mes: rf ? rf.lucro_mes : null }, t0);
   // O resumo completo também vai para o WhatsApp do CEO (se o número estiver informado e o WhatsApp ligado)
-  if (avisar) require('./whatsapp.js').avisarDono(`☀️ *${nomes().gerente} · ${titulo}*\n\n${texto}`).then(r => { if (!r.ok && getSetting('ceo_whatsapp')) console.warn('[PRÉDIO] resumo no WhatsApp:', r.motivo); }).catch(() => {});
-  if (avisar) require('./notificacoes.js').notificar({ tipo: 'resumo', titulo: '☀️ ' + nomes().gerente + ': ' + titulo, texto: `${novos} lead(s), ${v.n} venda(s) ontem${rf ? ` · lucro do mês ${reais(rf.lucro_mes)}` : ''} · ${prioridades.length} prioridade(s) hoje`, url: '/#predio' }).catch(() => {});
+  if (avisar) require('./whatsapp.js').avisarDono(`☀️ *${nomes().gerente} · ${titulo}*\n${vendedor()}, aqui está o seu relatório:\n\n${texto}\n\n👉 Checklist completo no Prédio → sala do CEO.`).then(r => { if (!r.ok && getSetting('ceo_whatsapp')) console.warn('[PRÉDIO] resumo no WhatsApp:', r.motivo); }).catch(() => {});
+  if (avisar) require('./notificacoes.js').notificar({ tipo: 'resumo', titulo: '☀️ ' + nomes().gerente + ': ' + titulo, texto: `${novos} lead(s), ${v.n} venda(s) ontem${rf ? ` · lucro do mês ${reais(rf.lucro_mes)}` : ''} · ${ck.aprovar} para aprovar e ${ck.fazer} para fazer hoje`, url: '/#predio' }).catch(() => {});
   return { titulo, texto };
 }
 
 // ======================= RELÓGIO =======================
 // Todo dia, a partir da hora configurada (padrão 08:00 de Brasília): lista da Prospectora, conteúdo da semana e resumo da Gerente
 function tick(t0 = Date.now()) {
+  if (t0 - (tick.ck || 0) > 5 * 60e3) { tick.ck = t0; try { require('./ceo.js').sincronizar(t0); } catch (e) { console.error('[CEO] checklist:', e.message); } }
   if (!n('SELECT COUNT(*) AS n FROM conteudo WHERE semana = ?', semanaDe(t0))) { try { gerarSemana(t0); } catch (e) { console.error('[PRÉDIO] conteúdo:', e.message); } }
   const [h, m] = String(getSetting('predio_hora') || '08:00').split(':').map(Number);
   const primeiraVez = !getSetting('predio_dia');   // acabou de instalar: os agentes começam já, sem esperar a hora do dia seguinte
@@ -532,6 +534,7 @@ router.get('/', (req, res) => {
     atendente: { novas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova'"), ensinadas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'ensinada'"),
       menus7: n("SELECT COUNT(*) AS n FROM messages m JOIN flows f ON f.id = m.flow_id WHERE f.event = 'nao_entendi' AND m.direction = 'out' AND m.created_at >= ?", s7),
       corrigidas7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'atendente' AND criado_em >= ?", s7) },
+    ceo_check: (() => { try { const c = require('./ceo.js').checklist(); return { total: c.total, feitos: c.feitos, abertos: c.total - c.feitos, aprovar: c.itens.filter(i => !i.feito_em && i.tipo === 'aprovar').length }; } catch (e) { return null; } })(),
     balcao: { hoje: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'balcao' AND criado_em >= ?", hoje0), pedidos7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'balcao' AND (texto LIKE '%PEDIDO VAREJO%' OR texto LIKE '%PERSONALIZADA%' OR texto LIKE '%simulação%') AND criado_em >= ?", s7),
       ensinar: (require('./bianca-balcao.js'), n('SELECT COUNT(*) AS n FROM bianca_perguntas')), ligada: getSetting('wa_robo') === '1' },
     prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length, proxima: proxima ? proxima.nome : null } : null,
@@ -539,6 +542,11 @@ router.get('/', (req, res) => {
     conteudo: { semana: sem, hoje: hojeC || null, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
   });
 });
+router.get('/ceo', (req, res) => res.json(require('./ceo.js').checklist(Date.now(), /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia || '') ? req.query.dia : undefined)));
+router.put('/ceo/:id', (req, res) => { const r = require('./ceo.js').marcar(Number(req.params.id), !!(req.body || {}).feito); if (!r) return res.status(404).json({ error: 'Item não encontrado.' }); res.json(r); });
+router.post('/ceo', (req, res) => { try { require('./ceo.js').tarefa((req.body || {}).titulo); res.json(require('./ceo.js').checklist()); } catch (e) { res.status(400).json({ error: e.message }); } });
+router.delete('/ceo/:id', (req, res) => res.json({ ok: require('./ceo.js').apagar(Number(req.params.id)) }));
+router.post('/gerente/enviar', (req, res) => res.json(resumo(Date.now(), { avisar: true })));
 router.get('/balcao', (req, res) => res.json({ log: db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'balcao' ORDER BY id DESC LIMIT 40").all(), ligada: getSetting('wa_robo') === '1' }));
 router.get('/gerente', (req, res) => res.json(db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'gerente' ORDER BY id DESC LIMIT 14").all()));
 router.post('/gerente/agora', (req, res) => res.json(resumo(Date.now(), { avisar: false })));
