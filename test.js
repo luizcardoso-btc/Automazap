@@ -782,6 +782,13 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const p2 = d({ etapa: 'perso', dados: {} }, '100 peças'); assert.ok(p2.etapa === 'perso_dados' && p2.textos[0].includes('R$ 21,90') && p2.textos[0].includes('R$ 2.190,00'), p2.textos[0]);
     const p3 = d({ etapa: 'perso', dados: { antes: 'varejo' } }, '10'); assert.ok(p3.etapa === 'varejo' && p3.textos[0].includes('a partir de *50 peças*'));
     const p4 = d({ etapa: 'perso_dados', dados: { qtd: 100 } }, '[imagem]'); assert.ok(p4.etapa === 'humano' && p4.avisar.includes('PERSONALIZADA: 100'));
+    // resposta ensinada sem pergunta no fim: a Bianca completa com a pergunta da etapa
+    const fq = (await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: 'aplicativo, precisa de app', resposta: 'Não precisa de aplicativo para o cliente. 🙂' }, headers: H })).json;
+    const ra = d({ etapa: 'varejo', dados: {} }, 'precisa de app?'); assert.ok(ra.textos.length === 2 && ra.textos[1].includes('Qual modelo') && ra.etapa === 'varejo', JSON.stringify(ra));
+    assert.ok(d({ etapa: 'atacado_qtd', dados: {} }, 'precisa de app?').textos[1].includes('simulação'));
+    await chamar('PUT', '/api/whatsapp/bianca/faq/' + fq.id, { corpo: { palavras: 'aplicativo', resposta: 'Não precisa. Quer ver como funciona? 😉' }, headers: H });
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'precisa de aplicativo?').textos.length, 1);
+    await chamar('DELETE', '/api/whatsapp/bianca/faq/' + fq.id, { headers: H });
     // ensinar pelo painel
     const f = (await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: 'nota fiscal', resposta: 'Emitimos nota fiscal, sim. 🙂' }, headers: H })).json;
     assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'vocês emitem nota fiscal?').textos[0].startsWith('Emitimos nota'));

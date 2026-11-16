@@ -203,6 +203,16 @@ function avisar(c, motivo, textoIn, t0) {
   P.registrar('gerente', `Atendimento humano: ${quem}`, `WhatsApp (${P.nomes().balcao}) · ${motivo}`, { contato: c.id }, t0);
 }
 
+// Pergunta que leva a conversa adiante (fechamento ou dúvida), de acordo com a etapa
+function proxPergunta(etapa) {
+  return ({ varejo: 'Qual modelo você prefere: *Google*, *Instagram*, *WhatsApp* ou *Pix*?', modelo: 'Qual modelo você prefere: *Google*, *Instagram*, *WhatsApp* ou *Pix*?',
+    qtd: 'Vai querer 1 ou já leva as 2 com desconto?', segundo: 'E a segunda placa, é do mesmo modelo ou de outro?',
+    dados: 'Posso agendar a sua? É só me mandar o nome da empresa, o endereço e o melhor dia. 🙂',
+    atacado: 'Quais modelos você quer revender?', atacado_qtd: 'Quantas placas eu coloco na sua simulação?', atacado_min: 'Quantas placas eu coloco na sua simulação?',
+    atacado_link: 'Conseguiu criar a sua conta, ou ficou alguma dúvida?', perso: 'Quantas peças você precisa?', perso_dados: 'Me manda a sua logo e o nome da empresa?' })[etapa]
+    || 'Me conta: a placa é para o seu estabelecimento (1️⃣) ou para revender (2️⃣)?';
+}
+const terminaEmPergunta = t => /\?[\s\p{Extended_Pictographic}\uFE0F\u200D]*$/u.test(String(t || '').trim());
 // Decide a resposta. Devolve { textos, etapa, tipo, dados, avisar } (sem enviar nada): fácil de testar.
 function decidir(e, textoIn, nome) {
   const T = textos(), t = sem(textoIn), etapa = e ? e.etapa : '', d = (e && e.dados) || {}, tipo = (e && e.tipo) || '';
@@ -228,12 +238,15 @@ function decidir(e, textoIn, nome) {
   if (etapa === 'perso_dados') return R(T.persoDadosOk(), 'humano', 'perso', { ...d, dados: String(textoIn).slice(0, 300) }, `🎨 PERSONALIZADA: ${d.qtd} placas (R$ ${(precoPerso() * (d.qtd || 0)).toFixed(2).replace('.', ',')}). Ele mandou logo/nome: alinhe a arte`);
   const f = !/^\s*[12]\s*$/.test(t) && faqDe(textoIn);
   if (f) { db.prepare('UPDATE bianca_faq SET usos = usos + 1 WHERE id = ?').run(f.id);
-    return { ...R(String(f.resposta).replace(/\{painel\}/g, linkPainel() || 'o painel do revendedor'), etapa || 'menu', tipo, d, f.avisar ? `💬 respondi uma dúvida, mas vale você acompanhar` : ''), faq: f.id }; }
+    const resp = String(f.resposta).replace(/\{painel\}/g, linkPainel() || 'o painel do revendedor');
+    // sempre termina com uma pergunta (dúvidas de venda): leva para o fechamento sem perder a etapa
+    const textos = f.avisar || terminaEmPergunta(resp) ? [resp] : [resp, proxPergunta(etapa)];
+    return { ...R(textos, etapa || 'menu', tipo, d, f.avisar ? `💬 respondi uma dúvida, mas vale você acompanhar` : ''), faq: f.id }; }
   // Objeções "tá caro" e "não sei": resposta de acordo com a etapa, sem sair do lugar
   const O = T.obj, caro = RX.caro.test(t) && !qtdDe(t), duvida = RX.naoSei.test(t);
   if (caro || duvida) {
-    const fimVarejo = { dados: 'Posso agendar a sua? É só me mandar o nome da empresa, o endereço e o melhor dia. 🙂', qtd: 'Quer começar com 1 ou já leva as 2 com desconto?' }[etapa] || 'Qual modelo você prefere: *Google*, *Instagram*, *WhatsApp* ou *Pix*?';
-    const fimAtacado = { atacado: 'Quais modelos você quer revender?', atacado_qtd: 'Quantas placas eu coloco na sua simulação?', atacado_min: 'Quantas placas eu coloco na sua simulação?', atacado_link: 'Qualquer dúvida no cadastro, é só me chamar. 🙂' }[etapa] || 'Quantas placas você quer na primeira compra?';
+    const fimVarejo = ['dados', 'qtd', 'segundo'].includes(etapa) ? proxPergunta(etapa) : proxPergunta('varejo');
+    const fimAtacado = /^atacado/.test(etapa) ? proxPergunta(etapa) : 'Quantas placas você quer na primeira compra?';
     const fam = /^atacado/.test(etapa) ? 'atacado' : /^perso/.test(etapa) ? 'perso' : ['varejo', 'modelo', 'qtd', 'segundo', 'dados'].includes(etapa) ? 'varejo' : 'menu';
     const r = caro
       ? (fam === 'varejo' ? O.caro_varejo(fimVarejo) : fam === 'atacado' ? O.caro_atacado(fimAtacado) : fam === 'perso' ? O.caro_perso('Quantas peças você precisa?') : O.caro_menu())
