@@ -631,6 +631,16 @@ router.put('/marketing/pecas/:id', (req, res) => {
   if (status === 'postado' && r.status !== 'postado') registrar('imagem', `Postado: ${r.titulo}`, r.canal === 'feed' ? 'No feed.' : 'Nos stories.', {});
   res.json(lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(r.id)));
 });
+// Marcou "publicado" sem ter publicado: volta a peça para a fila (só para as marcadas à mão; o que o Renan publicou pela API tem que ser apagado no Instagram)
+router.post('/marketing/pecas/:id/desfazer', (req, res) => {
+  const r = db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ error: 'Peça não encontrada.' });
+  if (r.status !== 'postado') return res.status(400).json({ error: 'Esta peça não está marcada como publicada.' });
+  if (r.ig_id) return res.status(400).json({ error: 'Esta peça foi publicada de verdade pelo Instagram. Para tirar, apague o post no app do Instagram.' });
+  db.prepare("UPDATE mkt_pecas SET status = 'aprovado', postado_em = NULL, permalink = '', erro = '', insights = '{}' WHERE id = ?").run(r.id);
+  registrar('imagem', `Voltou para a fila: ${r.titulo}`, 'Estava marcada como publicada por engano.', {});
+  res.json(lerPeca(db.prepare('SELECT * FROM mkt_pecas WHERE id = ?').get(r.id)));
+});
 const tratarMk = fn => async (req, res) => { try { res.json(await fn(req)); } catch (e) { if (!e.status) console.error('[MARKETING]', e); res.status(e.status || 500).json({ error: e.status ? e.message : 'Falha no marketing.' }); } };
 router.post('/marketing/pecas/:id/imagem', tratarMk(req => social.anexar(Number(req.params.id), Number((req.body || {}).i), (req.body || {}).data)));
 router.post('/marketing/pecas/:id/aprovar', tratarMk(req => social.aprovar(Number(req.params.id), req.body || {})));

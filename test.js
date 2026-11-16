@@ -1241,6 +1241,9 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(!ruim.ok && ruim.notas.length >= 4);   // texto longo, promessa, sem chamada, sem hashtag, poucas imagens
     const r2 = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/refazer`, { headers: H })).json; assert.ok(r2.titulo !== car.titulo && r2.versao === car.versao + 1);
     assert.strictEqual((await chamar('PUT', `/api/predio/marketing/pecas/${car.id}`, { corpo: { status: 'postado' }, headers: H })).json.status, 'postado');
+    const vol = (await chamar('POST', `/api/predio/marketing/pecas/${car.id}/desfazer`, { headers: H })).json; assert.ok(vol.status === 'aprovado' && !vol.postado_em, JSON.stringify(vol));   // marcou por engano: volta para a fila
+    assert.strictEqual((await chamar('POST', `/api/predio/marketing/pecas/${car.id}/desfazer`, { headers: H })).status, 400);
+    assert.strictEqual((await chamar('PUT', `/api/predio/marketing/pecas/${car.id}`, { corpo: { status: 'postado' }, headers: H })).json.status, 'postado');
     const mt = P.metricasMkt(dia('2026-12-08')); assert.deepStrictEqual([mt.ontem.planejadas, mt.ontem.postadas], [4, 1]); assert.ok(mt.recomendacoes[0].includes('3 peça(s) sem postar'));
     assert.strictEqual((await chamar('PUT', '/api/predio/marketing/config', { corpo: { cronograma: { feed: [0, 9, 1, 2, 1, 2, 2], stories: 2 } }, headers: H })).status, 400);
     const c2 = (await chamar('PUT', '/api/predio/marketing/config', { corpo: { cronograma: { feed: [1, 2, 1, 2, 1, 2, 2], stories: 1 }, estilo: 'Estilo novo da marca' }, headers: H })).json;

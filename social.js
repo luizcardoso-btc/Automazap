@@ -146,7 +146,7 @@ function desempenho(t0 = Date.now()) {
 }
 
 function painel(t0 = Date.now()) {
-  const hoje = dataStr(t0), pub = p => ({ id: p.id, dia: p.dia, slot: p.slot, canal: p.canal, tipo: p.tipo, titulo: p.titulo, pilar: p.pilar, status: p.status, horario: p.horario, erro: p.erro, permalink: p.permalink, postado_em: p.postado_em, insights: p.insights,
+  const hoje = dataStr(t0), pub = p => ({ id: p.id, dia: p.dia, slot: p.slot, canal: p.canal, tipo: p.tipo, titulo: p.titulo, pilar: p.pilar, status: p.status, horario: p.horario, erro: p.erro, permalink: p.permalink, postado_em: p.postado_em, insights: p.insights, manual: p.status === 'postado' && !p.ig_id,
     imagens: p.imagens.map(x => x && x.url), total: p.slides.length });
   const doDia = db.prepare('SELECT * FROM mkt_pecas WHERE dia = ? ORDER BY canal, slot').all(hoje).map(ler);
   const tot = { feed: doDia.filter(p => p.canal === 'feed').length, stories: doDia.filter(p => p.canal === 'stories').length };
