@@ -8,13 +8,15 @@ const { db, getSetting, setSetting } = require('./db.js');
 db.exec('CREATE TABLE IF NOT EXISTS bianca_balcao (contato_id INTEGER PRIMARY KEY, etapa TEXT NOT NULL, tipo TEXT NOT NULL DEFAULT \'\', dados TEXT NOT NULL DEFAULT \'{}\', tentativas INTEGER NOT NULL DEFAULT 0, em INTEGER NOT NULL)');
 
 const DIA = 86400e3;
+const precoPerso = () => { const v = parseFloat(String(getSetting('preco_personalizada') || '').replace(/\./g, '').replace(',', '.')); return v > 0 ? v : 21.9; };
+const MIN_PERSO = 50;
 
 // ---------- Treino: perguntas e respostas (você edita no painel) ----------
 // Valem em qualquer etapa da conversa. {painel} = link do painel do revendedor (login). "avisar" = também te chama (sem o cliente ver).
 db.exec(`CREATE TABLE IF NOT EXISTS bianca_faq (id INTEGER PRIMARY KEY AUTOINCREMENT, palavras TEXT NOT NULL, resposta TEXT NOT NULL, avisar INTEGER NOT NULL DEFAULT 0, ativo INTEGER NOT NULL DEFAULT 1, usos INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS bianca_perguntas (id INTEGER PRIMARY KEY AUTOINCREMENT, contato_id INTEGER, texto TEXT NOT NULL, etapa TEXT NOT NULL DEFAULT '', criado_em INTEGER NOT NULL);`);
 const FAQ0 = [
-  ['ja comprei, comprei, meu pedido, nao chegou, nao chegaram, ainda nao chegou, quando chega, quando vai chegar, prazo de entrega, rastreio, rastreamento, codigo de rastreio, cade minhas placas, cade meu pedido, ja paguei',
+  ['ja comprei, comprei, meu pedido, nao chegou, nao chegaram, ainda nao chegou, quando vai chegar, rastreio, rastreamento, codigo de rastreio, cade minhas placas, cade meu pedido, ja paguei',
     'Que bom que você já é cliente NexTap! 💚\n\nO andamento do seu pedido (produção, envio e rastreio) aparece no painel do revendedor, em *Pedidos*:\n\n👉 {painel}\n\nSe preferir, me manda o *e-mail do cadastro* ou o *número do pedido* que eu confiro pra você também. 🙂', 1],
   ['como configurar, como ativar, ativar a placa, configurar a placa, nao funciona, nao esta funcionando, nao ta funcionando, nao abre, nfc nao, qr code nao',
     'Eu te ajudo! 🙂\n\nNo painel do revendedor tem a *NFC Academy*, com vídeo passo a passo de como ativar e configurar a placa:\n\n👉 {painel}\n\nSe mesmo assim não funcionar, me manda uma foto da placa e me conta o que acontece quando aproxima o celular.', 1],
@@ -26,6 +28,18 @@ const FAQ0 = [
     'Sem problema! 🙂\n\nNa tela de entrada do painel tem a opção *Esqueci a senha*: é só colocar o seu e-mail que chega um link para criar uma nova.\n\n👉 {painel}', 0],
 ];
 if (!db.prepare('SELECT COUNT(*) AS n FROM bianca_faq').get().n) { const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, criado_em) VALUES (?, ?, ?, ?)'); for (const [p, r, a] of FAQ0) ins.run(p, r, a, Date.now()); }
+const FAQ_V2 = [
+  ['prazo, prazo de entrega, quanto tempo, demora quanto, demora quantos dias, quantos dias, quando chega, tempo de entrega, tempo de producao',
+    '⏱️ Os prazos da NexTap:\n\n• *Produção:* de 5 a 7 dias\n• *Envio pelos Correios:* de 3 a 10 dias, dependendo do modo de envio que você escolher\n\nEnviamos da Bahia para todo o Brasil. 📦\n\nAqui em Feira de Santana, no varejo, a entrega é pessoal, no dia que a gente combinar. 🙂', 0],
+  ['loja fisica, tem loja, voces tem loja, onde fica, onde voces ficam, endereco de voces, de onde voces sao, posso ir ai, posso buscar, retirar pessoalmente',
+    'Não temos loja física: atendemos só online e enviamos da Bahia para todo o Brasil. 📦\n\nAqui em Feira de Santana, no varejo, a gente leva até você, sem taxa de entrega. 🙂', 0],
+];
+if (!getSetting('bianca_faq_v2')) {   // bancos que já tinham as respostas da 1ª versão
+  const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, criado_em) VALUES (?, ?, ?, ?)');
+  if (db.prepare('SELECT COUNT(*) AS n FROM bianca_faq').get().n) db.prepare("UPDATE bianca_faq SET palavras = replace(replace(palavras, ' quando chega,', ''), ' prazo de entrega,', '') WHERE palavras LIKE 'ja comprei,%'").run();
+  for (const [p, r, a] of FAQ_V2) ins.run(p, r, a, Date.now());
+  setSetting('bianca_faq_v2', new Date().toISOString());
+}
 const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
 function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
 function faqDe(texto) {
@@ -68,6 +82,7 @@ const RX = {
   nao: /^(nao|n|nao obrigad\w*|nao quero|agora nao|nao preciso)\b/,
   sim: /^(sim|quero|pode|claro|ok|blz|beleza|bora|fechado|fechou|vamos|manda)\b/,
   cor: /\b(azul|preta|preto)\b/,
+  perso: /(personaliz|minha logo|com logo|com a logo|logomarca|minha marca|com a minha marca|com meu nome|arte propria|arte personalizada|exclusiv)/,
 };
 // Modelos de placa (o cliente escolhe; pode ser um de cada)
 const MODELOS = [['Google', /google|avalia/], ['Instagram', /insta/], ['WhatsApp', /whats|zap/], ['Pix', /\bpix\b/]];
@@ -124,6 +139,13 @@ function textos() {
       'Qualquer dúvida no cadastro, é só me chamar aqui. 🙂'],
     atacadoPreco: () => ['O valor por quantidade aparece no painel assim que você cria a sua conta (leva 1 minuto).\n\nLá também já calcula o frete para o seu CEP. 🙂'],
     humano: () => [`Claro! Já avisei o ${dono}, ele te responde por aqui. 🙂`],
+    // Personalizada (a partir de 50): benefícios primeiro, preço só no final
+    perso: () => ['Dá sim! 🎨\n\nA placa personalizada leva a *sua marca*:\n\n• Logo e cores da sua empresa\n• NFC + QR Code já configurados\n• Um produto exclusivo, com a cara do seu negócio\n\nA personalização é feita a partir de *50 peças*.', 'Quantas peças você precisa?'],
+    persoQtdDeNovo: () => ['Me diz só o número, por favor: quantas peças personalizadas você precisa? 🙂'],
+    persoPreco: () => ['O valor depende da quantidade, então já te passo certinho. 🙂\n\nQuantas peças você precisa?'],
+    persoMenos: (q) => [`A personalização é feita a partir de *50 peças*. 🙂\n\nCom ${q}, você pode levar os nossos modelos prontos (*Google*, *Instagram*, *WhatsApp* e *Pix*), que já chegam configurados.`],
+    persoOk: (q) => { const u = n => n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'), pu = precoPerso(); return [`Perfeito! ✅\n\n*${q} placas personalizadas* com a sua marca:\n\n• *R$ ${u(pu)}* cada, já personalizada\n• Total: *R$ ${u(pu * q)}*`, 'Pra eu adiantar, me manda a sua *logo* (imagem) e o *nome da empresa*. 🙂']; },
+    persoDadosOk: () => [`Recebido! ✅\n\nO ${dono} já vai te chamar aqui para alinhar a arte e o pedido antes da produção. 🙌`],
     naoSei: () => ['Boa pergunta! 🙂\n\nDeixa eu confirmar essa informação certinho pra você. Já te respondo por aqui.'],
     nao: () => ['Sem problema! Se um dia quiser mais avaliações no Google, é só me chamar. 🙌'],
     parar: () => ['Combinado, não escrevo mais. Bom trabalho!'],
@@ -136,6 +158,8 @@ function textos() {
       segundo: () => 'Oi! 🙂 Só falta me dizer o modelo da segunda placa: o mesmo ou outro?',
       dados: () => `Oi! 🙂 Pra o ${dono} levar a sua placa, só preciso do nome da empresa, do endereço e do melhor dia e horário.`,
       atacado: () => 'Oi! 🙂\n\nMe diz quais modelos você quer revender (*Google*, *Instagram*, *WhatsApp* ou *Pix*), que eu já monto a sua simulação.',
+      perso: () => 'Oi! 🙂\n\nSó falta me dizer quantas peças personalizadas você precisa, que eu já te passo tudo certinho.',
+      perso_dados: () => 'Oi! 🙂\n\nPra adiantar a sua placa personalizada, só preciso da sua *logo* e do *nome da empresa*.',
       atacado_qtd: () => 'Oi! 🙂\n\nSó falta me dizer quantas placas você quer na primeira compra, que eu já monto a sua simulação.',
     },
   };
@@ -173,6 +197,20 @@ function decidir(e, textoIn, nome) {
   if (RX.parar.test(t)) return R(T.parar(), 'parado', tipo, d);
   if (etapa === 'humano') return R(null, 'humano');                       // já está com você
   if (RX.humano.test(t)) return R(T.humano(), 'humano', tipo, d, '🙋 pediu para falar com uma pessoa');
+  // Personalizada: em qualquer etapa (benefícios → quantidade → preço no final)
+  if (RX.perso.test(t) && !['perso', 'perso_dados'].includes(etapa)) {
+    const q = qtdDe(t), antes = etapa;
+    if (q >= MIN_PERSO) return { ...R(T.persoOk(q), 'perso_dados', 'perso', { ...d, qtd: q, antes }) };
+    return R(T.perso(), 'perso', 'perso', { ...d, antes });
+  }
+  if (etapa === 'perso') {
+    const q = qtdDe(t);
+    if (q >= MIN_PERSO) return R(T.persoOk(q), 'perso_dados', 'perso', { ...d, qtd: q });
+    if (q > 0) { const volta = d.antes && d.antes !== 'menu' ? d.antes : 'menu'; return R([...T.persoMenos(q), ...(volta === 'menu' ? [T.menu('')] : [])], volta, volta === 'menu' ? '' : tipo, d); }
+    if (RX.preco.test(t)) return R(T.persoPreco(), 'perso');
+    if ((e.tentativas || 0) < 1) return { ...R(T.persoQtdDeNovo(), 'perso'), tentativas: 1 };
+  }
+  if (etapa === 'perso_dados') return R(T.persoDadosOk(), 'humano', 'perso', { ...d, dados: String(textoIn).slice(0, 300) }, `🎨 PERSONALIZADA: ${d.qtd} placas (R$ ${(precoPerso() * (d.qtd || 0)).toFixed(2).replace('.', ',')}). Ele mandou logo/nome: alinhe a arte`);
   const f = !/^\s*[12]\s*$/.test(t) && faqDe(textoIn);
   if (f) { db.prepare('UPDATE bianca_faq SET usos = usos + 1 WHERE id = ?').run(f.id);
     return { ...R(String(f.resposta).replace(/\{painel\}/g, linkPainel() || 'o painel do revendedor'), etapa || 'menu', tipo, d, f.avisar ? `💬 respondi uma dúvida, mas vale você acompanhar` : ''), faq: f.id }; }
@@ -281,7 +319,7 @@ async function lembrar(t0 = Date.now()) {
   const W = require('./whatsapp.js'), d = new Date(t0 - 3 * 3600e3), m = d.getUTCHours() * 60 + d.getUTCMinutes();
   if (getSetting('wa_robo') !== '1' || !W.configurado() || m < 480 || m > 1230) return 0;
   const T = textos().lembrete;
-  const L = db.prepare("SELECT * FROM bianca_balcao WHERE lembrado = 0 AND etapa IN ('menu','varejo','modelo','qtd','segundo','dados','atacado','atacado_qtd') AND em <= ? AND em > ? ORDER BY em LIMIT 5").all(t0 - 3 * 3600e3, t0 - DIA);
+  const L = db.prepare("SELECT * FROM bianca_balcao WHERE lembrado = 0 AND etapa IN ('menu','varejo','modelo','qtd','segundo','dados','atacado','atacado_qtd','perso','perso_dados') AND em <= ? AND em > ? ORDER BY em LIMIT 5").all(t0 - 3 * 3600e3, t0 - DIA);
   let n = 0;
   for (const b of L) {
     db.prepare('UPDATE bianca_balcao SET lembrado = 1 WHERE contato_id = ?').run(b.contato_id);

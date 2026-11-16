@@ -770,10 +770,18 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(d({ etapa: 'varejo', dados: {} }, 'a placa não está funcionando').textos[0].includes('NFC Academy'));
     assert.ok(d(null, 'veio quebrada').textos[0].includes('tem troca'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pix').etapa, 'dados', 'modelo Pix não pode cair na dúvida de pagamento');
-    const nao = d({ etapa: 'atacado_link', dados: { qtd: 25 } }, 'vocês têm loja física em Salvador?'); assert.ok(nao.textos[0].startsWith('Boa pergunta!') && nao.pergunta && nao.etapa === 'humano' && nao.avisar);
+    const nao = d({ etapa: 'atacado_link', dados: { qtd: 25 } }, 'vocês emitem nota fiscal?'); assert.ok(nao.textos[0].startsWith('Boa pergunta!') && nao.pergunta && nao.etapa === 'humano' && nao.avisar);
+    assert.ok(d({ etapa: 'varejo', dados: {} }, 'qual o prazo de entrega?').textos[0].includes('de 5 a 7 dias') && d(null, 'quanto tempo demora pra chegar?').textos[0].includes('3 a 10 dias'));
+    assert.ok(d(null, 'vocês tem loja física?').textos[0].includes('Não temos loja física'));
+    // personalizada: benefícios primeiro, preço só no final
+    const p1 = d({ etapa: 'atacado', dados: {} }, 'vocês fazem com a minha logo?'); assert.ok(p1.etapa === 'perso' && p1.textos[0].includes('sua marca') && !p1.textos.join().includes('R$'));
+    assert.ok(!d({ etapa: 'perso', dados: {} }, 'quanto custa?').textos.join().includes('R$'));
+    const p2 = d({ etapa: 'perso', dados: {} }, '100 peças'); assert.ok(p2.etapa === 'perso_dados' && p2.textos[0].includes('R$ 21,90') && p2.textos[0].includes('R$ 2.190,00'), p2.textos[0]);
+    const p3 = d({ etapa: 'perso', dados: { antes: 'varejo' } }, '10'); assert.ok(p3.etapa === 'varejo' && p3.textos[0].includes('a partir de *50 peças*'));
+    const p4 = d({ etapa: 'perso_dados', dados: { qtd: 100 } }, '[imagem]'); assert.ok(p4.etapa === 'humano' && p4.avisar.includes('PERSONALIZADA: 100'));
     // ensinar pelo painel
-    const f = (await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: 'loja fisica, loja em salvador', resposta: 'Ainda não temos loja física: atendemos online. 🙂' }, headers: H })).json;
-    assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'tem loja física?').textos[0].startsWith('Ainda não temos loja'));
+    const f = (await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: 'nota fiscal', resposta: 'Emitimos nota fiscal, sim. 🙂' }, headers: H })).json;
+    assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'vocês emitem nota fiscal?').textos[0].startsWith('Emitimos nota'));
     assert.strictEqual((await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: '', resposta: 'x' }, headers: H })).status, 400);
     await chamar('DELETE', '/api/whatsapp/bianca/faq/' + f.id, { headers: H });
     // o aviso nunca vai para o próprio cliente (quando o número do CEO é o mesmo)

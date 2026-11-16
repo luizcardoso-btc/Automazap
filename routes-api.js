@@ -314,6 +314,7 @@ const REGRAS = {
   cidade: v => v.length >= 2 && v.length <= 60,
   max_replies_hour: v => /^\d+$/.test(v) && v >= 1 && v <= 100,
   wa_max_novos_dia: v => /^\d+$/.test(v) && v >= 1 && v <= 200,
+  preco_personalizada: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
   preco_varejo_1: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
   preco_varejo_2: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,
   preco_revenda: v => /^\d{1,5}([.,]\d{1,2})?$/.test(v) && parseFloat(v.replace(',', '.')) > 0,

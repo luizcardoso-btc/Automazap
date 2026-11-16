@@ -267,6 +267,7 @@ const SETTINGS_PADRAO = {
   cidade: 'Feira de Santana',    // cidade usada nas mensagens da Prospectora e nas hashtags do Conteúdo           // quando o robô não entende: menu com botões em vez da resposta padrão      // pediu atendente e ninguém respondeu nesse tempo: o robô volta e avisa o cliente
   contas_teste: 'dr.luizcardos0, dr.luizcardoso',   // @ que nunca ficam pausados (para testar o robô à vontade)
   max_replies_hour: '30',
+  preco_personalizada: '21,90',   // placa personalizada (a partir de 50 peças), por unidade
   preco_varejo_1: '80',        // WhatsApp (Bianca), varejo na cidade: 1 placa
   preco_varejo_2: '140',       // 2 placas
   preco_revenda: '80,00',      // por quanto o revendedor costuma vender cada placa (conta do lucro na conversa; mesmo padrão do site)
