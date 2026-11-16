@@ -474,12 +474,15 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     setSetting('video_demo_url', '');
   });
   await t('upload de vídeo pelo painel: aceita MP4, recusa outros, serve em /media e configura o link', async () => {
-    const post = (corpo, auth = true) => new Promise(res => { const r = http.request({ port: porta, method: 'POST', path: '/api/midia', headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': corpo.length, ...(auth ? H : {}) } }, x => { let d = ''; x.on('data', c => d += c); x.on('end', () => res({ status: x.statusCode, json: JSON.parse(d || '{}') })); }); r.end(corpo); });
+    const post = (corpo, auth = true, q = '') => new Promise(res => { const r = http.request({ port: porta, method: 'POST', path: '/api/midia' + q, headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': corpo.length, ...(auth ? H : {}) } }, x => { let d = ''; x.on('data', c => d += c); x.on('end', () => res({ status: x.statusCode, json: JSON.parse(d || '{}') })); }); r.end(corpo); });
     const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(64)]);
     assert.strictEqual((await post(mp4, false)).status, 401);
     assert.strictEqual((await post(Buffer.from('isto nao e video'))).status, 400);
-    const ok1 = await post(mp4); assert.strictEqual(ok1.status, 200); assert.ok(/\/media\/video-\d+\.mp4$/.test(ok1.json.url));
+    const dis = await post(mp4); assert.strictEqual(dis.status, 200); assert.notStrictEqual(require('./db.js').getSetting('video_demo_url'), dis.json.url, 'vídeo de disparo não pode trocar o vídeo de demonstração');
+    const mov = Buffer.concat([Buffer.from([0, 0, 0, 20]), Buffer.from('ftypqt  '), Buffer.alloc(64)]); assert.strictEqual((await post(mov)).json.tipo, 'video');   // vídeo do iPhone
+    const ok1 = await post(mp4, true, '?demo=1'); assert.strictEqual(ok1.status, 200); assert.ok(/\/media\/video-\d+\.mp4$/.test(ok1.json.url));
     assert.strictEqual(require('./db.js').getSetting('video_demo_url'), ok1.json.url);
+    const png = await require('sharp')({ create: { width: 4, height: 4, channels: 3, background: '#0f0' } }).webp().toBuffer(); const w = await post(png); assert.ok(w.status === 200 && w.json.url.endsWith('.jpg'), JSON.stringify(w.json));   // WebP vira JPG
     const g = await new Promise(res => http.get({ port: porta, path: '/media/' + ok1.json.url.split('/media/')[1] }, x => { x.resume(); res(x); })); assert.strictEqual(g.statusCode, 200);
     setSetting('video_demo_url', '');
   });

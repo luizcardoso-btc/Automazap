@@ -321,18 +321,24 @@ const REGRAS = {
 };
 // ---------- vídeo/imagem enviados pelo painel (servidos em /media) ----------
 const dirMidia = () => { const d = path.join(path.dirname(require('./db.js').arquivo === ':memory:' ? path.join(os.tmpdir(), 'x') : require('./db.js').arquivo), 'media'); fs.mkdirSync(d, { recursive: true }); return d; };
-router.post('/midia', express.raw({ type: '*/*', limit: '26mb' }), (req, res) => {
-  const b = req.body;
+router.post('/midia', express.raw({ type: '*/*', limit: '65mb' }), async (req, res) => {
+  let b = req.body;
   if (!Buffer.isBuffer(b) || !b.length) return res.status(400).json({ error: 'Nenhum arquivo recebido.' });
-  if (b.length > 25 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo grande demais (máx. 25 MB, limite do Instagram).' });
-  const mp4 = b.slice(4, 8).toString() === 'ftyp';
+  if (b.length > 64 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo grande demais (máx. 64 MB). Encurte ou comprima o vídeo.' });
+  const marca = b.slice(4, 8).toString() === 'ftyp' ? b.slice(8, 12).toString() : '';
+  const heic = /^(heic|heix|hevc|heim|heis|mif1|msf1)$/.test(marca), webp = b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP';
+  if (heic || webp) {   // foto do iPhone (HEIC) ou WebP: converte para JPG
+    try { b = await require('sharp')(b).rotate().jpeg({ quality: 88 }).toBuffer(); }
+    catch (e) { return res.status(400).json({ error: heic ? 'Não consegui ler a foto HEIC do iPhone. No celular: Ajustes → Câmera → Formatos → "Mais Compatível", ou envie a foto como JPG.' : 'Não consegui ler a imagem WebP. Envie em JPG ou PNG.' }); }
+  }
+  const mp4 = !heic && !webp && !!marca;   // MP4 e MOV (vídeo do iPhone)
   const jpg = b[0] === 0xff && b[1] === 0xd8, png = b.slice(1, 4).toString() === 'PNG';
-  if (!mp4 && !jpg && !png) return res.status(400).json({ error: 'Envie um vídeo MP4 (ou imagem JPG/PNG).' });
+  if (!mp4 && !jpg && !png) return res.status(400).json({ error: 'Envie uma foto (JPG, PNG ou do iPhone) ou um vídeo (MP4/MOV).' });
   const nome = `${mp4 ? 'video' : 'imagem'}-${Date.now()}.${mp4 ? 'mp4' : jpg ? 'jpg' : 'png'}`;
   fs.writeFileSync(path.join(dirMidia(), nome), b);
   const base = ((getSetting('public_url') || '').replace(/\/+$/, '')) || `${req.protocol}://${req.get('host')}`;
   const url = `${base}/media/${nome}`;
-  if (mp4) setSetting('video_demo_url', url);
+  if (mp4 && req.query.demo === '1') setSetting('video_demo_url', url);   // só o upload do vídeo de demonstração troca o vídeo da Bianca
   res.json({ url, tipo: mp4 ? 'video' : 'imagem' });
 });
 router.get('/midia-dir', (req, res) => res.json({ dir: dirMidia() }));
