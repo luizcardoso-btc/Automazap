@@ -40,6 +40,7 @@ if (!getSetting('bianca_faq_v2')) {   // bancos que já tinham as respostas da 1
   for (const [p, r, a] of FAQ_V2) ins.run(p, r, a, Date.now());
   setSetting('bianca_faq_v2', new Date().toISOString());
 }
+if (!getSetting('bianca_obj_v1')) { try { db.exec("DELETE FROM bianca_perguntas WHERE lower(trim(texto, ' .!?')) IN ('tá caro','ta caro','não sei','nao sei')"); } catch (e) { /* ok */ } setSetting('bianca_obj_v1', '1'); }
 const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
 function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
 function faqDe(texto) {
@@ -77,7 +78,8 @@ const RX = {
   atacado: /(revend|revenda|atacado|atacadista|lote|distribu|\b(1\d|[2-9]\d|\d{3,}) (placas|unidades|unid|un)\b|quantidade grande|preco de fabrica|para vender|pra vender)/,
   varejo: /(estabelecimento|meu (negocio|comercio|salao|restaurante|consultorio|espaco|estudio)|minha (loja|empresa|barbearia|clinica|lanchonete|pizzaria|academia|hamburgueria)|pra mim|para mim|uso proprio|para (a|minha|o meu) (loja|empresa)|pro meu|pra minha|no balcao)/,
   preco: /(quanto|\bvalor\b|preco|custa|r\$|tabela)/,
-  caro: /(\bcaro\b|desconto|mais barato|faz por menos|abaixa)/,
+  caro: /(\bcaro\b|carinho|salgado|desconto|mais barato|faz por menos|abaixa|nao tenho dinheiro|sem dinheiro|sem grana|apertad)/,
+  naoSei: /^(nao sei|sei la|nao sei ainda|nao sei dizer|nao tenho certeza|to em duvida|estou em duvida|fiquei em duvida|tanto faz|qualquer um|qualquer uma|me ajuda a escolher|qual voce indica|qual vc indica|qual voce recomenda|o que voce indica)\b/,
   pensar: /(vou pensar|vou ver|depois (eu )?(vejo|falo|respondo|te chamo)|mais tarde|outra hora|semana que vem)/,
   nao: /^(nao|n|nao obrigad\w*|nao quero|agora nao|nao preciso)\b/,
   sim: /^(sim|quero|pode|claro|ok|blz|beleza|bora|fechado|fechou|vamos|manda)\b/,
@@ -146,6 +148,19 @@ function textos() {
     persoMenos: (q) => [`A personalização é feita a partir de *50 peças*. 🙂\n\nCom ${q}, você pode levar os nossos modelos prontos (*Google*, *Instagram*, *WhatsApp* e *Pix*), que já chegam configurados.`],
     persoOk: (q) => { const u = n => n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'), pu = precoPerso(); return [`Perfeito! ✅\n\n*${q} placas personalizadas* com a sua marca:\n\n• *R$ ${u(pu)}* cada, já personalizada\n• Total: *R$ ${u(pu * q)}*`, 'Pra eu adiantar, me manda a sua *logo* (imagem) e o *nome da empresa*. 🙂']; },
     persoDadosOk: () => [`Recebido! ✅\n\nO ${dono} já vai te chamar aqui para alinhar a arte e o pedido antes da produção. 🙌`],
+    // Objeções (respondem de acordo com a etapa e voltam para a pergunta em que a conversa estava)
+    obj: {
+      caro_menu: () => ['Entendo! 🙂 Mas pensa assim: a placa é um valor único, sem mensalidade, e trabalha todo dia pra você trazendo avaliações e clientes novos.', 'Me conta: é para o seu estabelecimento (1️⃣) ou para revender (2️⃣)? Assim eu te mostro a opção que cabe melhor no seu bolso.'],
+      caro_varejo: (fim) => [`Entendo! 🙂 Pensa assim:\n\n• É um valor *único*, sem mensalidade\n• A placa trabalha todo dia no seu balcão\n• Uma única avaliação boa já pode trazer um cliente novo, e esse cliente paga a placa\n\nE levando 2, você ainda ganha desconto: ${p.economia ? `economiza R$ ${p.economia}.` : `cada uma sai R$ ${p.cada}.`}\n\nO pagamento é só na entrega, depois que você vê funcionando. 😉`, fim],
+      caro_atacado: (fim) => ['Entendo! 🙂 No atacado funciona assim:\n\n• Quanto *mais placas*, menor o valor de cada uma\n• Você pode começar com o mínimo e ir aumentando conforme vende\n• Revendendo na sua cidade, cada placa sai por bem mais do que você paga\n\nNo painel você simula quantidades diferentes e vê o valor na hora, antes de pagar.', fim],
+      caro_perso: (fim) => ['Entendo! 🙂 A personalizada é um produto *exclusivo*, com a sua marca, e o valor por peça já inclui a arte.\n\nPra quem revende ou tem várias unidades, ela costuma se pagar rápido, porque vira um produto só seu.', fim],
+      naoSei_menu: () => ['Sem problema, eu te ajudo! 🙂\n\n1️⃣ Se a placa vai ficar no *balcão da sua empresa*, para os seus clientes avaliarem, seguirem ou pagarem\n\n2️⃣ Se você quer comprar *várias placas para vender* para outras empresas\n\nQual combina mais com você?'],
+      naoSei_modelo: () => ['Te ajudo a escolher! 🙂\n\n• Quer *mais clientes novos*? A do *Google*: mais avaliações e você aparece melhor nas buscas e no Maps\n• Vende muito pelas redes? A do *Instagram*\n• Atende muito pelo zap? A do *WhatsApp*\n• Quer agilizar o caixa? A do *Pix*\n\nSe ficar na dúvida, comece pela do *Google*: é a que todo comércio quer. Qual você prefere?'],
+      naoSei_dados: () => ['Sem pressa! 🙂 Se quiser, me manda só o *bairro* e o melhor *dia*, que o resto o Luiz confirma com você por aqui.'],
+      naoSei_atacado: () => ['Te dou uma dica! 🙂\n\nComece pela do *Google*: todo comércio quer mais avaliações, então é a mais fácil de vender. Depois você amplia com Instagram, WhatsApp e Pix.\n\nQuer montar com a do Google, ou com todos os modelos?'],
+      naoSei_qtdAtacado: (min) => [`Uma boa forma de começar é com *10 placas*: dá pra testar na sua região e ver quais modelos saem mais. Se preferir ir com calma, o mínimo é ${min}.\n\nQuantas eu coloco na sua simulação?`],
+      naoSei_perso: () => ['Sem problema! 🙂 Pensa em quantas unidades ou clientes vão usar a placa com a sua marca. A personalização começa em *50 peças*.\n\nQuantas você acha que precisa?'],
+    },
     naoSei: () => ['Boa pergunta! 🙂\n\nDeixa eu confirmar essa informação certinho pra você. Já te respondo por aqui.'],
     nao: () => ['Sem problema! Se um dia quiser mais avaliações no Google, é só me chamar. 🙌'],
     parar: () => ['Combinado, não escrevo mais. Bom trabalho!'],
@@ -214,6 +229,18 @@ function decidir(e, textoIn, nome) {
   const f = !/^\s*[12]\s*$/.test(t) && faqDe(textoIn);
   if (f) { db.prepare('UPDATE bianca_faq SET usos = usos + 1 WHERE id = ?').run(f.id);
     return { ...R(String(f.resposta).replace(/\{painel\}/g, linkPainel() || 'o painel do revendedor'), etapa || 'menu', tipo, d, f.avisar ? `💬 respondi uma dúvida, mas vale você acompanhar` : ''), faq: f.id }; }
+  // Objeções "tá caro" e "não sei": resposta de acordo com a etapa, sem sair do lugar
+  const O = T.obj, caro = RX.caro.test(t) && !qtdDe(t), duvida = RX.naoSei.test(t);
+  if (caro || duvida) {
+    const fimVarejo = { dados: 'Posso agendar a sua? É só me mandar o nome da empresa, o endereço e o melhor dia. 🙂', qtd: 'Quer começar com 1 ou já leva as 2 com desconto?' }[etapa] || 'Qual modelo você prefere: *Google*, *Instagram*, *WhatsApp* ou *Pix*?';
+    const fimAtacado = { atacado: 'Quais modelos você quer revender?', atacado_qtd: 'Quantas placas eu coloco na sua simulação?', atacado_min: 'Quantas placas eu coloco na sua simulação?', atacado_link: 'Qualquer dúvida no cadastro, é só me chamar. 🙂' }[etapa] || 'Quantas placas você quer na primeira compra?';
+    const fam = /^atacado/.test(etapa) ? 'atacado' : /^perso/.test(etapa) ? 'perso' : ['varejo', 'modelo', 'qtd', 'segundo', 'dados'].includes(etapa) ? 'varejo' : 'menu';
+    const r = caro
+      ? (fam === 'varejo' ? O.caro_varejo(fimVarejo) : fam === 'atacado' ? O.caro_atacado(fimAtacado) : fam === 'perso' ? O.caro_perso('Quantas peças você precisa?') : O.caro_menu())
+      : (fam === 'menu' ? O.naoSei_menu() : fam === 'perso' ? O.naoSei_perso() : etapa === 'atacado' ? O.naoSei_atacado() : /^atacado_(qtd|min)$/.test(etapa) ? O.naoSei_qtdAtacado(minimoAtacado())
+        : ['varejo', 'modelo'].includes(etapa) ? O.naoSei_modelo() : etapa === 'dados' ? O.naoSei_dados() : etapa === 'qtd' || etapa === 'segundo' ? ['Sem problema! 🙂 Comece com 1 e, se gostar, você pede a segunda depois. Vai querer 1 ou 2?'] : O.naoSei_menu());
+    return { ...R(r, etapa || 'menu', tipo, d), objecao: caro ? 'caro' : 'nao_sei' };
+  }
   const atac = RX.atacado.test(t) || (etapa === 'menu' && /^\s*2\b/.test(t)), varj = RX.varejo.test(t) || (etapa === 'menu' && /^\s*1\b/.test(t));
   if (!etapa || etapa === 'menu') {
     if (atac && !varj) return R(T.atacado(), 'atacado', 'atacado', qtdDe(t) ? { qtd: qtdDe(t) } : {});   // primeiro os modelos (com a foto), depois a quantidade

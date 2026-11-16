@@ -787,6 +787,17 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     // o aviso nunca vai para o próprio cliente (quando o número do CEO é o mesmo)
     setSetting('ceo_whatsapp', '5575966660009'); const W = require('./whatsapp.js'); assert.strictEqual((await W.avisarDono('x', { exceto: '5575966660009' })).ok, false); setSetting('ceo_whatsapp', '');
   });
+  await t('Bianca: objeções "tá caro" e "não sei" respondidas conforme a etapa, sem perder o lugar na conversa', () => {
+    const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
+    const c1 = d({ etapa: 'dados', dados: { qtd: 1, modelos: ['Google'] } }, 'Tá caro'); assert.ok(c1.etapa === 'dados' && c1.textos[0].includes('valor *único*') && c1.textos[1].includes('endereço') && !c1.pergunta, JSON.stringify(c1));
+    const c2 = d({ etapa: 'atacado_qtd', dados: {} }, 'achei caro'); assert.ok(c2.etapa === 'atacado_qtd' && c2.textos[0].includes('mais placas') && !c2.textos.join().includes('R$'));
+    const c3 = d({ etapa: 'menu', dados: {} }, 'ta caro'); assert.ok(c3.etapa === 'menu' && c3.textos[1].includes('1️⃣'));
+    const n1 = d({ etapa: 'menu', dados: {} }, 'Não sei'); assert.ok(n1.etapa === 'menu' && n1.textos[0].includes('balcão da sua empresa'));
+    const n2 = d({ etapa: 'varejo', dados: {} }, 'não sei'); assert.ok(n2.etapa === 'varejo' && n2.textos[0].includes('comece pela do *Google*'));
+    const n3 = d({ etapa: 'atacado', dados: {} }, 'sei lá'); assert.ok(n3.etapa === 'atacado' && n3.textos[0].includes('mais fácil de vender'));
+    const n4 = d({ etapa: 'atacado_qtd', dados: {} }, 'nao sei'); assert.ok(n4.textos[0].includes('*10 placas*'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'nao sei').etapa, 'varejo');
+  });
   await t('Bianca no balcão: decide sem enviar (menu, varejo, 3+ placas, pedir humano, parar)', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
     assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '1️⃣').etapa, 'varejo'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '2️⃣').etapa, 'atacado'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
@@ -801,7 +812,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     setSetting('public_url', 'https://automazap.test'); assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].midia, 'https://automazap.test/assets/modelos-nextap.jpg'); setSetting('public_url', 'https://bot.exemplo.com');
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quais modelos tem?').textos[0].texto.includes('*WhatsApp*'), true);
     assert.deepStrictEqual(B.modelosDe('pix e zap e redes sociais'), ['WhatsApp', 'Pix']);
-    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'tá caro').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {} }, 'tá caro').textos[0].includes('R$ 70'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'tá caro').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {} }, 'tá caro').textos[0].includes('economiza R$ 20'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'quero falar com o dono').etapa, 'humano');
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pare de mandar').etapa, 'parado'); assert.strictEqual(d({ etapa: 'parado' }, 'oi').textos.length, 0);
     assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 1 }, 'xyz abc').etapa, 'humano');
