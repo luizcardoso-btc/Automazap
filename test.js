@@ -763,13 +763,29 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       setSetting('preco_varejo_1', '85'); setSetting('preco_varejo_2', '150'); assert.deepStrictEqual(require('./bianca-balcao.js').precos(), { um: '85', dois: '150', cada: '75', de: '170', economia: '20' });
     } finally { setSetting('wa_robo', '0'); setSetting('video_demo_url', ''); setSetting('preco_varejo_1', '80'); setSetting('preco_varejo_2', '140'); if (gap === undefined) delete process.env.WA_GAP_MS; else process.env.WA_GAP_MS = gap; }
   });
+  await t('Bianca treinada: responde dúvidas (pedido, ativar, defeito) em qualquer etapa; o que não sabe responde natural, te chama em segredo e vai para a lista de ensinar', async () => {
+    const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana'); setSetting('site_url', 'https://www.nextapbrasil.com.br');
+    const r = d({ etapa: 'atacado_link', dados: { qtd: 25 } }, 'Eu comprei minhas placas e ainda não chegaram, quando chega?');
+    assert.ok(r.textos[0].includes('já é cliente NexTap') && r.textos[0].includes('https://www.nextapbrasil.com.br/revendedor/?tab=login') && r.etapa === 'atacado_link' && r.avisar, JSON.stringify(r));
+    assert.ok(d({ etapa: 'varejo', dados: {} }, 'a placa não está funcionando').textos[0].includes('NFC Academy'));
+    assert.ok(d(null, 'veio quebrada').textos[0].includes('tem troca'));
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pix').etapa, 'dados', 'modelo Pix não pode cair na dúvida de pagamento');
+    const nao = d({ etapa: 'atacado_link', dados: { qtd: 25 } }, 'vocês têm loja física em Salvador?'); assert.ok(nao.textos[0].startsWith('Boa pergunta!') && nao.pergunta && nao.etapa === 'humano' && nao.avisar);
+    // ensinar pelo painel
+    const f = (await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: 'loja fisica, loja em salvador', resposta: 'Ainda não temos loja física: atendemos online. 🙂' }, headers: H })).json;
+    assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'tem loja física?').textos[0].startsWith('Ainda não temos loja'));
+    assert.strictEqual((await chamar('POST', '/api/whatsapp/bianca/faq', { corpo: { palavras: '', resposta: 'x' }, headers: H })).status, 400);
+    await chamar('DELETE', '/api/whatsapp/bianca/faq/' + f.id, { headers: H });
+    // o aviso nunca vai para o próprio cliente (quando o número do CEO é o mesmo)
+    setSetting('ceo_whatsapp', '5575966660009'); const W = require('./whatsapp.js'); assert.strictEqual((await W.avisarDono('x', { exceto: '5575966660009' })).ok, false); setSetting('ceo_whatsapp', '');
+  });
   await t('Bianca no balcão: decide sem enviar (menu, varejo, 3+ placas, pedir humano, parar)', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
     assert.strictEqual(d(null, 'oi').etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '1️⃣').etapa, 'varejo'); assert.strictEqual(d({ etapa: 'menu', dados: {} }, '2️⃣').etapa, 'atacado'); assert.strictEqual(d(null, 'quero pra minha loja').etapa, 'varejo'); assert.strictEqual(d(null, 'trabalho com revenda').etapa, 'atacado');
     const m = d({ etapa: 'menu', dados: {}, tentativas: 0 }, 'hã?'); assert.strictEqual(m.etapa, 'menu'); assert.strictEqual(d({ etapa: 'menu', dados: {}, tentativas: 1 }, 'hã?').etapa, 'humano');
     const tres = d({ etapa: 'varejo', dados: {} }, 'quero 4'); assert.strictEqual(tres.etapa, 'humano'); assert.ok(tres.avisar.includes('4 placas'));
     assert.ok(tres.textos[0].includes('preço especial') && !/atacado/i.test(tres.textos[0]) && tres.avisar.includes('não é atacado'));
-    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pix').etapa, 'dados'); assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 0 }, 'hmm').etapa, 'varejo'); assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 1 }, 'hmm').etapa, 'humano');
+    assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'pix').etapa, 'dados'); assert.strictEqual(d({ etapa: 'varejo', dados: {}, tentativas: 0 }, 'hmm').etapa, 'varejo'); assert.ok(d({ etapa: 'varejo', dados: {}, tentativas: 1 }, 'hmm').textos[0].startsWith('Boa pergunta'));
     assert.strictEqual(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, 'uma').etapa, 'dados'); assert.ok(d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, '2 iguais').textos[0].includes('2 placas do *Pix*') && !d({ etapa: 'qtd', dados: { modelos: ['Pix'] } }, '2 iguais').textos.join().includes('R$'));
     assert.ok(!d({ etapa: 'varejo', dados: {} }, 'google e pix').textos.join().includes('R$') && d({ etapa: 'varejo', dados: {} }, 'google e pix').textos[0].includes('do *Pix* faz'));
     assert.strictEqual(d({ etapa: 'varejo', dados: {} }, '2 do whatsapp').etapa, 'dados'); assert.strictEqual(d({ etapa: 'varejo', dados: {} }, 'google e pix').etapa, 'dados');

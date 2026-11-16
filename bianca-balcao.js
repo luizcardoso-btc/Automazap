@@ -8,6 +8,47 @@ const { db, getSetting, setSetting } = require('./db.js');
 db.exec('CREATE TABLE IF NOT EXISTS bianca_balcao (contato_id INTEGER PRIMARY KEY, etapa TEXT NOT NULL, tipo TEXT NOT NULL DEFAULT \'\', dados TEXT NOT NULL DEFAULT \'{}\', tentativas INTEGER NOT NULL DEFAULT 0, em INTEGER NOT NULL)');
 
 const DIA = 86400e3;
+
+// ---------- Treino: perguntas e respostas (você edita no painel) ----------
+// Valem em qualquer etapa da conversa. {painel} = link do painel do revendedor (login). "avisar" = também te chama (sem o cliente ver).
+db.exec(`CREATE TABLE IF NOT EXISTS bianca_faq (id INTEGER PRIMARY KEY AUTOINCREMENT, palavras TEXT NOT NULL, resposta TEXT NOT NULL, avisar INTEGER NOT NULL DEFAULT 0, ativo INTEGER NOT NULL DEFAULT 1, usos INTEGER NOT NULL DEFAULT 0, criado_em INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS bianca_perguntas (id INTEGER PRIMARY KEY AUTOINCREMENT, contato_id INTEGER, texto TEXT NOT NULL, etapa TEXT NOT NULL DEFAULT '', criado_em INTEGER NOT NULL);`);
+const FAQ0 = [
+  ['ja comprei, comprei, meu pedido, nao chegou, nao chegaram, ainda nao chegou, quando chega, quando vai chegar, prazo de entrega, rastreio, rastreamento, codigo de rastreio, cade minhas placas, cade meu pedido, ja paguei',
+    'Que bom que você já é cliente NexTap! 💚\n\nO andamento do seu pedido (produção, envio e rastreio) aparece no painel do revendedor, em *Pedidos*:\n\n👉 {painel}\n\nSe preferir, me manda o *e-mail do cadastro* ou o *número do pedido* que eu confiro pra você também. 🙂', 1],
+  ['como configurar, como ativar, ativar a placa, configurar a placa, nao funciona, nao esta funcionando, nao ta funcionando, nao abre, nfc nao, qr code nao',
+    'Eu te ajudo! 🙂\n\nNo painel do revendedor tem a *NFC Academy*, com vídeo passo a passo de como ativar e configurar a placa:\n\n👉 {painel}\n\nSe mesmo assim não funcionar, me manda uma foto da placa e me conta o que acontece quando aproxima o celular.', 1],
+  ['defeito, quebrou, quebrada, veio quebrada, veio errada, trocar a placa, troca, garantia',
+    'Poxa, sinto muito! 😕\n\nPlaca com defeito tem troca, pode ficar tranquilo(a).\n\nMe manda, por favor:\n\n• Uma *foto* da placa\n• O *e-mail do cadastro* ou o *número do pedido*\n\nQue eu já encaminho a troca pra você.', 1],
+  ['forma de pagamento, formas de pagamento, como pago, como pagar, aceita cartao, aceita pix, pagar no cartao, pagar no pix, boleto',
+    'No painel do revendedor você finaliza no *Pix* ou no *cartão*. 💳\n\nE no varejo aqui na cidade, o pagamento é feito na hora da entrega. 🙂', 0],
+  ['esqueci a senha, esqueci minha senha, nao consigo entrar, nao consigo acessar, recuperar senha',
+    'Sem problema! 🙂\n\nNa tela de entrada do painel tem a opção *Esqueci a senha*: é só colocar o seu e-mail que chega um link para criar uma nova.\n\n👉 {painel}', 0],
+];
+if (!db.prepare('SELECT COUNT(*) AS n FROM bianca_faq').get().n) { const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, criado_em) VALUES (?, ?, ?, ?)'); for (const [p, r, a] of FAQ0) ins.run(p, r, a, Date.now()); }
+const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
+function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
+function faqDe(texto) {
+  const t = sem(texto).replace(/[^\w ]/g, ' ').replace(/\s+/g, ' ');
+  let melhor = null, tam = 0;
+  for (const f of db.prepare('SELECT * FROM bianca_faq WHERE ativo = 1').all())
+    for (const k of palavrasDe(f.palavras)) { const kk = sem(k).replace(/[^\w ]/g, ' ').replace(/\s+/g, ' ').trim(); if (kk && (' ' + t + ' ').includes(' ' + kk + ' ') && kk.length > tam) { melhor = f; tam = kk.length; } }
+  return melhor;
+}
+function faqPainel() { return { faq: db.prepare('SELECT * FROM bianca_faq ORDER BY id').all(), perguntas: db.prepare('SELECT * FROM bianca_perguntas ORDER BY id DESC LIMIT 50').all() }; }
+function faqSalvar(b) {
+  const palavras = palavrasDe(b.palavras).join(', '), resposta = String(b.resposta || '').trim();
+  if (!palavras) throw new Error('Informe pelo menos uma palavra ou frase que o cliente escreve.');
+  if (resposta.length < 5 || resposta.length > 1500) throw new Error('A resposta precisa ter entre 5 e 1500 caracteres.');
+  const avisar = b.avisar ? 1 : 0, ativo = b.ativo === false || b.ativo === 0 ? 0 : 1;
+  if (b.id) db.prepare('UPDATE bianca_faq SET palavras = ?, resposta = ?, avisar = ?, ativo = ? WHERE id = ?').run(palavras, resposta, avisar, ativo, b.id);
+  else b.id = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, ativo, criado_em) VALUES (?, ?, ?, ?, ?)').run(palavras, resposta, avisar, ativo, Date.now()).lastInsertRowid;
+  if (b.pergunta_id) db.prepare('DELETE FROM bianca_perguntas WHERE id = ?').run(b.pergunta_id);   // ensinou: sai da lista
+  return db.prepare('SELECT * FROM bianca_faq WHERE id = ?').get(b.id);
+}
+const faqApagar = id => db.prepare('DELETE FROM bianca_faq WHERE id = ?').run(id).changes > 0;
+const perguntaApagar = id => db.prepare('DELETE FROM bianca_perguntas WHERE id = ?').run(id).changes > 0;
+
 const sem = t => String(t || '').replace(/[\uFE0F\u20E3]/g, '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 const valor = (k, pad) => { const v = parseFloat(String(getSetting(k) || '').replace(/\./g, '').replace(',', '.')); const x = v > 0 ? v : pad; return Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.', ','); };
 const precos = () => {
@@ -83,6 +124,7 @@ function textos() {
       'Qualquer dúvida no cadastro, é só me chamar aqui. 🙂'],
     atacadoPreco: () => ['O valor por quantidade aparece no painel assim que você cria a sua conta (leva 1 minuto).\n\nLá também já calcula o frete para o seu CEP. 🙂'],
     humano: () => [`Claro! Já avisei o ${dono}, ele te responde por aqui. 🙂`],
+    naoSei: () => ['Boa pergunta! 🙂\n\nDeixa eu confirmar essa informação certinho pra você. Já te respondo por aqui.'],
     nao: () => ['Sem problema! Se um dia quiser mais avaliações no Google, é só me chamar. 🙌'],
     parar: () => ['Combinado, não escrevo mais. Bom trabalho!'],
     // Lembrete quando o cliente some por 3 horas no meio da conversa (um por etapa)
@@ -116,7 +158,8 @@ const salvar = (cid, etapa, tipo, dados, t0, tentativas = 0) => db.prepare(`INSE
 
 function avisar(c, motivo, textoIn, t0) {
   const P = require('./predio.js'), W = require('./whatsapp.js'), quem = c.nome || ('+' + String(c.jid || '').split('@')[0]);
-  W.avisarDono(`*${P.nomes().gerente}: atendimento humano*\n${P.nomes().prospectora} (WhatsApp) passou: *${quem}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`).catch(() => {});
+  W.avisarDono(`*${P.nomes().gerente}: atendimento humano*\n${P.nomes().prospectora} (WhatsApp) passou: *${quem}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`, { exceto: String(c.jid || '').split('@')[0] }).catch(() => {});
+  try { require('./notificacoes.js').notificar({ tipo: 'alta', titulo: '🙋 ' + quem + ' precisa de você', texto: motivo.slice(0, 140), url: '/#wa=' + c.id, chave: 'balcao' + c.id }).catch(() => {}); } catch (e) { /* opcional */ }
   P.registrar('prospectora', `Cliente no WhatsApp: ${quem}`, `${motivo} · "${String(textoIn).slice(0, 120)}"`, { contato: c.id }, t0);
   P.registrar('gerente', `Atendimento humano: ${quem}`, `WhatsApp (${P.nomes().prospectora}) · ${motivo}`, { contato: c.id }, t0);
 }
@@ -124,11 +167,15 @@ function avisar(c, motivo, textoIn, t0) {
 // Decide a resposta. Devolve { textos, etapa, tipo, dados, avisar } (sem enviar nada): fácil de testar.
 function decidir(e, textoIn, nome) {
   const T = textos(), t = sem(textoIn), etapa = e ? e.etapa : '', d = (e && e.dados) || {}, tipo = (e && e.tipo) || '';
+  const naoSei = (tp, dd, av) => ({ ...R(T.naoSei(), 'humano', tp, dd, av), pergunta: true });   // não sabe: responde com naturalidade e te chama em segredo
   const R = (textos, et, tp = tipo, dd = d, av = '') => ({ textos: textos ? (Array.isArray(textos) ? textos : [textos]) : [], etapa: et, tipo: tp, dados: dd, avisar: av });
   if (etapa === 'parado') return R(null, 'parado');
   if (RX.parar.test(t)) return R(T.parar(), 'parado', tipo, d);
   if (etapa === 'humano') return R(null, 'humano');                       // já está com você
   if (RX.humano.test(t)) return R(T.humano(), 'humano', tipo, d, '🙋 pediu para falar com uma pessoa');
+  const f = !/^\s*[12]\s*$/.test(t) && faqDe(textoIn);
+  if (f) { db.prepare('UPDATE bianca_faq SET usos = usos + 1 WHERE id = ?').run(f.id);
+    return { ...R(String(f.resposta).replace(/\{painel\}/g, linkPainel() || 'o painel do revendedor'), etapa || 'menu', tipo, d, f.avisar ? `💬 respondi uma dúvida, mas vale você acompanhar` : ''), faq: f.id }; }
   const atac = RX.atacado.test(t) || (etapa === 'menu' && /^\s*2\b/.test(t)), varj = RX.varejo.test(t) || (etapa === 'menu' && /^\s*1\b/.test(t));
   if (!etapa || etapa === 'menu') {
     if (atac && !varj) return R(T.atacado(), 'atacado', 'atacado', qtdDe(t) ? { qtd: qtdDe(t) } : {});   // primeiro os modelos (com a foto), depois a quantidade
@@ -144,7 +191,7 @@ function decidir(e, textoIn, nome) {
     const q = qtdDe(t) || d.qtd || 0, min = minimoAtacado();
     if (modsAt.length) { if (q >= min) return simular(q, modsAt, d); return R(T.atacadoQtd(modsAt), 'atacado_qtd', 'atacado', { ...d, modelos: modsAt }); }
     if (RX.preco.test(t)) return R([...T.atacadoPreco(), ...T.atacadoModDeNovo()], etapa);
-    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'atacado', d, '❓ revenda: não entendi os modelos');
+    if ((e.tentativas || 0) >= 1) return naoSei('atacado', d, '❓ revenda: não entendi os modelos');
     return { ...R(T.atacadoModDeNovo(), etapa, 'atacado', qtdDe(t) ? { ...d, qtd: qtdDe(t) } : d), tentativas: 1 };
   }
   // Atacado 2: quantas?
@@ -153,7 +200,7 @@ function decidir(e, textoIn, nome) {
     if (q >= min) return simular(q, mods, d);
     if (q > 0) return R(T.atacadoMin(min), 'atacado_min', 'atacado', { ...d, qtd: q });
     if (RX.preco.test(t)) return R([...T.atacadoPreco(), ...T.atacadoQtdDeNovo()], etapa);
-    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'atacado', d, '❓ revenda: não entendi a quantidade');
+    if ((e.tentativas || 0) >= 1) return naoSei('atacado', d, '❓ revenda: não entendi a quantidade');
     return { ...R(T.atacadoQtdDeNovo(), etapa), tentativas: 1 };
   }
   if (etapa === 'atacado_link') {
@@ -161,7 +208,7 @@ function decidir(e, textoIn, nome) {
     if (q >= minimoAtacado() && q !== d.qtd) return simular(q, modsAt.length ? modsAt : (d.modelos || []), d);
     if (RX.preco.test(t)) return R(T.atacadoPreco(), 'atacado_link');
     if (RX.sim.test(t) || /obrigad|valeu|blz|beleza|ok|certo|show/.test(t)) return R(['Por nada! 🙌\n\nQualquer coisa, é só me chamar.'], 'atacado_link');
-    return R(null, 'humano', 'atacado', d, `❓ revenda (${d.qtd} placas): mandou algo que eu não sei responder depois da simulação`);
+    return naoSei('atacado', d, `❓ revenda (${d.qtd} placas): mandou algo que eu não sei responder depois da simulação`);
   }
   const mods = [...new Set([...(d.modelos || []), ...modelosDe(t)])];
   const extra = (RX.caro.test(t) && T.caro()) || (RX.preco.test(t) && 'preco') || null;
@@ -176,7 +223,7 @@ function decidir(e, textoIn, nome) {
     if (/modelo|tipo|quais|opc/.test(t)) return R(T.modelos(), etapa);
     if (RX.pensar.test(t)) return R(T.pensar(), etapa);
     if (RX.nao.test(t)) return R(T.nao(), 'parado');
-    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'varejo', d, '❓ não consegui entender o modelo que ele quer');
+    if ((e.tentativas || 0) >= 1) return naoSei('varejo', d, '❓ não consegui entender o modelo que ele quer');
     return { ...R(T.modeloDeNovo(), etapa), tentativas: 1 };
   }
   // Etapa 2: quantas (1 ou 2)
@@ -189,7 +236,7 @@ function decidir(e, textoIn, nome) {
     if (extra) return R(extra, 'qtd');
     if (RX.pensar.test(t)) return R(T.pensar(), 'qtd');
     if (RX.nao.test(t)) return R(T.nao(), 'parado');
-    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'varejo', d, `❓ escolheu ${mods.join(', ')}, mas não entendi a quantidade`);
+    if ((e.tentativas || 0) >= 1) return naoSei('varejo', d, `❓ escolheu ${mods.join(', ')}, mas não entendi a quantidade`);
     return { ...R(T.qtdDeNovo(), 'qtd'), tentativas: 1 };
   }
   // 2 placas, falta o modelo da segunda
@@ -197,7 +244,7 @@ function decidir(e, textoIn, nome) {
     const p0 = (d.modelos || [])[0], novos = modelosDe(t), m2 = novos.length ? [p0, novos.find(x => x !== p0) || novos[0]] : /mesm|igua|tambem/.test(t) ? [p0, p0] : null;
     if (m2) return R(T.dados(2, m2, [p0]), 'dados', 'varejo', { ...d, modelos: m2 });
     if (extra === 'preco') return R(T.preco('E a segunda placa, é do mesmo modelo ou de outro?'), 'segundo');
-    if ((e.tentativas || 0) >= 1) return R(null, 'humano', 'varejo', d, '❓ quer 2 placas, mas não entendi o modelo da segunda');
+    if ((e.tentativas || 0) >= 1) return naoSei('varejo', d, '❓ quer 2 placas, mas não entendi o modelo da segunda');
     return { ...R(T.segundo(), 'segundo'), tentativas: 1 };
   }
   if (etapa === 'dados') {
@@ -207,7 +254,7 @@ function decidir(e, textoIn, nome) {
     if (extra === 'preco') return R(T.preco('Agora é só me mandar o nome da empresa, o endereço e o melhor dia e horário. 🙂'), 'dados');
   }
   if (etapa === 'dados') return R(T.dadosOk(), 'humano', 'varejo', { ...d, dados: String(textoIn).slice(0, 300) }, `🧾 PEDIDO VAREJO: ${d.qtd || 1} placa(s)${(d.modelos || []).length ? ' (' + d.modelos.join(', ') + ')' : ''}. Confirme dia e horário da entrega (pagamento na entrega)`);
-  return R(null, 'humano', tipo, d, '❓ mandou algo que eu não sei responder');
+  return naoSei(tipo, d, '❓ mandou algo que eu não sei responder');
 }
 
 const enviarItem = (W, c, x) => typeof x === 'string'
@@ -218,6 +265,7 @@ async function atender(c, textoIn, nome, t0 = Date.now()) {
   const e = estado(c.id, t0), r = decidir(e, textoIn, String(nome || '').trim().split(' ')[0]);
   salvar(c.id, r.etapa, r.tipo, r.dados, t0, r.tentativas || 0);
   if (r.avisar) avisar(c, r.avisar, textoIn, t0);
+  if (r.pergunta) db.prepare('INSERT INTO bianca_perguntas (contato_id, texto, etapa, criado_em) VALUES (?, ?, ?, ?)').run(c.id, String(textoIn).slice(0, 500), e ? e.etapa : '', t0);
   if (r.log) require('./predio.js').registrar('prospectora', `Revenda no WhatsApp: ${c.nome || '+' + String(c.jid || '').split('@')[0]}`, r.log, { contato: c.id }, t0);
   const W = require('./whatsapp.js');
   for (const x of r.textos) {
@@ -247,4 +295,4 @@ async function lembrar(t0 = Date.now()) {
   return n;
 }
 
-module.exports = { reiniciar, ehReinicio, atender, decidir, lembrar, precos, qtdDe, modelosDe };
+module.exports = { faqPainel, faqSalvar, faqApagar, perguntaApagar, faqDe, reiniciar, ehReinicio, atender, decidir, lembrar, precos, qtdDe, modelosDe };

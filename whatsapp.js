@@ -403,9 +403,10 @@ router.post('/disparos/:id/enviar-agora', async (req, res) => {
 });
 
 // Recado direto para o dono (ex.: resumo diário da Gerente geral). Não entra na caixa de conversas nem conta no limite de primeiras mensagens.
-async function avisarDono(texto) {
+async function avisarDono(texto, { exceto } = {}) {
   const numero = normalizarNumero(getSetting('ceo_whatsapp'));
   if (!numero) return { ok: false, motivo: 'Informe o seu WhatsApp em Configurações → Prédio.' };
+  if (exceto && normalizarNumero(exceto) === numero) return { ok: false, motivo: 'O cliente é o próprio número do CEO: o aviso não vai para a conversa dele.' };   // nunca cai na conversa do cliente
   if (!configurado()) return { ok: false, motivo: 'O WhatsApp ainda não está ligado: conecte o número na aba WhatsApp → Conexão.' };
   try { await evo('POST', '/message/sendText/{i}', { number: numero, text: String(texto).slice(0, 4000) }); return { ok: true, numero }; }
   catch (e) { return { ok: false, motivo: e.message }; }
@@ -454,6 +455,12 @@ async function atenderComRobo(c, texto, mid, nome) {
   try { require('./eventos.js').registrar('whatsapp', r.acao, r.etapa || ''); } catch (e) { /* opcional */ }
   return r;
 }
+// Perguntas e respostas da Bianca (treino) e perguntas que ela ainda não soube responder
+router.get('/bianca/faq', (req, res) => res.json(require('./bianca-balcao.js').faqPainel()));
+router.post('/bianca/faq', (req, res) => { try { res.json(require('./bianca-balcao.js').faqSalvar(req.body || {})); } catch (e) { res.status(400).json({ error: e.message }); } });
+router.put('/bianca/faq/:id', (req, res) => { try { res.json(require('./bianca-balcao.js').faqSalvar({ ...(req.body || {}), id: Number(req.params.id) })); } catch (e) { res.status(400).json({ error: e.message }); } });
+router.delete('/bianca/faq/:id', (req, res) => res.json({ ok: require('./bianca-balcao.js').faqApagar(Number(req.params.id)) }));
+router.delete('/bianca/perguntas/:id', (req, res) => res.json({ ok: require('./bianca-balcao.js').perguntaApagar(Number(req.params.id)) }));
 router.post('/bianca/reiniciar', (req, res) => res.json({ reiniciadas: require('./bianca-balcao.js').reiniciar() }));
 router.get('/robo', (req, res) => res.json({ ligado: roboLigado(), conectado: configurado() }));
 router.put('/robo', (req, res) => { setSetting('wa_robo', (req.body || {}).ligado ? '1' : '0'); res.json({ ligado: roboLigado() }); });
