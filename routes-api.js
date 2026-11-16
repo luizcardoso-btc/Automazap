@@ -383,11 +383,49 @@ router.get('/dashboard', (req, res) => {
   // meia-noite de hoje no fuso do Brasil (UTC-3)
   const fuso = 3 * 3600e3, hoje0 = Math.floor((agora - fuso) / dia) * dia + fuso;
   const ini = hoje0 - (dias - 1) * dia;
-  const serie = Array.from({ length: dias }, (_, i) => ({ dia: new Date(ini + i * dia - fuso + fuso).toISOString().slice(0, 10), novos: 0, recebidas: 0, enviadas: 0 }));
+  const serie = Array.from({ length: dias }, (_, i) => ({ dia: new Date(ini + i * dia - fuso + fuso).toISOString().slice(0, 10), novos: 0, recebidas: 0, enviadas: 0, ig_novos: 0, ig_recebidas: 0, wa_novos: 0, wa_recebidas: 0 }));
   const idx = ms => Math.floor((ms - ini) / dia);
-  for (const r of db.prepare("SELECT created_at AS t FROM contacts WHERE channel <> 'sim' AND created_at >= ?").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k].novos++; }
-  for (const r of db.prepare("SELECT m.direction AS d, m.created_at AS t FROM messages m JOIN contacts c ON c.id = m.contact_id WHERE c.channel <> 'sim' AND m.created_at >= ?").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k][r.d === 'in' ? 'recebidas' : 'enviadas']++; }
-  const n = (sql, ...a) => db.prepare(sql).get(...a).n;
+  for (const r of db.prepare("SELECT created_at AS t FROM contacts WHERE channel = 'instagram' AND created_at >= ?").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k].novos++; }
+  for (const r of db.prepare("SELECT m.direction AS d, m.created_at AS t FROM messages m JOIN contacts c ON c.id = m.contact_id WHERE c.channel = 'instagram' AND m.created_at >= ?").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k][r.d === 'in' ? 'recebidas' : 'enviadas']++; }
+  for (const x of serie) { x.ig_novos = x.novos; x.ig_recebidas = x.recebidas; }   // até aqui: Instagram
+  // WhatsApp (sem grupos): contatos novos e mensagens recebidas
+  try {
+    for (const r of db.prepare("SELECT criado_em AS t FROM wa_contatos WHERE grupo = 0 AND criado_em >= ? AND EXISTS (SELECT 1 FROM wa_mensagens m WHERE m.contato_id = wa_contatos.id AND m.direcao = 'in')").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k].wa_novos++; }
+    for (const r of db.prepare("SELECT m.criado_em AS t FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.grupo = 0 AND m.direcao = 'in' AND m.criado_em >= ?").all(ini)) { const k = idx(r.t); if (serie[k]) serie[k].wa_recebidas++; }
+  } catch (e) { /* sem WhatsApp */ }
+  for (const x of serie) { x.novos = x.ig_novos + x.wa_novos; x.recebidas = x.ig_recebidas + x.wa_recebidas; }
+  const n = (sql, ...a) => { try { return db.prepare(sql).get(...a).n || 0; } catch (e) { return 0; } };
+  const tagN = t => n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND created_at >= ? AND tags LIKE ?", ini, `%"${t}"%`);
+  // Métricas por atendente no período escolhido
+  const agentes = {
+    sofia: { canal: 'instagram', leads: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND created_at >= ?", ini),
+      recebidas: n("SELECT COUNT(*) AS n FROM messages m JOIN contacts c ON c.id = m.contact_id WHERE c.channel = 'instagram' AND m.direction = 'in' AND m.created_at >= ?", ini),
+      respostas: n("SELECT COUNT(*) AS n FROM messages m JOIN contacts c ON c.id = m.contact_id WHERE c.channel = 'instagram' AND m.direction = 'out' AND m.status = 'ok' AND m.kind <> 'manual' AND m.created_at >= ?", ini),
+      quantidade: tagN('QUANTIDADE'), checkout: tagN('ABRIU CHECKOUT'), vendas: tagN('VENDA'),
+      esperando: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND needs_human = 1"), ensinar: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova'") },
+    bianca: { canal: 'whatsapp', conversas: n("SELECT COUNT(DISTINCT m.contato_id) AS n FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.grupo = 0 AND c.prospect_id IS NULL AND m.direcao = 'in' AND m.criado_em >= ?", ini),
+      recebidas: n("SELECT COUNT(*) AS n FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.grupo = 0 AND c.prospect_id IS NULL AND m.direcao = 'in' AND m.criado_em >= ?", ini),
+      respostas: n("SELECT COUNT(*) AS n FROM wa_mensagens m JOIN wa_contatos c ON c.id = m.contato_id WHERE c.prospect_id IS NULL AND m.origem = 'bianca' AND m.status = 'ok' AND m.criado_em >= ?", ini),
+      varejo: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('balcao','prospectora') AND texto LIKE '%PEDIDO VAREJO%' AND criado_em >= ?", ini),
+      atacado: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'balcao' AND texto LIKE '%Atacado: simula%' AND criado_em >= ?", ini),
+      personalizada: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente IN ('balcao','prospectora') AND texto LIKE '%PERSONALIZADA%' AND criado_em >= ?", ini),
+      humano: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'gerente' AND titulo LIKE 'Atendimento humano:%' AND texto LIKE 'WhatsApp (%' AND criado_em >= ?", ini),
+      ensinar: n('SELECT COUNT(*) AS n FROM bianca_perguntas'), ligada: getSetting('wa_robo') === '1' },
+    jade: { canal: 'whatsapp', abordagens: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'prospectora' AND titulo LIKE 'Enviado:%' AND json_extract(dados, '$.passo') = 'd0' AND criado_em >= ?", ini),
+      retornos: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'prospectora' AND titulo LIKE 'Enviado:%' AND json_extract(dados, '$.passo') <> 'd0' AND criado_em >= ?", ini),
+      responderam: n('SELECT COUNT(*) AS n FROM prospects WHERE respondeu_em >= ?', ini),
+      interessados: n("SELECT COUNT(*) AS n FROM prospects WHERE status IN ('interessado','orcamento') AND respondeu_em >= ?", ini),
+      fechadas: n("SELECT COUNT(*) AS n FROM prospects WHERE status = 'fechado'"),
+      fila: n("SELECT COUNT(*) AS n FROM prospects WHERE status = 'novo' AND telefone <> ''"), ligada: getSetting('bianca_auto') === '1' },
+  };
+  agentes.jade.taxa = agentes.jade.abordagens ? Math.round((1000 * agentes.jade.responderam) / agentes.jade.abordagens) / 10 : 0;
+  const canais = {
+    instagram: { novos_hoje: serie[serie.length - 1].ig_novos, recebidas_hoje: serie[serie.length - 1].ig_recebidas, novos: serie.reduce((a, x) => a + x.ig_novos, 0), recebidas: serie.reduce((a, x) => a + x.ig_recebidas, 0),
+      ativos_24h: n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND last_inbound_at > ?", agora - dia) },
+    whatsapp: { novos_hoje: serie[serie.length - 1].wa_novos, recebidas_hoje: serie[serie.length - 1].wa_recebidas, novos: serie.reduce((a, x) => a + x.wa_novos, 0), recebidas: serie.reduce((a, x) => a + x.wa_recebidas, 0),
+      ativos_24h: n("SELECT COUNT(*) AS n FROM wa_contatos WHERE grupo = 0 AND ultimo_in > ?", agora - dia),
+      sem_resposta: n("SELECT COUNT(*) AS n FROM wa_contatos c WHERE c.grupo = 0 AND c.ultimo_in > ? AND c.ultimo_in > c.ultimo_out", agora - dia) },
+  };
   const total = n("SELECT COUNT(*) AS n FROM contacts WHERE channel <> 'sim'");
   const vendas = n("SELECT COUNT(*) AS n FROM contacts WHERE channel <> 'sim' AND tags LIKE '%\"VENDA\"%'");
   const uso = {};
@@ -396,7 +434,7 @@ router.get('/dashboard', (req, res) => {
       (SELECT text FROM messages m WHERE m.contact_id = c.id ORDER BY id DESC LIMIT 1) AS last_text
     FROM contacts c WHERE c.channel <> 'sim' AND c.needs_human = 1 ORDER BY c.human_priority DESC, c.last_inbound_at DESC LIMIT 6`).all();
   res.json({
-    dias, serie, total, vendas,
+    dias, serie, total, vendas, agentes, canais,
     novos_hoje: serie[serie.length - 1].novos, novos_ontem: serie.length > 1 ? serie[serie.length - 2].novos : 0,
     conversao: total ? Math.round(vendas / total * 1000) / 10 : 0,
     ativos_24h: n("SELECT COUNT(*) AS n FROM contacts WHERE channel <> 'sim' AND last_inbound_at > ?", agora - dia),
