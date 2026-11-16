@@ -27,8 +27,10 @@ function registrar(agente, titulo, texto, dados = {}, t0 = Date.now()) {
 }
 const ultimo = agente => { const r = db.prepare('SELECT * FROM agentes_log WHERE agente = ? ORDER BY id DESC LIMIT 1').get(agente); return r && { ...r, dados: JSON.parse(r.dados || '{}') }; };
 
-const PAPEIS = { cto: 'CTO · Gestor de marketing', gerente: 'Gerente geral', atendente: 'Atendente', prospectora: 'Prospectora', conteudo: 'Editor de vídeo', copy_video: 'Copywriter de vídeo', imagem: 'Designer de imagem', copy_imagem: 'Copywriter de imagem', social: 'Social media', financeiro: 'CFO', recepcao: 'Recepcionista' };
-const NOMES0 = { cto: 'Rafael', gerente: 'Helena', atendente: 'Sofia', prospectora: 'Bianca', conteudo: 'Theo', copy_video: 'Davi', imagem: 'Lia', copy_imagem: 'Nina', social: 'Renan', financeiro: 'Otávio', recepcao: 'Clara' };
+const PAPEIS = { cto: 'CTO · Gestor de marketing', gerente: 'Gerente geral', atendente: 'Atendente', balcao: 'Atendimento WhatsApp', prospectora: 'Prospectora · vendas locais', conteudo: 'Editor de vídeo', copy_video: 'Copywriter de vídeo', imagem: 'Designer de imagem', copy_imagem: 'Copywriter de imagem', social: 'Social media', financeiro: 'CFO', recepcao: 'Recepcionista' };
+const NOMES0 = { cto: 'Rafael', gerente: 'Helena', atendente: 'Sofia', balcao: 'Bianca', prospectora: 'Jade', conteudo: 'Theo', copy_video: 'Davi', imagem: 'Lia', copy_imagem: 'Nina', social: 'Renan', financeiro: 'Otávio', recepcao: 'Clara' };
+// Contratação da Jade (15/11): quem tinha a Bianca como prospectora passa a ter a Jade na prospecção; a Bianca fica no atendimento do WhatsApp.
+try { const o = JSON.parse(getSetting('predio_nomes') || '{}') || {}; if (!getSetting('jade_contratada')) { if (o.prospectora === 'Bianca') { o.prospectora = 'Jade'; if (!o.balcao) o.balcao = 'Bianca'; setSetting('predio_nomes', JSON.stringify(o)); } setSetting('jade_contratada', new Date().toISOString()); } } catch (e) { /* padrão */ }
 function nomes() { let o = {}; try { o = JSON.parse(getSetting('predio_nomes') || '{}') || {}; } catch (e) { /* padrão */ } const r = {}; for (const k in NOMES0) r[k] = String(o[k] || '').trim() || NOMES0[k]; return r; }
 const quem = k => `${nomes()[k]} (${PAPEIS[k]})`;
 
@@ -530,11 +532,14 @@ router.get('/', (req, res) => {
     atendente: { novas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'nova'"), ensinadas: n("SELECT COUNT(*) AS n FROM nao_entendidas WHERE status = 'ensinada'"),
       menus7: n("SELECT COUNT(*) AS n FROM messages m JOIN flows f ON f.id = m.flow_id WHERE f.event = 'nao_entendi' AND m.direction = 'out' AND m.created_at >= ?", s7),
       corrigidas7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'atendente' AND criado_em >= ?", s7) },
+    balcao: { hoje: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'balcao' AND criado_em >= ?", hoje0), pedidos7: n("SELECT COUNT(*) AS n FROM agentes_log WHERE agente = 'balcao' AND (texto LIKE '%PEDIDO VAREJO%' OR texto LIKE '%PERSONALIZADA%' OR texto LIKE '%simulação%') AND criado_em >= ?", s7),
+      ensinar: (require('./bianca-balcao.js'), n('SELECT COUNT(*) AS n FROM bianca_perguntas')), ligada: getSetting('wa_robo') === '1' },
     prospectora: l ? { total: l.itens.length, feitos: l.itens.filter(i => i.feito).length, proxima: proxima ? proxima.nome : null } : null,
     marketing: (() => { try { const pc = pecasDoDia(); return { videos: n("SELECT COUNT(*) AS n FROM conteudo WHERE semana = ? AND formato <> 'Carrossel'", sem), hoje: { pecas: pc.length, imagens: pc.reduce((a, p) => a + p.slides.length, 0), aprovadas: pc.filter(p => p.status === 'aprovado').length, programadas: pc.filter(p => p.status === 'programado').length, erros: pc.filter(p => p.status === 'erro').length, proxima: (pc.filter(p => p.status === 'programado').sort((a, b) => a.horario.localeCompare(b.horario))[0] || {}).horario || '', ajustar: pc.filter(p => p.status === 'ajustar').length, postadas: pc.filter(p => p.status === 'postado').length, feed: pc.filter(p => p.canal === 'feed').length } }; } catch (e) { return null; } })(),
     conteudo: { semana: sem, hoje: hojeC || null, total: conteudo.reduce((a, x) => a + x.n, 0), aprovados: (conteudo.find(x => x.status === 'aprovado') || { n: 0 }).n, postados: (conteudo.find(x => x.status === 'postado') || { n: 0 }).n },
   });
 });
+router.get('/balcao', (req, res) => res.json({ log: db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'balcao' ORDER BY id DESC LIMIT 40").all(), ligada: getSetting('wa_robo') === '1' }));
 router.get('/gerente', (req, res) => res.json(db.prepare("SELECT id, titulo, texto, criado_em FROM agentes_log WHERE agente = 'gerente' ORDER BY id DESC LIMIT 14").all()));
 router.post('/gerente/agora', (req, res) => res.json(resumo(Date.now(), { avisar: false })));
 router.get('/atendente', (req, res) => res.json({

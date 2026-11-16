@@ -104,7 +104,7 @@ const listaE = mods => { const m = mods.map(x => `*${x}*`); return m.length > 1 
 const ehVideo = u => /^https?:\/\/\S+\.(mp4|mov)(\?\S*)?$/i.test(u);
 
 function textos() {
-  const P = require('./predio.js'), p = precos(), eu = P.nomes().prospectora, dono = P.vendedor(), cidade = P.cidade();
+  const P = require('./predio.js'), p = precos(), eu = P.nomes().balcao, dono = P.vendedor(), cidade = P.cidade();
   const video = String(getSetting('video_demo_url') || '').trim();
   const pub = String(getSetting('public_url') || '').replace(/\/+$/, ''), foto = String(getSetting('foto_modelos_url') || '').trim() || (pub ? pub + '/assets/modelos-nextap.jpg' : ''), comFoto = txt => (/^https:\/\/\S+$/.test(foto) ? { midia: foto, texto: txt } : txt);   // foto com todos os modelos
   const comVideo = txt => (ehVideo(video) ? { midia: video, texto: txt } : txt);   // o vídeo vai como vídeo no WhatsApp, com o texto na legenda
@@ -182,10 +182,10 @@ const salvar = (cid, etapa, tipo, dados, t0, tentativas = 0) => db.prepare(`INSE
 
 function avisar(c, motivo, textoIn, t0) {
   const P = require('./predio.js'), W = require('./whatsapp.js'), quem = c.nome || ('+' + String(c.jid || '').split('@')[0]);
-  W.avisarDono(`*${P.nomes().gerente}: atendimento humano*\n${P.nomes().prospectora} (WhatsApp) passou: *${quem}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`, { exceto: String(c.jid || '').split('@')[0] }).catch(() => {});
+  W.avisarDono(`*${P.nomes().gerente}: atendimento humano*\n${P.nomes().balcao} (WhatsApp) passou: *${quem}* ${motivo}\n\n"${String(textoIn).slice(0, 300)}"\n\nAbra o WhatsApp do painel para continuar.`, { exceto: String(c.jid || '').split('@')[0] }).catch(() => {});
   try { require('./notificacoes.js').notificar({ tipo: 'alta', titulo: '🙋 ' + quem + ' precisa de você', texto: motivo.slice(0, 140), url: '/#wa=' + c.id, chave: 'balcao' + c.id }).catch(() => {}); } catch (e) { /* opcional */ }
-  P.registrar('prospectora', `Cliente no WhatsApp: ${quem}`, `${motivo} · "${String(textoIn).slice(0, 120)}"`, { contato: c.id }, t0);
-  P.registrar('gerente', `Atendimento humano: ${quem}`, `WhatsApp (${P.nomes().prospectora}) · ${motivo}`, { contato: c.id }, t0);
+  P.registrar('balcao', `Cliente no WhatsApp: ${quem}`, `${motivo} · "${String(textoIn).slice(0, 120)}"`, { contato: c.id }, t0);
+  P.registrar('gerente', `Atendimento humano: ${quem}`, `WhatsApp (${P.nomes().balcao}) · ${motivo}`, { contato: c.id }, t0);
 }
 
 // Decide a resposta. Devolve { textos, etapa, tipo, dados, avisar } (sem enviar nada): fácil de testar.
@@ -304,7 +304,7 @@ async function atender(c, textoIn, nome, t0 = Date.now()) {
   salvar(c.id, r.etapa, r.tipo, r.dados, t0, r.tentativas || 0);
   if (r.avisar) avisar(c, r.avisar, textoIn, t0);
   if (r.pergunta) db.prepare('INSERT INTO bianca_perguntas (contato_id, texto, etapa, criado_em) VALUES (?, ?, ?, ?)').run(c.id, String(textoIn).slice(0, 500), e ? e.etapa : '', t0);
-  if (r.log) require('./predio.js').registrar('prospectora', `Revenda no WhatsApp: ${c.nome || '+' + String(c.jid || '').split('@')[0]}`, r.log, { contato: c.id }, t0);
+  if (r.log) require('./predio.js').registrar('balcao', `Revenda no WhatsApp: ${c.nome || '+' + String(c.jid || '').split('@')[0]}`, r.log, { contato: c.id }, t0);
   const W = require('./whatsapp.js');
   for (const x of r.textos) {
     try { await enviarItem(W, c, x); }
@@ -327,7 +327,7 @@ async function lembrar(t0 = Date.now()) {
     if (!c || c.prospect_id) continue;
     const ult = db.prepare("SELECT direcao, origem FROM wa_mensagens WHERE contato_id = ? ORDER BY id DESC LIMIT 1").get(c.id);
     if (!ult || ult.direcao !== 'out' || ult.origem !== 'bianca') continue;   // cliente respondeu, ou você assumiu
-    try { await enviarItem(W, c, T[b.etapa]()); n++; require('./predio.js').registrar('prospectora', `Lembrete: ${c.nome || '+' + String(c.jid).split('@')[0]}`, `Sem resposta há 3h (etapa: ${b.etapa}).`, { contato: c.id }, t0); }
+    try { await enviarItem(W, c, T[b.etapa]()); n++; require('./predio.js').registrar('balcao', `Lembrete: ${c.nome || '+' + String(c.jid).split('@')[0]}`, `Sem resposta há 3h (etapa: ${b.etapa}).`, { contato: c.id }, t0); }
     catch (e) { console.error('[BIANCA] lembrete:', e.message); }
   }
   return n;
