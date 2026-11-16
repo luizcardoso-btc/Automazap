@@ -123,6 +123,11 @@ function novosHoje() {
 const limiteNovos = () => Number(getSetting('wa_max_novos_dia')) || 30;
 
 // ---------- envio ----------
+// Mensagem limpa: tira instruções entre colchetes ([esperar]), espaço antes de pontuação, espaços repetidos e linhas em branco demais
+function limparTexto(t) {
+  return String(t || '').replace(/\[[^\]\n]{1,60}\]/g, '').replace(/[ \t]+([!?.,;:])(?=\s|$)/g, '$1').replace(/[ \t]{2,}/g, ' ')
+    .split('\n').map(l => l.trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
 let ultimoEnvio = 0;
 const intervalo = () => (Number(process.env.WA_GAP_MS) >= 0 && process.env.WA_GAP_MS != null && process.env.WA_GAP_MS !== '' ? Number(process.env.WA_GAP_MS) : 4000);
 async function espaçar() {
@@ -132,6 +137,7 @@ async function espaçar() {
 }
 
 async function enviar(contato, { texto = '', midia = null, digitando = 0 }, origem = 'painel') {
+  texto = limparTexto(texto);
   const numero = contato.grupo ? contato.jid : numeroDoJid(contato.jid);
   await espaçar();
   let r;
@@ -479,4 +485,4 @@ async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   return c;
 }
 
-module.exports = { enviarContato: enviar, formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { limparTexto, enviarContato: enviar, formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

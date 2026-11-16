@@ -821,6 +821,11 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.ok(d(null, 'Quando já vem qr code não dá pra configurar pra loja né?').textos[0].includes('NFC Academy'));
     assert.ok(d({ etapa: 'atacado_link', dados: {} }, 'Poderia me manda a chave pix').avisar);
   });
+  await t('mensagem limpa: sem [colchetes], sem espaço antes da pontuação, sem linhas em branco demais', () => {
+    const W = require('./whatsapp.js');
+    assert.strictEqual(W.limparTexto('Quanto vale um cliente novo? [esperar] Então , se a placa trouxer um cliente   a mais , ela se pagou !\n\n\n\nQuer testar?'), 'Quanto vale um cliente novo? Então, se a placa trouxer um cliente a mais, ela se pagou!\n\nQuer testar?');
+    assert.strictEqual(W.limparTexto('• *1 placa:* R$ 80\n• *2 placas:* R$ 140'), '• *1 placa:* R$ 80\n• *2 placas:* R$ 140');
+  });
   await t('Bianca: objeções "tá caro" e "não sei" respondidas conforme a etapa, sem perder o lugar na conversa', () => {
     const B = require('./bianca-balcao.js'), d = (e, t) => B.decidir(e, t, 'Ana');
     const c1 = d({ etapa: 'dados', dados: { qtd: 1, modelos: ['Google'] } }, 'Tá caro'); assert.ok(c1.etapa === 'dados' && c1.textos[0].includes('valor *único*') && c1.textos[1].includes('endereço') && !c1.pergunta, JSON.stringify(c1));
