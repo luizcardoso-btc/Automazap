@@ -808,6 +808,22 @@ function ofertaSemPrecoV5() {
   return n;
 }
 
+// Teste A/B da entrada do Instagram (aprendendo com a Bianca): variante B com benefício primeiro e pergunta de qualificação. Uma vez só.
+function entradaABv6() {
+  if (getSetting('entrada_ab_v6') === '1') return 0;
+  const a = db.prepare("SELECT * FROM flows WHERE name = 'Entrada: 3 toques' AND active = 1 AND variante_de IS NULL ORDER BY id DESC LIMIT 1").get();
+  if (a && !db.prepare('SELECT 1 FROM flows WHERE variante_de = ?').get(a.id)) {
+    const passos = JSON.parse(a.steps || '[]'), q = passos.find(x => x.type === 'quick' || x.type === 'button');
+    if (q) {
+      q.text = 'Oi! 👋 Que bom te ver por aqui.\n\nA placa NexTap tem *NFC + QR Code*: o cliente aproxima o celular e já cai na avaliação da sua empresa no Google (ou no seu Instagram, WhatsApp e Pix). Sem aplicativo, em uns 5 segundos. ✨\n\n{{black}}Pra eu te mostrar a melhor opção: é para revender ou para usar no seu negócio?';
+      db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at, kind, event, delay_hours, tags, human_priority, comment_text, audience, funil_id, variante_de)
+        SELECT name || ' · variante B', 1, priority, match_mode, keywords, on_comment, action, ?, ?, kind, event, delay_hours, tags, human_priority, comment_text, audience, funil_id, id FROM flows WHERE id = ?`).run(JSON.stringify(passos), Date.now(), a.id);
+    }
+  }
+  setSetting('entrada_ab_v6', '1');
+  return 1;
+}
+
 // Atendente do Prédio: quando o robô não entende, mostra um menu com botões em vez da resposta padrão
 function criarMenuNaoEntendi() {
   const id = nome => (db.prepare('SELECT id FROM flows WHERE name = ? AND funil_id = ? ORDER BY id DESC LIMIT 1').get(nome, FUNIL) || {}).id;
@@ -828,8 +844,8 @@ function atualizarAtendenteV5() {
 }
 
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); atualizarAtendenteV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); entradaABv6(); atualizarAtendenteV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { entradaABv6, ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

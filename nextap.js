@@ -70,7 +70,7 @@ function textoPromo(v, qtd, agoraMs = Date.now()) {
   const fim = Date.parse(p.fim), ate = dataBR(p.fim), dias = Math.round((dia0(fim) - dia0(agoraMs)) / DIA);
   const quando = dias <= 0 ? 'termina hoje' : dias === 1 ? 'termina amanhã' : `termina em ${dias} dias (${ate})`;
   const ultimas = fim - agoraMs < 48 * 3600e3;
-  if (v === 'black') return p.a_partir ? `🖤 ${p.nome}: placas a partir de R$ ${brl(p.a_partir)}${p.minimo_a_partir > 1 ? ` (pedidos de ${p.minimo_a_partir} ou mais)` : ''}, até ${ate}.\n\n` : `🖤 ${p.nome} até ${ate}.\n\n`;
+  if (v === 'black') return `🖤 ${p.nome}: condições especiais até ${ate}.\n\n`;   // sem preço na conversa: o valor aparece no painel
   if (v === 'black_oferta') return ultimas ? `\n\n⏰ Últimas horas da ${p.nome}: o preço promocional ${quando}.` : `\n\n🖤 Preço da ${p.nome}, válido até ${ate}.`;
   if (v === 'black_final') return `${ultimas ? '⏰ Últimas horas: a' : '🖤 A'} ${p.nome} ${quando}. Depois disso, o preço volta ao normal.\n\n`;
   return '';

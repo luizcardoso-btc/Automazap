@@ -400,7 +400,22 @@ function telefoneDe(texto) {
   return Number(d.slice(0, 2)) >= 11 ? '55' + d : null;
 }
 
-async function processarMensagem(ev, sender) {
+// Uma mensagem por vez por pessoa: quando o cliente manda duas seguidas (ex.: "Como funciona?" e "Qual é o preço?" do anúncio),
+// a segunda espera a primeira terminar e enxerga o que já foi respondido (não duplica a resposta).
+const FILA = new Map();
+function processarMensagem(ev, sender) {
+  const k = String(ev.extId || ev.senderId || ev.from || '?'), antes = FILA.get(k) || Promise.resolve();
+  const chegou = agora(), rajada = FILA.has(k), p = antes.catch(() => {}).then(() => processarMensagem0(ev, sender, chegou, rajada));
+  FILA.set(k, p); p.finally(() => { if (FILA.get(k) === p) FILA.delete(k); }).catch(() => {});
+  return p;
+}
+// Mesmo fluxo (ou a variante dele) já enviado há pouco para esta pessoa? Então não repete.
+function jaRespondeu(contatoId, fluxo, ev) {
+  const ids = [fluxo.id, fluxo.variante_de].filter(Boolean), irmas = db.prepare('SELECT id FROM flows WHERE variante_de IN (' + ids.map(() => '?').join(',') + ')').all(...ids).map(r => r.id);
+  const todos = [...new Set([...ids, ...irmas])], janela = 10 * 60e3;
+  return !!db.prepare('SELECT 1 FROM messages WHERE contact_id = ? AND direction = \'out\' AND flow_id IN (' + todos.map(() => '?').join(',') + ') AND created_at > ?').get(contatoId, ...todos, agora() - janela);
+}
+async function processarMensagem0(ev, sender, chegou = agora(), rajada = false) {
   if (ev.mid && !marcarProcessado('m:' + ev.mid)) return { acao: 'ignorada', motivo: 'duplicada' };
   let contato = upsertContato(ev);
   contato = await enriquecerContato(contato, sender);
@@ -430,6 +445,10 @@ async function processarMensagem(ev, sender) {
       if (!(Number(fluxo.human_priority) >= 2)) avisar(`${nomeDe(atual)} viu o preço. Se chamar agora, a chance de fechar é maior.`, { tipo: 'quantidade', titulo: `🎯 Lead quente: ${atual.qty} placas`, url: '/#c=' + atual.id, chave: 'q' + atual.id });
     }
     fluxo = escolherVariante(atual, fluxo);
+    // Rajada: a mensagem chegou ANTES da resposta do robô sair (o cliente mandou duas seguidas) → não empilha outra resposta
+    if (!ev.payload && db.prepare("SELECT 1 FROM messages WHERE contact_id = ? AND direction = 'out' AND kind <> 'manual' AND created_at " + (rajada ? '>=' : '>') + " ?").get(atual.id, chegou)) return { acao: 'ignorada', motivo: 'rajada' };
+    // Texto livre que cai no MESMO fluxo enviado há menos de 10 min: não repete a mesma mensagem
+    if (!teste && !ev.payload && jaRespondeu(atual.id, fluxo, ev)) return { acao: 'ignorada', motivo: 'ja_respondido', fluxo: fluxo.name };
     const enviados = await enviarFluxo(atual, fluxo, sender);
     return { acao: 'respondeu', fluxo: fluxo.name, enviados: enviados.length };
   }
@@ -451,6 +470,20 @@ async function processarMensagem(ev, sender) {
     if (r) { const enviados = await enviarFluxo(atual, lerFluxo(r), sender); return { acao: 'respondeu', fluxo: r.name, enviados: enviados.length }; }
   }
 
+  // A Sofia aprende com a Bianca: dúvida que nenhum fluxo cobre, mas que está no Treino da Bianca, recebe a mesma resposta
+  if (!ev.payload && ev.texto) {
+    try {
+      const B = require('./bianca-balcao.js'), f = B.faqDe(ev.texto);
+      if (f && !f.avisar) {
+        const txt = String(f.resposta).replace(/\{painel\}/g, (() => { try { return new URL(getSetting('site_url') || '').origin + '/revendedor/'; } catch (e) { return 'o painel do revendedor'; } })());
+        if (!db.prepare("SELECT 1 FROM messages WHERE contact_id = ? AND direction = 'out' AND text = ? AND created_at > ?").get(contato.id, txt, agora() - 30 * 60e3)) {
+          db.prepare('UPDATE bianca_faq SET usos = usos + 1 WHERE id = ?').run(f.id);
+          const enviados = await enviarFluxo(atual, { id: null, name: 'Treino da Bianca', steps: [{ type: 'text', text: txt }] }, sender);
+          return { acao: 'respondeu', fluxo: 'Treino da Bianca', enviados: enviados.length };
+        }
+      }
+    } catch (e) { console.error('[BOT] treino da Bianca:', e.message); }
+  }
   // Atendente: anota a frase e, em vez da resposta padrão, mostra um menu com botões (no máximo um a cada X horas por pessoa)
   if (!ev.payload) anotarNaoEntendida(ev.texto, contato.id);
   if (getSetting('atendente_menu') === '1') {

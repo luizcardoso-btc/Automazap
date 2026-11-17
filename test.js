@@ -274,8 +274,22 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   });
   await t('limite de respostas por hora protege contra laço', async () => {
     setSetting('max_replies_hour', '3'); const s = rec(), id = 'lim1'; let ult;
-    for (let i = 0; i < 4; i++) ult = await engine.processarMensagem(msg('preço', { extId: id }), s);
-    assert.strictEqual(ult.motivo, 'limite_por_hora'); setSetting('max_replies_hour', '30');
+    try {
+      ult = await engine.processarMensagem(msg('preço', { extId: id }), s);
+      const c = db.prepare("SELECT id FROM contacts WHERE ext_id = ?").get(id);
+      for (let i = 0; i < 3; i++) db.prepare("INSERT INTO messages (contact_id, direction, kind, text, status, created_at) VALUES (?, 'out', 'texto', 'x', 'ok', ?)").run(c.id, Date.now());
+      ult = await engine.processarMensagem(msg('outra coisa qualquer', { extId: id }), s);
+      assert.strictEqual(ult.motivo, 'limite_por_hora');
+    } finally { setSetting('max_replies_hour', '30'); }
+  });
+  await t('mensagens duplicadas: duas perguntas seguidas do anúncio recebem UMA resposta; a mesma pergunta de novo em 10 min não repete', async () => {
+    const s = rec(), ev1 = msg('Como funciona?', { extId: 'dup1' }), ev2 = msg('Qual é o preço?', { extId: 'dup1' });
+    const [a, b] = await Promise.all([engine.processarMensagem(ev1, s), engine.processarMensagem(ev2, s)]);
+    assert.strictEqual(s.env.length, 1, JSON.stringify([a, b])); assert.ok(['rajada', 'ja_respondido'].includes(b.motivo), JSON.stringify(b));
+    const r3 = await engine.processarMensagem(msg('como funciona', { extId: 'dup1' }), s); assert.strictEqual(r3.motivo, 'ja_respondido'); assert.strictEqual(s.env.length, 1);
+    // a Sofia usa o treino da Bianca quando nenhum fluxo cobre a dúvida
+    require('./bianca-balcao.js'); const s2 = rec(), r4 = await engine.processarMensagem(msg('tem mensalidade?', { extId: 'dup2' }), s2);
+    assert.ok(r4.fluxo === 'Treino da Bianca' || /mensalidade/i.test(JSON.stringify(s2.env)), JSON.stringify(r4));
   });
   await t('o funil completo cabe no limite padrão por hora', async () => {
     const id = 'lim2', e = rec(); let r = await engine.processarMensagem(msg('preço', { extId: id }), e);
@@ -1010,15 +1024,15 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     assert.strictEqual(s2.env.length, 1); assert.deepStrictEqual(s2.env[0].p.replies.map(r => r.title), ['5 a 10', '11 a 49', '50 ou mais']);
     db.prepare("UPDATE contacts SET ab_grupo = 'A' WHERE ext_id = 'v5a'").run();
     const s3 = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s3);
-    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas'); assert.strictEqual(s3.env.length, 1, 'mais de uma mensagem na oferta');
+    assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas', JSON.stringify(r)); assert.strictEqual(s3.env.length, 1, 'mais de uma mensagem na oferta');
     const p = s3.env[0].p; assert.strictEqual(p.type, 'button'); assert.ok(p.text.includes('Montei o seu pedido com 20 placas') && !p.text.includes('R$'), p.text);
     assert.deepStrictEqual(p.buttons.map(b => b.title), ['FAZER MEU PEDIDO']);
     setSetting('video_demo_url', 'https://x.com/demo.mp4');
-    const s4 = rec(); await engine.processarMensagem(msg('11 a 49', { extId: 'v5a', payload: respRapida(s2.env[0].p, '11 a 49') }), s4);
+    const s4 = rec(); const r4 = await engine.processarMensagem(msg('11 a 49', { extId: 'v5a', payload: respRapida(s2.env[0].p, '11 a 49') }), s4); assert.ok(s4.env.length, JSON.stringify(r4));
     assert.deepStrictEqual(s4.env[0].p.buttons.map(b => b.title), ['FAZER MEU PEDIDO'], 'só o botão do pedido, sem VER FUNCIONANDO'); setSetting('video_demo_url', '');
   });
   await t('A/B: cada pessoa é sorteada uma vez e sempre vê o mesmo lado; a B usa {{payback}}', async () => {
-    db.prepare("UPDATE contacts SET ab_grupo = 'B' WHERE ext_id = 'v5a'").run();
+    db.prepare("UPDATE contacts SET ab_grupo = 'B' WHERE ext_id = 'v5a'").run(); db.prepare("UPDATE messages SET created_at = created_at - 3600e3 WHERE contact_id = (SELECT id FROM contacts WHERE ext_id = 'v5a')").run();   // a última oferta foi há 1h
     const s = rec(); const r = await engine.processarMensagem(msg('20', { extId: 'v5a' }), s);
     assert.strictEqual(r.fluxo, 'Oferta: 11 a 49 placas · variante B'); assert.ok(s.env[0].p.text.startsWith('🚀 O seu pedido de 20 placas já está montado') && !s.env[0].p.text.includes('R$'), s.env[0].p.text);
     const lados = new Set();
@@ -1153,7 +1167,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     // banco com o v5 já instalado (a entrada ainda sem a linha da Black): troca uma vez e só o que estava igual ao original
     const sd = require('./seed.js'); setSetting('black_v5', '0'); assert.ok(sd.atualizarBlackV5() >= 1); assert.strictEqual(sd.atualizarBlackV5(), 0, 'rodou duas vezes');
     const e = rec(); assert.strictEqual((await engine.processarMensagem(msg('BLACK', { extId: 'bfE' }), e)).fluxo, 'Entrada: 3 toques');
-    assert.ok(e.env[0].p.text.includes('🖤 Black NexTap: placas a partir de R$ 14,99 (pedidos de 50 ou mais), até '));
+    assert.ok(e.env[0].p.text.includes('🖤 Black NexTap: condições especiais até ') && !e.env[0].p.text.includes('R$'), e.env[0].p.text);
     assert.ok(nx.textoPromo('black_final', 10).includes('termina em 10 dias'));
     assert.ok(nx.textoPromo('black_final', 10, Date.now() + 9.5 * 86400e3).startsWith('⏰ Últimas horas'));
     assert.strictEqual(nx.textoPromo('black', 10, Date.now() + 11 * 86400e3), '', 'promoção vencida continuou aparecendo');
