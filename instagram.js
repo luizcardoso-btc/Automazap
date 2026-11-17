@@ -68,7 +68,7 @@ function lerWebhook(corpo) {
       if (ch.field !== 'comments' || !ch.value) continue;
       const v = ch.value, de = String((v.from && v.from.id) || '');
       if (!v.id || !de || de === meuId) continue;
-      out.comentarios.push({ canal: 'instagram', commentId: String(v.id), texto: v.text || '', fromId: de, username: v.from && v.from.username, mediaId: v.media && v.media.id });
+      out.comentarios.push({ canal: 'instagram', commentId: String(v.id), texto: v.text || '', fromId: de, username: v.from && v.from.username, mediaId: v.media && v.media.id, mediaTipo: v.media && (v.media.media_product_type || v.media.media_type) });
     }
   }
   return out;

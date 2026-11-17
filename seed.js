@@ -824,6 +824,22 @@ function entradaABv6() {
   return 1;
 }
 
+// Resposta ao comentário (direct) personalizada, com teste A/B próprio — dá para ver quanto o comentário converte. Uma vez só.
+const COMENT_A = 'Oi, {{nome}}! 👋 Vi que você comentou "{{comentario}}" no nosso {{onde}} das placas NFC da NexTap.\n\nA placa leva o seu cliente direto para a avaliação no Google (ou para o seu Instagram, WhatsApp e Pix), sem aplicativo, em uns 5 segundos. ✨\n\nMe conta: você quer REVENDER ou usar no seu NEGÓCIO?';
+const COMENT_B = 'Oi, {{nome}}! Que bom que você comentou no nosso {{onde}}! 😄\n\nSeparei as informações das placas NFC + QR Code da NexTap pra você aqui no direct.\n\nPra eu te mandar a opção certa: você quer REVENDER ou usar no seu NEGÓCIO?';
+function comentarioABv7() {
+  if (getSetting('comentario_ab_v7') === '1') return 0;
+  const ent = db.prepare("SELECT * FROM flows WHERE name = ? AND variante_de IS NULL ORDER BY id DESC LIMIT 1").get(NOME_ENTRADA_V5);
+  const kw = ent ? ent.keywords : JSON.stringify(['quero', 'eu quero', 'preco', 'valor', 'como funciona', 'info', 'interesse', 'nfc', 'nextap']);
+  const fid = ent ? ent.funil_id : null, t = Date.now();
+  const ins = db.prepare(`INSERT INTO flows (name, active, priority, match_mode, keywords, on_comment, action, steps, created_at, kind, tags, comment_text, funil_id, variante_de)
+    VALUES (?, 1, 11, 'contem', ?, 1, NULL, '[]', ?, 'normal', ?, ?, ?, ?)`);   // acima da entrada (10), abaixo de REVENDER (15)
+  const a = ins.run('Comentário: resposta no direct', kw, t, JSON.stringify(['NOVO LEAD', 'VEIO DE COMENTÁRIO']), COMENT_A, fid, null).lastInsertRowid;
+  ins.run('Comentário: resposta no direct · variante B', kw, t, JSON.stringify(['NOVO LEAD', 'VEIO DE COMENTÁRIO']), COMENT_B, fid, a);
+  setSetting('comentario_ab_v7', '1');
+  return 1;
+}
+
 // Atendente do Prédio: quando o robô não entende, mostra um menu com botões em vez da resposta padrão
 function criarMenuNaoEntendi() {
   const id = nome => (db.prepare('SELECT id FROM flows WHERE name = ? AND funil_id = ? ORDER BY id DESC LIMIT 1').get(nome, FUNIL) || {}).id;
@@ -844,8 +860,8 @@ function atualizarAtendenteV5() {
 }
 
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); entradaABv6(); atualizarAtendenteV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); entradaABv6(); comentarioABv7(); atualizarAtendenteV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { entradaABv6, ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { comentarioABv7, entradaABv6, ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };

@@ -90,7 +90,7 @@ function acharFluxo(texto, { comentario = false } = {}) {
   const t = normalizar(texto);
   if (!t) return null;
   let melhor = null;
-  for (const r of db.prepare("SELECT * FROM flows WHERE active = 1 AND kind = 'normal' AND variante_de IS NULL" + (comentario ? ' AND on_comment = 1' : '')).all()) {
+  for (const r of db.prepare("SELECT * FROM flows WHERE active = 1 AND kind = 'normal' AND variante_de IS NULL" + (comentario ? ' AND on_comment = 1' : " AND name NOT LIKE 'Comentário:%'")).all()) {
     const f = lerFluxo(r);
     let len = -1;
     for (const kw of f.keywords) {
@@ -519,13 +519,18 @@ async function processarMensagem0(ev, sender, chegou = agora(), rajada = false) 
 // Comentário com palavra-chave → UMA mensagem privada (regra do Instagram: 1 por comentário, até 7 dias)
 async function processarComentario(ev, sender) {
   if (!marcarProcessado('c:' + ev.commentId)) return { acao: 'ignorada', motivo: 'duplicada' };
-  const fluxo = acharFluxo(ev.texto, { comentario: true });
+  let fluxo = acharFluxo(ev.texto, { comentario: true });
   if (!fluxo || (!fluxo.steps.length && !fluxo.comment_text)) return { acao: 'ignorada', motivo: 'sem_fluxo' };
   let contato = upsertContato({ canal: ev.canal, extId: ev.fromId, username: ev.username });
   contato = await enriquecerContato(contato, sender);
   registrar(contato.id, 'in', 'comentario', ev.texto);
   if (contato.bot_paused_until > agora() && !ehTeste(contato)) return { acao: 'ignorada', motivo: 'pausado' };
-  const texto = fluxo.comment_text ? aplicarVars(fluxo.comment_text, contato) : passoParaTexto(passoComVars(fluxo.steps[0], contato));
+  fluxo = escolherVariante(contato, fluxo);   // teste A/B também na resposta ao comentário
+  // {{comentario}} = o que a pessoa escreveu; {{onde}} = vídeo (Reels) ou post
+  const coment = String(ev.texto || '').replace(/\s+/g, ' ').trim(), curto = coment.length > 60 ? coment.slice(0, 57).trim() + '…' : coment;
+  const onde = /reel|video/i.test(String(ev.mediaTipo || '')) ? 'vídeo' : ev.mediaTipo ? 'post' : 'vídeo';
+  const base = String(fluxo.comment_text || '').replace(/\{\{\s*comentario\s*\}\}/g, curto).replace(/\{\{\s*onde\s*\}\}/g, onde);
+  const texto = fluxo.comment_text ? aplicarVars(base, contato) : passoParaTexto(passoComVars(fluxo.steps[0], contato));
   try {
     await sender.sendPrivateReply(ev.commentId, texto);
     registrar(contato.id, 'out', 'comentario', texto, { flowId: fluxo.id });

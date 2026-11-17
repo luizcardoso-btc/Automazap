@@ -282,6 +282,22 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
       assert.strictEqual(ult.motivo, 'limite_por_hora');
     } finally { setSetting('max_replies_hour', '30'); }
   });
+  await t('comentário: direct personalizado com o que a pessoa escreveu, teste A/B próprio e a conversa segue no funil normal', async () => {
+    const sd = require('./seed.js'); setSetting('comentario_ab_v7', '0'); db.prepare("DELETE FROM flows WHERE name LIKE 'Comentário:%'").run(); sd.comentarioABv7();
+    const txt = []; const snd = { sendPrivateReply: async (id, t) => { txt.push(t); }, send: async () => ({}) };
+    const lados = new Set();
+    for (let i = 0; i < 16; i++) {
+      const r = await engine.processarComentario({ canal: 'instagram', commentId: 'cmab' + i, texto: 'Eu quero', fromId: 'cmu' + i, username: 'alan_white', mediaTipo: 'REELS' }, snd);
+      assert.strictEqual(r.acao, 'respondeu'); lados.add(r.fluxo);
+    }
+    assert.ok(lados.has('Comentário: resposta no direct') && lados.has('Comentário: resposta no direct · variante B'), [...lados].join());
+    assert.ok(txt.some(t => t.includes('Vi que você comentou "Eu quero" no nosso vídeo das placas NFC')), txt[0]);
+    assert.ok(txt.every(t => /REVENDER ou usar no seu NEGÓCIO\?$/.test(t)));
+    // DM normal (não comentário) continua na entrada de sempre
+    const s = rec(), r2 = await engine.processarMensagem(msg('eu quero', { extId: 'cmdm1' }), s); assert.ok(!/^Comentário/.test(r2.fluxo || ''), JSON.stringify(r2));
+    // a resposta dele no direct segue o funil
+    const s3 = rec(), r3 = await engine.processarMensagem(msg('revender', { extId: 'cmu0' }), s3); assert.ok(/REVENDER/i.test(r3.fluxo), JSON.stringify(r3));
+  });
   await t('mensagens duplicadas: duas perguntas seguidas do anúncio recebem UMA resposta; a mesma pergunta de novo em 10 min não repete', async () => {
     const s = rec(), ev1 = msg('Como funciona?', { extId: 'dup1' }), ev2 = msg('Qual é o preço?', { extId: 'dup1' });
     const [a, b] = await Promise.all([engine.processarMensagem(ev1, s), engine.processarMensagem(ev2, s)]);
@@ -307,7 +323,7 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
   await t('comentário: 1 DM de texto pedindo REVENDER ou MEU NEGÓCIO; não repete', async () => {
     const s = rec(); const r = await engine.processarComentario({ canal: 'instagram', commentId: 'cm1', texto: 'quero!', fromId: 'c1', username: 'ana' }, s);
     assert.strictEqual(r.acao, 'respondeu'); assert.strictEqual(s.env.length, 1);
-    assert.strictEqual(s.env[0].p.privada, 'cm1'); assert.ok(s.env[0].p.text.includes('REVENDER') && s.env[0].p.text.includes('MEU NEGÓCIO'));
+    assert.strictEqual(s.env[0].p.privada, 'cm1'); assert.ok(s.env[0].p.text.includes('REVENDER') && s.env[0].p.text.includes('NEGÓCIO'), s.env[0].p.text);
     const r2 = await engine.processarComentario({ canal: 'instagram', commentId: 'cm1', texto: 'quero!', fromId: 'c1' }, s);
     assert.strictEqual(r2.motivo, 'duplicada');
   });
