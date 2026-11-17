@@ -44,6 +44,29 @@ async function evo(metodo, caminho, corpo) {
   return j;
 }
 
+// ---------- conexão (cache de 1 minuto) ----------
+// Usado pela Jade e pelo checklist: se o WhatsApp caiu, ninguém gasta empresa da lista com envio que vai falhar.
+const CONEXAO = { em: 0, ok: null, estado: null, erro: null, reiniciou: 0 };
+async function conectado(t0 = Date.now(), { forcar = false } = {}) {
+  if (!configurado()) return { ok: false, estado: 'nao_configurado' };
+  if (!forcar && t0 - CONEXAO.em < 60e3 && CONEXAO.ok !== null) return { ...CONEXAO };
+  try {
+    const s = await evo('GET', '/instance/connectionState/{i}');
+    CONEXAO.estado = (s && s.instance && s.instance.state) || (s && s.state) || null; CONEXAO.erro = null;
+  } catch (e) { CONEXAO.estado = e.status === 404 ? 'sem_instancia' : 'erro'; CONEXAO.erro = e.message; }
+  CONEXAO.ok = CONEXAO.estado === 'open'; CONEXAO.em = t0;
+  // Caiu: tenta reiniciar a sessão sozinho (no máximo a cada 30 min). Se precisar do QR de novo, só você resolve.
+  if (!CONEXAO.ok && CONEXAO.estado !== 'sem_instancia' && t0 - CONEXAO.reiniciou > 30 * 60e3) {
+    CONEXAO.reiniciou = t0;
+    try { await evo('POST', '/instance/restart/{i}'); } catch (e) { try { await evo('PUT', '/instance/restart/{i}'); } catch (e2) { /* versão sem restart */ } }
+  }
+  return { ...CONEXAO };
+}
+const conexaoCache = () => ({ ...CONEXAO });
+const marcarQueda = () => { CONEXAO.em = 0; };
+// Erro de envio por queda do WhatsApp (e não por causa do número)?
+const erroDeConexao = e => !e.status || e.status >= 500 || /n[aã]o consegui falar|connection closed|not connected|disconnected|desconect|timeout|ECONN|socket|closed/i.test(String(e.message));
+
 // ---------- números ----------
 const formatarBR = n => { const m = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(String(n || '')); return m ? `(${m[1]}) ${m[2]}-${m[3]}` : String(n || ''); };
 // "(75) 98820-9055" → "5575988209055". Número de fora do Brasil: escreva com o código do país (ex.: +351...).
@@ -485,4 +508,4 @@ async function enviarNumero(numero, texto, origem = 'bianca', digitando = 0) {
   return c;
 }
 
-module.exports = { limparTexto, enviarContato: enviar, formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };
+module.exports = { conectado, conexaoCache, marcarQueda, erroDeConexao, limparTexto, enviarContato: enviar, formatarBR, atenderComRobo, senderWa, emTextoWa, temWhatsapp, enviarNumero, avisarDono, router, tick, registrarLead, processarWebhook, tokenWebhook, configurado, normalizarNumero, proximoEnvio, chaveTel };

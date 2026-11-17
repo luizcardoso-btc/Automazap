@@ -1396,11 +1396,16 @@ const msg = (texto, extra = {}) => ({ canal: 'instagram', extId: extra.extId || 
     const ids = ['(75) 98811-0001', '(75) 98811-0002', '(75) 3221-0003', '(75) 98811-0004'].map((tel, i) => ins.run('auto' + i, 'Auto ' + (i + 1), tel, 5 + i).lastInsertRowid);
     const seg = h => Date.parse(`2026-12-21T${h}:00-03:00`), env = [], fo = global.fetch, eu = process.env.EVOLUTION_URL, ek = process.env.EVOLUTION_API_KEY, gap = process.env.WA_GAP_MS;
     process.env.WA_GAP_MS = '0'; setSetting('bianca_prox', '0'); setSetting('bianca_meta', '2'); setSetting('bianca_auto', '0'); setSetting('ceo_whatsapp', '');
-    global.fetch = async (u, o) => { const b = JSON.parse(o.body || '{}'); if (String(u).includes('whatsappNumbers')) return { ok: true, status: 200, text: async () => JSON.stringify([{ exists: !b.numbers[0].endsWith('32210003'), jid: b.numbers[0] + '@s.whatsapp.net' }]) }; env.push(b); return { ok: true, status: 200, text: async () => '{"key":{"id":"m' + env.length + '"}}' }; };
+    let estadoWa = 'open';
+    global.fetch = async (u, o) => { if (String(u).includes('/instance/connectionState/')) return { ok: true, status: 200, text: async () => JSON.stringify({ instance: { state: estadoWa } }) }; if (String(u).includes('/instance/restart/')) return { ok: true, status: 200, text: async () => '{}' }; const b = JSON.parse(o.body || '{}'); if (String(u).includes('whatsappNumbers')) return { ok: true, status: 200, text: async () => JSON.stringify([{ exists: !b.numbers[0].endsWith('32210003'), jid: b.numbers[0] + '@s.whatsapp.net' }]) }; env.push(b); return { ok: true, status: 200, text: async () => '{"key":{"id":"m' + env.length + '"}}' }; };
     try {
       assert.strictEqual((await B.tick(seg('10:00'))).motivo, 'desligada');
       setSetting('bianca_auto', '1'); delete process.env.EVOLUTION_URL; assert.strictEqual((await B.tick(seg('10:00'))).motivo, 'whatsapp');
       process.env.EVOLUTION_URL = 'https://evo.teste'; process.env.EVOLUTION_API_KEY = 'k';
+      // WhatsApp caiu: pausa (não queima empresa) e avisa uma vez; voltou: retoma
+      W.marcarQueda(); estadoWa = 'close'; assert.strictEqual((await B.tick(seg('09:00'))).motivo, 'whatsapp desconectado'); assert.ok(require('./db.js').getSetting('jade_pausa_wa'));
+      W.marcarQueda(); estadoWa = 'open'; await B.tick(seg('06:00')); assert.ok(!require('./db.js').getSetting('jade_pausa_wa'));
+      assert.ok(W.erroDeConexao(new Error('Não consegui falar com a Evolution API (fetch failed)')) && !W.erroDeConexao(Object.assign(new Error('Evolution respondeu 400: exists false'), { status: 400 })));
       setSetting('bianca_mapeou_n_2026-12-20', '9'); setSetting('bianca_mapeou_n_2026-12-21', '9');   // sem mapeamento na rede durante o teste
       assert.strictEqual((await B.tick(Date.parse('2026-12-20T10:00:00-03:00'))).motivo, 'fora do horário');   // domingo
       assert.strictEqual((await B.tick(seg('08:10'))).motivo, 'fora do horário'); assert.ok(B.naJanela(seg('09:00')) && !B.naJanela(seg('17:30')) && B.naJanela(Date.parse('2026-12-19T11:00:00-03:00')) && !B.naJanela(Date.parse('2026-12-19T12:30:00-03:00')));

@@ -326,6 +326,22 @@ async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
   ocupada = true;
   try {
     const hoje = dataStr(t0);
+    // 0) WhatsApp caiu? Pausa sem queimar empresas da lista; quando voltar, devolve à fila as que falharam por queda
+    const cx = await W.conectado(t0);
+    if (!cx.ok) {
+      if (!getSetting('jade_pausa_wa')) {
+        setSetting('jade_pausa_wa', String(t0));
+        P.registrar('prospectora', 'Pausei: o WhatsApp desconectou', 'Parei as abordagens para não perder empresas da lista. Reconecte em WhatsApp → Conexão (ler o QR Code) que eu volto sozinha de onde parei.', { estado: cx.estado }, t0);
+        try { require('./notificacoes.js').notificar({ tipo: 'alta', titulo: '📵 WhatsApp desconectado', texto: 'A Jade pausou as abordagens. Reconecte lendo o QR Code em WhatsApp → Conexão.', url: '/#wa', chave: 'wa_caiu' }).catch(() => {}); } catch (e) { /* opcional */ }
+      }
+      return { enviado: false, motivo: 'whatsapp desconectado' };
+    }
+    if (getSetting('jade_pausa_wa')) {
+      setSetting('jade_pausa_wa', '');
+      const l = P.listaDeHoje(t0); let volta = 0;
+      if (l) { l.itens.forEach(i => { if (i.pulado === 'erro no envio') { delete i.pulado; volta++; } }); db.prepare('UPDATE agentes_log SET dados = ? WHERE id = ?').run(JSON.stringify({ dia: l.dia, itens: l.itens }), l.id); }
+      P.registrar('prospectora', 'Voltei: WhatsApp conectado', volta ? `${volta} empresa(s) que falharam pela queda voltaram para a fila de hoje.` : 'Retomando as abordagens.', {}, t0);
+    }
     // 1) Mapeamento: uma vez por dia (e de novo se o estoque de empresas com celular estiver baixo), a partir das 7h
     if (local(t0).getUTCHours() >= 7 && estoque() < meta() * 2 && Number(getSetting('bianca_mapeou_n_' + hoje) || 0) < 3 && t0 - Number(getSetting('bianca_mapeou_em') || 0) > 20 * 60e3) {
       setSetting('bianca_mapeou_em', String(t0)); setSetting('bianca_mapeou_n_' + hoje, String(Number(getSetting('bianca_mapeou_n_' + hoje) || 0) + 1));
@@ -336,10 +352,13 @@ async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
     if (enviadosHoje(t0) >= meta() * 2) return { enviado: false, motivo: 'limite do dia' };
     // 2) Próximo da lista de hoje (retornos primeiro, depois as empresas novas de maior oportunidade)
     let lista = P.listaDeHoje(t0) || P.montarLista(t0);
-    let item = lista.itens.find(i => !i.feito && !i.pulado && (i.tipo === 'retorno' || novosHoje(t0) < meta()));
+    // Só aborda empresa que está ABERTA agora (horário do Google); fechada fica para mais tarde, sem perder a vez
+    const aberta = i => { const pr = db.prepare('SELECT horarios FROM prospects WHERE id = ?').get(i.id); const h = pr && horariosDe(pr.horarios); const a = h && abertaAgora(h, t0); return !a || a.aberta; };
+    const escolhe = l => { const c = l.itens.filter(i => !i.feito && !i.pulado && (i.tipo === 'retorno' || novosHoje(t0) < meta())); return c.find(aberta) || null; };
+    let item = escolhe(lista);
     if (!item && novosHoje(t0) < meta() && Number(getSetting('bianca_remontou_' + hoje) || 0) < 4) {   // lista acabou antes da meta: monta de novo com o que foi mapeado
       setSetting('bianca_remontou_' + hoje, String(Number(getSetting('bianca_remontou_' + hoje) || 0) + 1));
-      lista = P.montarLista(t0); item = lista.itens.find(i => !i.feito && !i.pulado && (i.tipo === 'retorno' || novosHoje(t0) < meta()));
+      lista = P.montarLista(t0); item = escolhe(lista);
     }
     if (!item) return { enviado: false, motivo: 'lista vazia' };
     const marcar = campos => { const l = P.listaDeHoje(t0); if (l) { l.itens.forEach(i => { if (i.id === item.id) Object.assign(i, campos); }); db.prepare('UPDATE agentes_log SET dados = ? WHERE id = ?').run(JSON.stringify({ dia: l.dia, itens: l.itens }), l.id); } };
@@ -357,6 +376,11 @@ async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
     try { await W.enviarNumero(num, msg, 'bianca', Math.min(7000, 1500 + msg.length * 20)); }
     catch (e) {
       if (e.limite) { setSetting('bianca_prox', String(t0 + 3 * 3600e3)); return { enviado: false, motivo: 'limite do whatsapp' }; }
+      if (W.erroDeConexao(e)) {   // queda: a empresa continua na fila; tenta de novo em 10 min (e pausa se a conexão caiu de vez)
+        W.marcarQueda(); setSetting('bianca_prox', String(t0 + 10 * 60e3));
+        if (t0 - Number(getSetting('jade_erro_conexao_em') || 0) > 3600e3) { setSetting('jade_erro_conexao_em', String(t0)); P.registrar('prospectora', 'Falha de conexão no envio', `Não consegui enviar para ${p.nome}: ${String(e.message).slice(0, 200)}. Ela continua na fila; tento de novo em 10 minutos.`, { id: p.id }, t0); }
+        return { enviado: false, motivo: 'conexão' };
+      }
       marcar({ pulado: 'erro no envio' }); P.registrar('prospectora', `Falhou: ${p.nome}`, String(e.message).slice(0, 300), { id: p.id }, t0);
       setSetting('bianca_prox', String(t0 + 10 * 60e3)); return { enviado: false, motivo: 'erro' };
     }
@@ -370,7 +394,7 @@ async function tick(t0 = Date.now(), { sorteio = Math.random } = {}) {
 
 function painel(t0 = Date.now()) {
   const W = require('./whatsapp.js'), prox = Number(getSetting('bianca_prox') || 0), ini = Math.floor((t0 - FUSO) / DIA) * DIA + FUSO;
-  return { ligada: ligada(), meta: meta(), whatsapp: W.configurado(), enviados_hoje: enviadosHoje(t0), novos_hoje: novosHoje(t0), estoque: estoque(), na_janela: naJanela(t0),
+  return { pausa_wa: !!getSetting('jade_pausa_wa'), ligada: ligada(), meta: meta(), whatsapp: W.configurado(), enviados_hoje: enviadosHoje(t0), novos_hoje: novosHoje(t0), estoque: estoque(), na_janela: naJanela(t0),
     proximo: ligada() && naJanela(t0) && prox > t0 ? new Date(prox - FUSO).toISOString().slice(11, 16) : '',
     respostas_hoje: n("SELECT COUNT(*) AS n FROM prospect_hist WHERE tipo = 'whatsapp' AND texto LIKE 'Respondeu no WhatsApp:%' AND criado_em >= ?", new Date(ini).toISOString().replace('T', ' ').slice(0, 19)),
     mapeadas_hoje: db.prepare("SELECT COALESCE(SUM(json_extract(dados, '$.novos')), 0) AS n FROM agentes_log WHERE agente = 'prospectora' AND titulo LIKE 'Mapeamento:%' AND criado_em >= ?").get(ini).n,

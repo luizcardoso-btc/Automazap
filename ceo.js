@@ -28,6 +28,7 @@ function pendencias(t0 = Date.now()) {
       add('ab_' + t.b_id, `Escolher a vencedora do teste A/B "${t.a_nome}"`, 'aprovar', 'Funil', "nav('flows')");
   } catch (e) { /* sem A/B */ }
   // ---- fazer ----
+  try { const W = require('./whatsapp.js'), cx = W.conexaoCache(); if (W.configurado() && cx.ok === false) add('wa_conexao', 'Reconectar o WhatsApp (ler o QR Code em WhatsApp → Conexão): a Jade e a Bianca estão paradas', 'fazer', 'Sistema', "WT='conexao';nav('wa')"); } catch (e) { /* sem WhatsApp */ }
   if (getSetting('ig_conexao_erro')) add('ig_token', 'Trocar o token do Instagram no Railway (o robô está parado)', 'fazer', 'Sistema', "nav('ig')");
   const esperando = n("SELECT COUNT(*) AS n FROM contacts WHERE channel = 'instagram' AND needs_human = 1");
   if (esperando) add('ig_humano', `Responder ${esperando} pessoa(s) esperando atendente no Instagram`, 'fazer', 'Atendimento', "irChats('humano')");
