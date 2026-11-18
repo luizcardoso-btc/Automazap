@@ -47,7 +47,7 @@ function mapa(dias = 90, t0 = Date.now()) {
   }
   // a Bianca responde pela conversa (código) ou por uma resposta do treino
   const PELA_CONVERSA = ['preco', 'caro', 'como_funciona', 'revenda', 'personalizar', 'minimo'];
-  for (const x of temas) x.bianca = PELA_CONVERSA.includes(x.id) || !!(B && x.exemplos.some(e => B.faqDe(e)));
+  for (const x of temas) x.bianca = PELA_CONVERSA.includes(x.id) || !!(B && x.exemplos.some(e => B.faqDe(e, null)));
   return { dias, mensagens: msgs.length, consideradas, temas: temas.filter(x => x.n).sort((a, b) => b.n - a.n), frases: [...frases.values()].filter(f => f.n >= 2).sort((a, b) => b.n - a.n).slice(0, 20) };
 }
 

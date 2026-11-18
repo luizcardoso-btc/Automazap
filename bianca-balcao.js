@@ -97,12 +97,27 @@ if (!getSetting('bianca_faq_v4')) {
     .run('Pode sim! 🙂\n\n• *Aqui em Feira de Santana*: o Luiz leva a placa até você *já configurada* e mostra funcionando. Você *só paga na hora*, depois de ver.\n• *Para revenda*: dá pra começar com o pedido mínimo de *5 placas* e testar na sua cidade antes de pedir mais.');
   setSetting('bianca_faq_v4', new Date().toISOString());
 }
+// Canal da resposta: 'todos' (Sofia e Bianca), 'instagram' (só a Sofia) ou 'whatsapp' (só a Bianca)
+if (!db.prepare('PRAGMA table_info(bianca_faq)').all().some(c => c.name === 'canal')) db.exec("ALTER TABLE bianca_faq ADD COLUMN canal TEXT NOT NULL DEFAULT 'todos'");
+const FAQ_V5 = [
+  ['como faco para encomendar, como faco pra encomendar, como encomendo, como encomendar, quero encomendar, fazer uma encomenda, como faco o pedido, como faco um pedido, como faco meu pedido, como faz o pedido, como faz pra pedir, como faco para pedir',
+    'É bem simples! 😊 Você escolhe os modelos das placas, faz o pedido pelo nosso site e acompanha tudo pelo seu painel, até a entrega.\n\nPara eu te mandar o caminho certo: as placas são para REVENDER ou para usar no seu NEGÓCIO?', 'instagram'],
+  ['como faco para encomendar, como faco pra encomendar, como encomendo, como encomendar, quero encomendar, fazer uma encomenda, como faco o pedido, como faco um pedido, como faco meu pedido, como faz o pedido, como faz pra pedir, como faco para pedir',
+    'É bem simples! Eu mesma monto o seu pedido aqui pelo WhatsApp: você escolhe os modelos das placas, me passa os dados da sua empresa e a gente produz e entrega.', 'whatsapp'],
+  ['personalizar, personalizada, personalizadas, personalizado, personalizacao, posso personalizar, com a minha logo, com minha logo, com logo, minha logomarca, com a minha marca',
+    'Pode sim! 🎨 Fazemos placas com a sua logo e as cores da sua marca, a partir de 50 unidades.\n\nTambém temos os modelos prontos (Google, Instagram, WhatsApp e Pix), que podem ser pedidos em quantidades menores.\n\nQuantas placas você está pensando em fazer?', 'instagram'],
+];
+if (!getSetting('bianca_faq_v5')) {
+  const ins = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, canal, criado_em) VALUES (?, ?, 0, ?, ?)');
+  for (const [p, r, c] of FAQ_V5) ins.run(p, r, c, Date.now());
+  setSetting('bianca_faq_v5', new Date().toISOString());
+}
 const palavrasDe = p => String(p || '').split(/[,;\n]+/).map(x => x.trim()).filter(x => x.length >= 2);
 function linkPainel() { let base = ''; try { base = new URL(getSetting('site_url') || '').origin; } catch (e) { /* sem site */ } return base ? base + '/revendedor/?tab=login' : ''; }
-function faqDe(texto) {
+function faqDe(texto, canal = 'whatsapp') {
   const t = sem(texto).replace(/[^\w ]/g, ' ').replace(/\s+/g, ' ');
   let melhor = null, tam = 0;
-  for (const f of db.prepare('SELECT * FROM bianca_faq WHERE ativo = 1').all())
+  for (const f of db.prepare("SELECT * FROM bianca_faq WHERE ativo = 1 AND (? IS NULL OR canal IN ('todos', ?))").all(canal, canal))
     for (const k of palavrasDe(f.palavras)) { const kk = sem(k).replace(/[^\w ]/g, ' ').replace(/\s+/g, ' ').trim(); if (kk && (' ' + t + ' ').includes(' ' + kk + ' ') && kk.length > tam) { melhor = f; tam = kk.length; } }
   return melhor;
 }
@@ -112,8 +127,9 @@ function faqSalvar(b) {
   if (!palavras) throw new Error('Informe pelo menos uma palavra ou frase que o cliente escreve.');
   if (resposta.length < 5 || resposta.length > 1500) throw new Error('A resposta precisa ter entre 5 e 1500 caracteres.');
   const avisar = b.avisar ? 1 : 0, ativo = b.ativo === false || b.ativo === 0 ? 0 : 1;
-  if (b.id) db.prepare('UPDATE bianca_faq SET palavras = ?, resposta = ?, avisar = ?, ativo = ? WHERE id = ?').run(palavras, resposta, avisar, ativo, b.id);
-  else b.id = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, ativo, criado_em) VALUES (?, ?, ?, ?, ?)').run(palavras, resposta, avisar, ativo, Date.now()).lastInsertRowid;
+  const canal = ['todos', 'instagram', 'whatsapp'].includes(b.canal) ? b.canal : null;
+  if (b.id) db.prepare('UPDATE bianca_faq SET palavras = ?, resposta = ?, avisar = ?, ativo = ?, canal = COALESCE(?, canal) WHERE id = ?').run(palavras, resposta, avisar, ativo, canal, b.id);
+  else b.id = db.prepare('INSERT INTO bianca_faq (palavras, resposta, avisar, ativo, canal, criado_em) VALUES (?, ?, ?, ?, ?, ?)').run(palavras, resposta, avisar, ativo, canal || 'todos', Date.now()).lastInsertRowid;
   if (b.pergunta_id) db.prepare('DELETE FROM bianca_perguntas WHERE id = ?').run(b.pergunta_id);   // ensinou: sai da lista
   return db.prepare('SELECT * FROM bianca_faq WHERE id = ?').get(b.id);
 }

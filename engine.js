@@ -473,7 +473,7 @@ async function processarMensagem0(ev, sender, chegou = agora(), rajada = false) 
   // A Sofia aprende com a Bianca: dúvida que nenhum fluxo cobre, mas que está no Treino da Bianca, recebe a mesma resposta
   if (!ev.payload && ev.texto) {
     try {
-      const B = require('./bianca-balcao.js'), f = B.faqDe(ev.texto);
+      const B = require('./bianca-balcao.js'), f = B.faqDe(ev.texto, 'instagram');
       if (f && !f.avisar) {
         const txt = String(f.resposta).replace(/\{painel\}/g, (() => { try { return new URL(getSetting('site_url') || '').origin + '/revendedor/'; } catch (e) { return 'o painel do revendedor'; } })());
         if (!db.prepare("SELECT 1 FROM messages WHERE contact_id = ? AND direction = 'out' AND text = ? AND created_at > ?").get(contato.id, txt, agora() - 30 * 60e3)) {

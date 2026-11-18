@@ -840,6 +840,37 @@ function comentarioABv7() {
   return 1;
 }
 
+// Sofia: frases que ela não entendia viram palavras-chave dos fluxos certos (treino de 18/11). Uma vez só.
+const TREINO_V8 = [
+  ['Revender: quantas placas?', ['e para revendar', 'e para revender', 'para revendar', 'vender', 'queria vender para ganhar um dinheiro', 'quero vender', 'ganhar um dinheiro', 'renda extra']],
+  ['Meu negócio: ver modelos', ['negocio', 'para eu mesmo utilizar', 'para eu mesmo usar', 'eu mesmo utilizar', 'para uso proprio', 'uso proprio', 'para mim mesmo', 'para minha empresa']],
+  [NOME_ENTRADA_V5, ['bom dia', 'boa tarde', 'boa noite']],
+];
+const IGNORAR_V8 = ['estou agora on line no whatsapp', 'estou on line no whatsapp'];
+function treinoSofiaV8() {
+  if (getSetting('treino_sofia_v8') === '1') return 0;
+  const { normalizar } = require('./engine.js');
+  db.transaction(() => {
+    for (const [nome, frases] of TREINO_V8) {
+      for (const f of db.prepare("SELECT id, keywords FROM flows WHERE name = ? AND kind = 'normal'").all(nome)) {   // inclui a variante B, se houver
+        const kws = JSON.parse(f.keywords || '[]');
+        for (const x of frases) { const k = normalizar(x); if (k && !kws.includes(k)) kws.push(k); }
+        db.prepare('UPDATE flows SET keywords = ? WHERE id = ?').run(JSON.stringify(kws), f.id);
+        for (const x of frases) db.prepare("UPDATE nao_entendidas SET status = 'ensinada', flow_id = ? WHERE status = 'nova' AND chave = ?").run(f.id, normalizar(x));
+      }
+    }
+    // dúvidas que agora vão para o banco de texto (encomendar, personalizar) e a resposta automática de outra empresa
+    try {
+      for (const r of db.prepare("SELECT id, chave FROM nao_entendidas WHERE status = 'nova'").all()) {
+        if (/encomend|personaliz/.test(r.chave)) db.prepare("UPDATE nao_entendidas SET status = 'ensinada' WHERE id = ?").run(r.id);
+        else if (IGNORAR_V8.some(x => r.chave.includes(x))) db.prepare("UPDATE nao_entendidas SET status = 'ignorada' WHERE id = ?").run(r.id);
+      }
+    } catch (e) { /* sem tabela */ }
+  })();
+  setSetting('treino_sofia_v8', '1');
+  return 1;
+}
+
 // Atendente do Prédio: quando o robô não entende, mostra um menu com botões em vez da resposta padrão
 function criarMenuNaoEntendi() {
   const id = nome => (db.prepare('SELECT id FROM flows WHERE name = ? AND funil_id = ? ORDER BY id DESC LIMIT 1').get(nome, FUNIL) || {}).id;
@@ -860,8 +891,8 @@ function atualizarAtendenteV5() {
 }
 
 function semear() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); entradaABv6(); comentarioABv7(); atualizarAtendenteV5(); return false; }
+  if (db.prepare('SELECT COUNT(*) AS n FROM flows').get().n > 0) { instalarFollowupsEtapas(); atualizarTextosV5(); atualizarPalavrasV5(); atualizarPausaV5(); atualizarBlackV5(); ofertaSemPrecoV5(); entradaABv6(); comentarioABv7(); treinoSofiaV8(); atualizarAtendenteV5(); return false; }
   return instalarV2({ desativarAntigos: false });
 }
 
-module.exports = { comentarioABv7, entradaABv6, ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
+module.exports = { treinoSofiaV8, comentarioABv7, entradaABv6, ofertaSemPrecoV5, atualizarAtendenteV5, atualizarBlackV5, atualizarTextosV5, atualizarPalavrasV5, atualizarPausaV5, semear, instalarV2, instalarV3, instalarV4, instalarV5, instalarFollowupsEtapas, NOME_ENTRADA, NOME_ENTRADA_V3, NOME_ENTRADA_V4, NOME_ENTRADA_V5 };
