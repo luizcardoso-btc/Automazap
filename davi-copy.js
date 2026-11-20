@@ -296,4 +296,82 @@ function ranking(cer = cerebro()) {
   };
 }
 
-module.exports = { DNA, FW, FAMILIAS, TEMAS, temaDe, escrever, revisar, roteiro, reescrever, resultado, treinar, ranking, cerebro };
+// ======================= Prompts para o Buzzy (vídeo com IA) =======================
+// Um comando-mestre para o "Modo agente" e um prompt por cena (um plano de 3 a 8 s cada). As cenas vão em inglês, porque os
+// modelos de vídeo (Seedance, Veo, Kling) seguem melhor; a fala fica em português do Brasil, entre aspas.
+// Texto na tela NÃO vai para a IA (ela escreve errado): entra depois, na edição, com o texto curto de cada cena.
+const PLACA_EN = 'a small rectangular tabletop acrylic stand (about 10 x 15 cm), glossy black with a lime-green (#C6F432) accent line, a small contactless/NFC wave icon and a blank white square reserved for a QR code (do not draw a real QR code, no brand logos)';
+const APRESENTADOR_EN = 'the same presenter in every shot: a friendly Brazilian small-business owner in his 30s, short dark hair, light stubble, plain black polo shirt';
+const VIS_EN = {
+  'Close no rosto, falando direto para a câmera': 'medium close-up of the presenter talking straight to the camera, slight handheld movement, shallow depth of field',
+  'Cliente pagando e indo embora sem avaliar': 'a customer pays at a small shop counter with a card machine, smiles and walks out the door without looking back',
+  'Mão aproximando o celular da placa no balcão': 'extreme close-up of a hand bringing a smartphone close to the acrylic stand on the counter until it almost touches',
+  'Tela do Google abrindo e cinco estrelas marcadas': 'close-up of a smartphone screen showing a generic review page opening and a finger tapping five stars (no real brand interface)',
+  'Placa em destaque com a palavra-chave na tela': 'hero shot of the acrylic stand on a dark counter, soft lime-green rim light, slow push-in, clean empty space above it for text added later',
+  'Falando para a câmera com a placa na mão': 'medium shot of the presenter holding the acrylic stand at chest height, talking to the camera',
+  'Celular com NFC aproximando da placa': 'close-up of a modern smartphone tapping the acrylic stand, a subtle glow where it touches',
+  'Celular sem NFC lendo o QR Code': 'close-up of an older smartphone pointing its camera at the stand from a hand-span away, camera viewfinder framing the blank square',
+  'As duas telas abrindo a mesma avaliação': 'split composition: two smartphones side by side, both screens opening the same generic five-star review page',
+  'Placa esquecida na parede': 'the acrylic stand forgotten high on a wall in a corner of a shop, slightly dusty, customers passing without noticing',
+  'Placa ao lado da maquininha do caixa': 'the acrylic stand right next to a card payment machine at the cashier counter, a customer paying in soft focus',
+  'Placa na mesa do restaurante': 'the acrylic stand on a cozy restaurant table next to a plate of food, warm ambient light',
+  'Placa no balcão da recepção': 'the acrylic stand on the clean reception counter of a small clinic, receptionist smiling in soft focus',
+  'Cliente aproximando o celular, palavra-chave na tela': 'a happy customer taps her smartphone on the acrylic stand at the counter, slow motion, clean space at the top for text added later',
+  'Falando para a câmera, tom de conversa franca': 'medium close-up of the presenter leaning slightly toward the camera, serious and honest expression, talking',
+  'Pessoa abrindo a câmera e tentando focar no QR': 'a customer struggling to open the phone camera and focus on a printed QR code, mildly impatient expression',
+  'Pessoa só aproximando o celular da NexTap': 'the same customer simply taps the phone on the acrylic stand and the page opens instantly, relieved smile',
+  'Tela de avaliação aberta': 'close-up of a smartphone screen showing a generic five-star review page already open',
+  'Falando para a câmera na frente do comércio': 'medium shot of the presenter on the sidewalk in front of his small shop, talking to the camera, street life behind',
+  'Rua de comércio com outra loja abrindo': 'a Brazilian neighborhood commercial street, a new competing shop opening across the street with balloons at the door',
+  'Pessoa escolhendo restaurante pelas estrelas no celular': 'over-the-shoulder shot of a person on the street scrolling restaurant ratings with stars on a smartphone, then choosing one',
+  'Cliente aproximando o celular da placa': 'a customer taps a smartphone on the acrylic stand at the counter, smiling',
+  'Caixa chegando no balcão': 'a small cardboard delivery box placed on a shop counter',
+  'Placa saindo da caixa': 'hands opening the box and taking out the acrylic stand, close-up',
+  'Placa colocada ao lado do caixa': 'hands placing the acrylic stand next to the cash register, satisfied nod',
+  'Cliente aproximando e avaliando': 'a customer taps the phone on the stand and taps five stars on the screen, smiling',
+  'Falando para a câmera, placas na mão': 'medium shot of the presenter holding several acrylic stands fanned out in his hands, talking to the camera',
+  'Rua de comércio com várias lojas': 'wide shot of a busy Brazilian neighborhood commercial street with barbershop, restaurant and small shops',
+  'Demonstração para o dono de uma barbearia': 'the presenter shows the acrylic stand to a barbershop owner and taps a phone on it to demonstrate',
+  'Dono sorrindo vendo a avaliação abrir': 'close-up of the barbershop owner smiling and nodding as the review page opens on the phone',
+  'Placas em destaque com a palavra-chave na tela': 'several acrylic stands lined up on a dark counter, lime-green rim light, slow dolly, clean space at the top for text added later',
+  'Placa na mão, fundo escuro': 'a hand holding the acrylic stand against a dark background with a soft lime-green glow',
+  'Placa funcionando no celular': 'a smartphone taps the stand and a review page opens on the screen',
+  'Condição na tela': 'the acrylic stand on a dark counter with empty space for text added later, subtle light sweep',
+  'Palavra-chave na tela': 'the acrylic stand centered on a dark background, slow push-in, empty space for text added later',
+};
+const CAMERA = { Gancho: 'punchy opening, quick push-in in the first second', Chamada: 'steady final shot, hold for a beat at the end' };
+function promptsBuzzy(r) {
+  const fala = c => c.fala.replace(/"/g, "'");
+  const cenas = r.cenas.map((c, i) => {
+    const seg = c.tempo.split('–').map(x => parseInt(x, 10)), dur = Math.max(3, Math.min(8, (seg[1] - seg[0]) || 3));
+    const quem = /presenter/.test(VIS_EN[c.acao] || '') ? ' The presenter says, in Brazilian Portuguese, with natural lip sync:' : ' Voice-over in Brazilian Portuguese (male, warm, confident):';
+    const vis = VIS_EN[c.acao] || c.acao, cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+    const prompt = `Vertical 9:16 video, ${dur} seconds, realistic commercial footage of a small local business in Brazil. ${cap(vis)}. `
+      + `${/stand|placa/i.test(vis) ? 'The acrylic stand is ' + PLACA_EN + '. ' : ''}${/presenter/.test(vis) ? cap(APRESENTADOR_EN) + '. ' : ''}`
+      + `Camera: ${CAMERA[c.papel] || 'smooth handheld, natural movement'}. Lighting: soft natural daylight, slightly dark and moody palette with lime-green accents.`
+      + `${quem} "${fala(c)}" No on-screen text, no subtitles, no logos, no watermarks.`;
+    return { n: i + 1, tempo: c.tempo, papel: c.papel, duracao_s: dur, prompt, texto_tela: c.tela };
+  });
+  const mestre = [
+    `Crie um Reels vertical 9:16 de ${r.duracao_s} segundos para a NexTap, marca brasileira de placas de acrílico com NFC e QR Code que fazem o cliente avaliar a empresa no Google com um toque.`,
+    '',
+    `Objetivo: fazer donos de pequenos negócios comentarem "${r.cta.replace(/^Comente /, '')}". Estrutura: ${r.fw_nome}.`,
+    `Estilo: filmagem publicitária realista de comércio local brasileiro, luz natural suave, paleta escura com detalhes em verde-limão (#C6F432), cortes rápidos, ritmo de Reels.`,
+    `Produto (igual em todas as cenas): placa de acrílico preta, pequena, de mesa, com detalhe verde-limão, ícone de aproximação (NFC) e um quadrado branco reservado para o QR Code. Não desenhe QR Code de verdade nem logotipos de outras marcas.`,
+    `Apresentador (o mesmo em todas as cenas): dono de pequeno negócio brasileiro, uns 30 anos, cabelo escuro curto, barba rala, camisa polo preta lisa. Se eu enviar uma foto de referência, use o rosto dela.`,
+    `Fala e narração em português do Brasil, com sincronia labial quando o apresentador aparece. Sem texto, legenda ou marca d'água no vídeo: eu coloco o texto na edição.`,
+    `Música: instrumental moderna e discreta, baixa durante a fala.`,
+    '',
+    'Cenas:',
+    ...r.cenas.map((c, i) => `${i + 1}. [${c.tempo}] ${c.acao.replace(/,? ?(com )?(a )?palavra-chave na tela/i, ' (espaço livre para o texto, que entra na edição)')}. Fala: "${c.fala}"`),
+  ].join('\n');
+  return { mestre, cenas, dicas: [
+    'No Buzzy, use o "Modo agente" com o comando-mestre para gerar o vídeo inteiro de uma vez; ou gere cena por cena com os prompts abaixo e junte na edição.',
+    'Coloque no campo "Ref" uma foto real da placa NexTap (e, se quiser, a foto do apresentador): assim o produto sai igual em todas as cenas.',
+    'Gere primeiro só a cena 1 (o gancho). Se ficar boa, siga com as outras: economiza créditos.',
+    'O texto na tela de cada cena (coluna "Texto na tela") entra depois, no editor, porque a IA costuma escrever palavras erradas.',
+    'Confira se a placa não ganhou QR Code inventado ou logotipo de outra marca antes de publicar.',
+  ] };
+}
+
+module.exports = { promptsBuzzy, DNA, FW, FAMILIAS, TEMAS, temaDe, escrever, revisar, roteiro, reescrever, resultado, treinar, ranking, cerebro };

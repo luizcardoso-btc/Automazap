@@ -532,6 +532,13 @@ router.post('/davi/:id/reescrever', (req, res) => {
   try { let dc = {}; try { dc = dadosConteudo(Date.now()); } catch (e) { /* sem dados */ } res.json(Davi.reescrever(Number(req.params.id), dc)); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
+router.get('/davi/:id/buzzy', (req, res) => {
+  try {
+    const c = db.prepare('SELECT * FROM conteudo WHERE id = ?').get(Number(req.params.id)); if (!c) return res.status(404).json({ error: 'Vídeo não encontrado.' });
+    let dc = {}; try { dc = dadosConteudo(Date.now()); } catch (e) { /* sem dados */ }
+    res.json(Davi.promptsBuzzy(Davi.roteiro(c, dc)));
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
 router.post('/davi/:id/resultado', (req, res) => {
   try { Davi.resultado(Number(req.params.id), req.body || {}); res.json({ ok: true }); } catch (e) { res.status(400).json({ error: e.message }); }
 });
