@@ -202,16 +202,10 @@ const GANCHOS = {
   'Prova social': ['Olha o que aconteceu neste balcão:', 'Mais uma empresa da região usando isto:'],
   'Revenda e lucro': ['Faça esta conta comigo:', 'Renda extra com uma placa de acrílico? Sim.'],
 };
-// Davi: roteiro completo de cada vídeo (3 ganchos para testar, cenas com fala e texto na tela, CTA e legenda)
-function copyVideo(c) {
-  const fala = frases(c.legenda).filter(x => !/^Comente /i.test(x)), cenas = linhasRoteiro(c.roteiro), cta = ctaDe(c.legenda);
-  const ganchos = [c.gancho, ...(GANCHOS[c.pilar] || ['Você precisa ver isto:', 'Pare de perder clientes no Google.'])].filter(Boolean).slice(0, 3);
-  return { id: c.id, dia: c.dia, formato: c.formato, pilar: c.pilar, titulo: c.titulo, status: c.status, ganchos, cta, legenda: c.legenda,
-    cenas: cenas.map((l, i) => { const m = /^([\d–-]+s):\s*(.*)$/.exec(l), acao = m ? m[2] : l, ult = i === cenas.length - 1;
-      const f = i === 0 ? c.gancho : ult ? cta + ' que eu te explico no direct.' : (fala[i - 1] || '');
-      return { tempo: m ? m[1] : `${i * 3}–${i * 3 + 3}s`, acao, fala: f || '(sem fala: só a imagem e a música)', tela: ult ? cta : curto(f || acao.replace(/^["“]|["”]$/g, ''), 6) }; }),
-    duracao_s: Math.max(9, cenas.length * 3) };
-}
+// Davi: roteiro completo de cada vídeo, escrito pelo cérebro de copy dele (davi-copy.js): estrutura escolhida pelo que mais converte,
+// 3 ganchos de famílias diferentes, cenas com fala e texto na tela, uma chamada, legenda e nota de revisão.
+const Davi = require('./davi-copy.js');
+function copyVideo(c, dados) { return Davi.roteiro(c, dados || {}); }
 // ---------- Banco de pautas (a Nina escreve, a Lia transforma em comando, o CTO aprova) ----------
 const CARROSSEIS = [
   { titulo: '5 lugares para a placa', pilar: 'Como funciona', slides: [
@@ -424,7 +418,8 @@ function metricasMkt(t0 = Date.now()) {
 function marketingSemana(t0 = Date.now()) {
   const semana = semanaDe(t0), itens = db.prepare('SELECT * FROM conteudo WHERE semana = ? ORDER BY dia, id').all(semana);
   const m = ultimo('cto');
-  return { semana, videos: itens.filter(c => c.formato !== 'Carrossel').map(copyVideo), imagens: itens.filter(c => c.formato === 'Carrossel').map(c => ({ id: c.id, dia: c.dia, titulo: c.titulo, status: c.status })),
+  let dc = {}; try { dc = dadosConteudo(t0); } catch (e) { /* sem dados da NexTap */ }
+  return { semana, videos: itens.filter(c => c.formato !== 'Carrossel').map(c => copyVideo(c, dc)), imagens: itens.filter(c => c.formato === 'Carrossel').map(c => ({ id: c.id, dia: c.dia, titulo: c.titulo, status: c.status })),
     excluidas: db.prepare("SELECT id, titulo, slot FROM mkt_pecas WHERE dia = ? AND status = 'excluido'").all(dataStr(t0)), pecas: pecasDoDia(t0), social: social.painel(t0), estilo: estilo(), estilo_padrao: !String(getSetting('mkt_estilo') || '').trim(), cronograma: cronograma(), metricas: metricasMkt(t0),
     relatorio: m ? { titulo: m.titulo, texto: m.texto, em: m.criado_em } : null };
 }
@@ -517,12 +512,29 @@ function tick(t0 = Date.now()) {
   try { montarLista(t0); } catch (e) { console.error('[PRÉDIO] prospectora:', e.message); }
   try { gerarSemana(t0); } catch (e) { console.error('[PRÉDIO] conteúdo:', e.message); }
   try { turnoMarketing(t0); } catch (e) { console.error('[PRÉDIO] marketing:', e.message); }
+  try { const tr = Davi.treinar(t0); registrar('copy_video', 'Treino de ' + hoje.slice(8) + '/' + hoje.slice(5, 7), tr.texto, { avaliados: tr.avaliados }, t0); } catch (e) { console.error('[PRÉDIO] treino do Davi:', e.message); }
   try { resumo(t0); } catch (e) { console.error('[PRÉDIO] gerente:', e.message); }
   return true;
 }
 
 // ======================= ROTAS =======================
 const router = express.Router();
+// ---- Davi (copy de vídeo): cérebro, treinos, reescrever e resultado ----
+router.get('/davi', (req, res) => {
+  const treinos = db.prepare("SELECT titulo, texto, criado_em FROM agentes_log WHERE agente = 'copy_video' AND titulo LIKE 'Treino%' ORDER BY id DESC LIMIT 7").all();
+  res.json({ dna: Davi.DNA, ranking: Davi.ranking(), treinos });
+});
+router.post('/davi/treinar', (req, res) => {
+  try { const t0 = Date.now(), h = dataStr(t0), tr = Davi.treinar(t0); registrar('copy_video', 'Treino de ' + h.slice(8) + '/' + h.slice(5, 7), tr.texto, { avaliados: tr.avaliados }, t0); res.json({ ok: true, ...tr }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.post('/davi/:id/reescrever', (req, res) => {
+  try { let dc = {}; try { dc = dadosConteudo(Date.now()); } catch (e) { /* sem dados */ } res.json(Davi.reescrever(Number(req.params.id), dc)); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.post('/davi/:id/resultado', (req, res) => {
+  try { Davi.resultado(Number(req.params.id), req.body || {}); res.json({ ok: true }); } catch (e) { res.status(400).json({ error: e.message }); }
+});
 router.get('/', (req, res) => {
   const g = ultimo('gerente'), l = listaDeHoje(), sem = semanaDe(Date.now());
   const conteudo = db.prepare('SELECT status, COUNT(*) AS n FROM conteudo WHERE semana = ? GROUP BY status').all(sem);
